@@ -1,9 +1,25 @@
 import { supabase } from "@/lib/supabase";
 import type { CommandResponse, HelmRead, OwnerBootstrap } from "@/lib/wayfinder-types";
 
+function rpcErrorMessage(error: {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+}) {
+  const parts = [
+    error.message,
+    error.details && error.details !== error.message ? error.details : null,
+    error.hint ? `Hint: ${error.hint}` : null,
+    error.code ? `Code: ${error.code}` : null
+  ].filter((part): part is string => Boolean(part));
+
+  return parts.join(" · ") || "Wayfinder RPC failed.";
+}
+
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(name, args ?? {});
-  if (error) throw error;
+  if (error) throw new Error(rpcErrorMessage(error));
   return data as T;
 }
 
