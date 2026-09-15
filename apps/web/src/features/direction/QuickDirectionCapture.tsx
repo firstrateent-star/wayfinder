@@ -12,6 +12,13 @@ type PendingAttempt = {
   commandId: string;
 };
 
+function kindLabel(kind: Kind) {
+  if (kind === "action") return "Next action";
+  if (kind === "direction") return "Direction";
+  if (kind === "outcome") return "Outcome";
+  return "Quest";
+}
+
 export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSaved: () => Promise<void> }) {
   const [kind, setKind] = useState<Kind>("action");
   const [title, setTitle] = useState("");
@@ -49,17 +56,17 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
         commandId: attempt.commandId
       });
       if (created.status === "REJECTED") {
-        throw new Error(created.error_code ?? "Direction capture was rejected.");
+        throw new Error(created.error_code ?? "That could not be saved.");
       }
 
       attemptRef.current = null;
       setTitle("");
       setDescription("");
       setSupportsTargetId("");
-      setMessage(created.replayed ? "That capture was already applied; no duplicate was created." : "Direction record saved.");
+      setMessage(created.replayed ? "Already saved — no duplicate was created." : "Saved.");
       await onSaved();
     } catch (cause) {
-      setMessage(`${cause instanceof Error ? cause.message : "Capture failed."} Retry will reuse the same command identity.`);
+      setMessage(`${cause instanceof Error ? cause.message : "Save failed."} You can try again.`);
     } finally {
       setSaving(false);
     }
@@ -69,18 +76,16 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-          <Flag className="h-4 w-4" /> Direction capture
+          <Flag className="h-4 w-4" /> Set direction
         </div>
-        <CardTitle>Record what matters next</CardTitle>
-        <CardDescription>
-          Intent stays separate from reality. A new Action and its optional SUPPORTS relationship are saved atomically.
-        </CardDescription>
+        <CardTitle>What matters next?</CardTitle>
+        <CardDescription>Add something you want to move toward.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+          <div className="grid gap-4 sm:grid-cols-[150px_1fr]">
             <div className="space-y-2">
-              <label htmlFor="direction-kind" className="text-sm font-medium text-slate-300">Kind</label>
+              <label htmlFor="direction-kind" className="text-sm font-medium text-slate-300">Type</label>
               <select
                 id="direction-kind"
                 value={kind}
@@ -92,17 +97,17 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
                 }}
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-slate-100 outline-none focus:border-emerald-300/50"
               >
-                <option value="action">Action</option>
+                <option value="action">Next action</option>
                 <option value="direction">Direction</option>
                 <option value="outcome">Outcome</option>
                 <option value="quest">Quest</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="direction-title" className="text-sm font-medium text-slate-300">Title</label>
+              <label htmlFor="direction-title" className="text-sm font-medium text-slate-300">What is it?</label>
               <Input
                 id="direction-title"
-                placeholder="Practice synthesis, finish a track…"
+                placeholder="Finish a track, get stronger, launch the site…"
                 value={title}
                 onChange={(event) => {
                   setTitle(event.target.value);
@@ -113,10 +118,10 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="direction-description" className="text-sm font-medium text-slate-300">Context <span className="text-slate-600">optional</span></label>
+            <label htmlFor="direction-description" className="text-sm font-medium text-slate-300">Why does it matter? <span className="text-slate-600">optional</span></label>
             <Input
               id="direction-description"
-              placeholder="Why this matters or what it means"
+              placeholder="A short note for yourself"
               value={description}
               onChange={(event) => {
                 setDescription(event.target.value);
@@ -127,7 +132,7 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
 
           {kind === "action" && possibleTargets.length > 0 ? (
             <div className="space-y-2">
-              <label htmlFor="supports-target" className="text-sm font-medium text-slate-300">Supports <span className="text-slate-600">optional</span></label>
+              <label htmlFor="supports-target" className="text-sm font-medium text-slate-300">This helps me move toward <span className="text-slate-600">optional</span></label>
               <select
                 id="supports-target"
                 value={supportsTargetId}
@@ -137,7 +142,7 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
                 }}
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-slate-100 outline-none focus:border-emerald-300/50"
               >
-                <option value="">No relationship yet</option>
+                <option value="">Nothing specific yet</option>
                 {possibleTargets.map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
               </select>
             </div>
@@ -146,7 +151,7 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
           {message ? <p className="text-sm text-slate-400">{message}</p> : null}
           <Button type="submit" disabled={saving || !title.trim()} variant="secondary">
             <Plus className="mr-2 h-4 w-4" />
-            {saving ? "Saving…" : `Create ${kind}`}
+            {saving ? "Saving…" : `Save ${kindLabel(kind).toLowerCase()}`}
           </Button>
         </form>
       </CardContent>
