@@ -1,6 +1,6 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.7  
+**Foundation version:** 0.8  
 **Status:** Active bootstrap canon with executable Slice 1A backend  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
@@ -34,6 +34,7 @@ The RPG is a representation layer. It is not the source of truth.
 | Command API | DEPLOYED / LIVE WRITE GATE PASSED | `12-command-api.md` |
 | Slice 1A read API | DEPLOYED / READ GATE PASSED | migrations + live tests |
 | Projection reads v0 | DEPLOYED / PROJECTION READ GATE PASSED | `13-projection-reads.md` |
+| Frontend architecture v0.1 | CANDIDATE | `14-frontend-architecture.md` |
 | Character system | EXPERIMENTAL | Lab |
 | Archetypes | EXPERIMENTAL | Lab |
 | Skills/mastery | EXPERIMENTAL | Lab |
@@ -201,7 +202,7 @@ Supabase's security advisor intentionally warns that authenticated users can exe
 
 ## Current implementation gate
 
-### Status: **BACKEND SLICE 1A + HELM v0 ARE EXECUTABLE**
+### Status: **BACKEND SLICE 1A + HELM v0 ARE EXECUTABLE; THIN FRONTEND AUTHORIZED**
 
 The backend can now answer, without a frontend inventing truth:
 
@@ -213,6 +214,16 @@ The backend can now answer, without a frontend inventing truth:
 - Is there recorded evidence of movement across active Actions?
 - What does the composed Helm view currently show?
 
+Authorized next:
+
+- scaffold `apps/web/` as a thin React + TypeScript + Vite client;
+- use Tailwind CSS + shadcn/ui for presentation;
+- use `@supabase/supabase-js` for Auth and public RPC calls;
+- bootstrap owner via `wf_ensure_owner`;
+- render Helm v0;
+- add only capture flows already supported by approved commands;
+- stress-test the frontend boundary before adding new product semantics.
+
 Still not authorized by default:
 
 - Character/XP/skills persistence;
@@ -222,9 +233,37 @@ Still not authorized by default:
 - hidden dependencies on `vl_*` canonical tables;
 - treating no stored record as proof no lived event occurred.
 
+## Frontend boundary
+
+The frontend is an Experience/Application layer, not a second domain model.
+
+```text
+React UI
+   ↓
+Wayfinder RPC adapter
+   ↓
+Supabase public RPC
+   ↓
+private wf_* module
+```
+
+The UI may collect intent, render state, and perform client-side usability validation, but canonical validation remains server-owned. The frontend must not call private `wf_*` tables directly.
+
+See `docs/14-frontend-architecture.md`.
+
+## Recovery / chat handoff
+
+`PROJECT_STATE.md` at the repository root is the authoritative human-readable recovery checkpoint for continuing work in a new conversation. It summarizes the architecture, deployed backend, tests, migration lineage, current APIs, and exact next implementation sequence.
+
+When a conversation loses context, read in this order:
+
+1. `PROJECT_STATE.md`
+2. `docs/CANON.md`
+3. the current layer document, presently `docs/14-frontend-architecture.md`
+
 ## Next evidence source
 
-The next sensible layer is a **thin frontend shell over the existing Helm/command APIs**, deliberately avoiding frontend-owned domain logic. Real user interaction should then become the next source of evidence for the architecture.
+The next evidence source is real interaction through the **thin frontend shell over Helm + approved command APIs**. The frontend itself must then be Flowered and stress-tested before Wayfinder expands into Journey, Character, Navigator, or additional life domains.
 
 ## Change control
 
