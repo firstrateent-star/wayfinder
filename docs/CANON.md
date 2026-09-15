@@ -1,7 +1,7 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.8  
-**Status:** Active bootstrap canon with executable Slice 1A backend  
+**Foundation version:** 0.9  
+**Status:** Active bootstrap canon with live deployed Slice 1A + Helm v0.2  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
 Wayfinder is an evidence-grounded personal life navigation operating system. It models a person's relationship with lived reality, chosen direction, commitments, action, evidence, interpretation, and growth over time.
@@ -34,7 +34,9 @@ The RPG is a representation layer. It is not the source of truth.
 | Command API | DEPLOYED / LIVE WRITE GATE PASSED | `12-command-api.md` |
 | Slice 1A read API | DEPLOYED / READ GATE PASSED | migrations + live tests |
 | Projection reads v0 | DEPLOYED / PROJECTION READ GATE PASSED | `13-projection-reads.md` |
-| Frontend architecture v0.1 | CANDIDATE | `14-frontend-architecture.md` |
+| Frontend architecture v0.1 | CANDIDATE-STABLE / LIVE DEPLOYED | `14-frontend-architecture.md` |
+| Web client v0.1 | LIVE AUTH + HELM + FIRST WRITES PROVEN | `15-web-client-v0.1.md` |
+| Live Slice Flower | CANDIDATE-STABLE | `lab/live-slice-flower-v0.1.md` |
 | Character system | EXPERIMENTAL | Lab |
 | Archetypes | EXPERIMENTAL | Lab |
 | Skills/mastery | EXPERIMENTAL | Lab |
@@ -58,14 +60,16 @@ The RPG is a representation layer. It is not the source of truth.
 8. Important derived conclusions must expose lineage.
 9. Stateful modules own their canonical records; life domains own their factual reality.
 10. The system models the person; it is not the person.
+11. **When a person experiences a save as one indivisible act, required canonical writes should share one authoritative transaction.**
 
-## Accepted architecture through Slice 1A
+## Accepted architecture through live Slice 1A
 
 - `RecordRef` addresses logical identity; `RecordVersionRef` addresses exact historical representation.
 - Owner scope is explicit and distinct from subject.
 - Known TemporalRanges use half-open `[start,end)` semantics.
 - Canonical mutation is command-only and owner authorization is revalidated at execution.
 - Command id is retry/idempotency identity; deterministic normalized material determines conflict identity.
+- A user-facing atomic capture is not implemented as multiple independently committed client commands when partial state would contradict the user's intent.
 - Correction preserves historical versions and rejects stale non-commutative writes.
 - ModuleChange is durable change infrastructure, not lived-reality Event truth.
 - Wayfinder is a modular monolith on one Postgres/Supabase host with isolated `wf_*` namespaces.
@@ -74,8 +78,10 @@ The RPG is a representation layer. It is not the source of truth.
 - Operational change/result refs may use a plain RecordRef for intentionally unversioned records; durable evidence/derivation lineage remains version-addressed where history matters.
 - Result completeness and epistemic coverage are separate axes.
 - Fulfillment, Bearing, and Helm are projections/composed reads, not canonical truth stores.
+- Practice catalog completeness concerns stored active Practice records only and does not imply complete capture of lived practices.
+- Exact normalized Practice-name reuse is lexical (`lower(trim(name))`) rather than fuzzy/semantic identity.
 
-See ADR-016 through ADR-026.
+See ADR-016 through ADR-026 and `lab/live-slice-flower-v0.1.md`.
 
 ## Deployed database
 
@@ -114,7 +120,7 @@ Authenticated clients do not directly access canonical tables. Public typed RPCs
 
 ## Live command/write evidence
 
-Deployed commands include:
+Deployed lower-level commands include:
 
 - `wf_ensure_owner`
 - `wf_direction_create_node`
@@ -124,26 +130,44 @@ Deployed commands include:
 - `wf_practice_correct_session`
 - `wf_evidence_create_fulfillment_link`
 
-Live transactional testing proved idempotent retries, command-id conflict detection, stale correction rejection, exact correction lineage, current/stale Evidence behavior, owner isolation, direct-table denial, and atomic command/outbox behavior.
+Live-use atomic capture commands now include:
 
-See `lab/command-api-live-test-v0.1.md`.
+- `wf_practice_capture_session`
+- `wf_direction_capture_node`
+
+`wf_practice_capture_session` validates the whole requested session before it can create a new Practice, then resolves/creates the Practice and writes the versioned PracticeSession in one transaction.
+
+`wf_direction_capture_node` creates one Direction node and an optional Action SUPPORTS edge in one transaction.
+
+`wf_practice_create` now resolves an exact case/whitespace-normalized active same-name Practice to a deterministic preferred record and returns `NOOP` instead of creating another duplicate. This is not fuzzy semantic dedupe.
+
+Live transactional testing proved idempotent retries, command-id conflict detection, stale correction rejection, exact correction lineage, current/stale Evidence behavior, owner isolation, direct-table denial, atomic command/outbox behavior, atomic multi-record capture, no partial residue on validation failure, and deterministic same-name Practice reuse.
+
+See:
+
+- `lab/command-api-live-test-v0.1.md`
+- `lab/live-slice-flower-v0.1.md`
 
 ## Live read evidence
 
-Deployed base reads:
+Deployed base/current reads:
 
 - `wf_direction_current()`
 - `wf_practice_recent(from,to,limit)`
+- `wf_practice_catalog_v0()`
 - `wf_evidence_for_target(action_id,action_version,limit)`
 
-Two recursive live passes proved:
+`wf_practice_catalog_v0()` directly reads active stored Practice records. It exposes deterministic capture preference for historical exact-name duplicates while preserving every active record in the returned catalog.
+
+Recursive live passes proved:
 
 - half-open temporal boundaries;
 - owner isolation;
 - stale Evidence handling;
 - empty stored-result semantics;
 - result-limit behavior;
-- separation of `result_coverage` from `epistemic_coverage`.
+- separation of `result_coverage` from `epistemic_coverage`;
+- stored Practice catalog completeness without claiming complete lived-reality coverage.
 
 **READ GATE: PASSED**
 
@@ -151,6 +175,7 @@ See ADR-026 and:
 
 - `lab/read-api-live-test-v0.1.md`
 - `lab/read-api-live-test-v0.2-confirmation.md`
+- `lab/live-slice-flower-v0.1.md`
 
 ## Live projection reads
 
@@ -174,7 +199,16 @@ Bearing states:
 
 Bearing deliberately does not manufacture a progress percentage. It exposes exact qualifying lineage and only presents SUPPORTS targets that are current ACTIVE intentions.
 
-Helm composes Direction + Bearing + scoped Practice while preserving nested coverage/lineage semantics.
+`wf_helm_v0` is currently rule version `helm_v0.2` and composes:
+
+```text
+Direction current
+Bearing
+Practice catalog
+Recent Practice
+```
+
+The nested coverage/lineage semantics remain intact; Helm is not canonical history.
 
 **PROJECTION READ GATE: PASSED**
 
@@ -184,6 +218,7 @@ See:
 - `lab/projection-read-stress-test-v0.1.md`
 - `lab/projection-read-stress-test-v0.2.md`
 - `lab/projection-read-live-test-v0.1.md`
+- `lab/live-slice-flower-v0.1.md`
 
 ## Security posture
 
@@ -198,31 +233,47 @@ Each RPC must continue to:
 - deny anon unless explicitly justified;
 - pass cross-owner tests.
 
-Supabase's security advisor intentionally warns that authenticated users can execute these privileged RPCs. This warning is accepted only because the functions are the designed privilege boundary and are continuously stress-tested. New public RPCs must receive the same review.
+A first real browser write revealed an important deferred-trigger rule: DEFERRABLE version-head constraint triggers execute at transaction end after the outer public RPC's definer context has returned. Because private schemas correctly deny direct authenticated access, the deferred integrity trigger functions themselves must run as SECURITY DEFINER.
+
+Current deferred integrity functions:
+
+```text
+wf_direction.assert_node_head_integrity()   SECURITY DEFINER
+wf_practice.assert_session_head_integrity() SECURITY DEFINER
+```
+
+This preserves the private-schema boundary; authenticated table/schema privileges were not broadened.
+
+Supabase's security advisor intentionally warns that authenticated users can execute privileged public RPCs. This warning is accepted only because the functions are the designed privilege boundary and are continuously stress-tested. New public RPCs must receive the same review.
 
 ## Current implementation gate
 
-### Status: **BACKEND SLICE 1A + HELM v0 ARE EXECUTABLE; THIN FRONTEND AUTHORIZED**
+### Status: **LIVE SLICE 1A + HELM v0.2 + FIRST REAL WRITES PROVEN; COMPLETE LOOP BROWSER GATE IN PROGRESS**
 
-The backend can now answer, without a frontend inventing truth:
+The deployed system can now answer or record, without a frontend inventing truth:
 
 - What current Directions/Actions are recorded?
+- What active stored Practices are recorded?
 - What PracticeSessions are recorded in a declared time scope?
 - What exact Evidence bears on an Action?
 - Is that Evidence still current after correction?
 - What is the current Action Fulfillment evidence state?
 - Is there recorded evidence of movement across active Actions?
 - What does the composed Helm view currently show?
+- Can one Practice capture remain atomic across Practice + Session writes?
+- Can one Direction capture remain atomic across Node + optional SUPPORTS edge?
 
-Authorized next:
+Proven in the real browser so far:
 
-- scaffold `apps/web/` as a thin React + TypeScript + Vite client;
-- use Tailwind CSS + shadcn/ui for presentation;
-- use `@supabase/supabase-js` for Auth and public RPC calls;
-- bootstrap owner via `wf_ensure_owner`;
-- render Helm v0;
-- add only capture flows already supported by approved commands;
-- stress-test the frontend boundary before adding new product semantics.
+```text
+password auth          ✅
+owner bootstrap        ✅
+Helm load              ✅
+PracticeSession write  ✅
+Action write           ✅
+```
+
+Backend rollback/stress tests have additionally proven the new atomic capture, exact Evidence, correction → stale lineage, and Helm v0.2 behavior.
 
 Still not authorized by default:
 
@@ -249,7 +300,21 @@ private wf_* module
 
 The UI may collect intent, render state, and perform client-side usability validation, but canonical validation remains server-owned. The frontend must not call private `wf_*` tables directly.
 
-See `docs/14-frontend-architecture.md`.
+Current deployed UI includes:
+
+- Helm/Bearing/Direction/recent Practice;
+- direct Practice catalog-backed selector;
+- atomic Practice capture;
+- atomic Direction capture;
+- exact-version fulfillment Evidence attachment;
+- PracticeSession correction with history preservation;
+- retry-safe command identities;
+- explicit result vs epistemic coverage language.
+
+See:
+
+- `docs/14-frontend-architecture.md`
+- `docs/15-web-client-v0.1.md`
 
 ## Recovery / chat handoff
 
@@ -259,11 +324,35 @@ When a conversation loses context, read in this order:
 
 1. `PROJECT_STATE.md`
 2. `docs/CANON.md`
-3. the current layer document, presently `docs/14-frontend-architecture.md`
+3. `docs/14-frontend-architecture.md`
+4. `docs/15-web-client-v0.1.md`
+5. `lab/live-slice-flower-v0.1.md`
 
 ## Next evidence source
 
-The next evidence source is real interaction through the **thin frontend shell over Helm + approved command APIs**. The frontend itself must then be Flowered and stress-tested before Wayfinder expands into Journey, Character, Navigator, or additional life domains.
+The next evidence source is the complete loop through the deployed browser:
+
+```text
+atomic PracticeSession capture
+↓
+atomic Action capture
+↓
+attach exact Evidence
+↓
+observe Bearing current movement
+↓
+correct PracticeSession
+↓
+observe old Evidence become stale
+↓
+attach corrected exact version
+↓
+observe Bearing return to current recorded movement
+↓
+Flower again
+```
+
+Journey, Character, Navigator, and broader life domains should not materially depend on this layer until that browser loop survives real interaction.
 
 ## Change control
 
