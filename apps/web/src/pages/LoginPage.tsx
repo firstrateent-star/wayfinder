@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
-import { Compass, Mail } from "lucide-react";
+import { Compass, KeyRound, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,11 @@ function friendlyAuthError(message: string | null) {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("rate limit")) {
-    return "Too many sign-in emails were requested. Wait a little while, then request one fresh link and use only the newest email.";
+    return "Too many sign-in emails were requested. You can use password sign-in instead, or wait before requesting another email.";
+  }
+
+  if (normalized.includes("invalid login credentials")) {
+    return "That email and password did not match.";
   }
 
   if (
@@ -27,10 +31,13 @@ function friendlyAuthError(message: string | null) {
   return message;
 }
 
+type Status = "idle" | "signing" | "sending" | "sent";
+
 export function LoginPage() {
   const { error: callbackError } = useAuth();
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const visibleError = useMemo(
@@ -38,8 +45,26 @@ export function LoginPage() {
     [error, callbackError]
   );
 
-  async function submit(event: FormEvent) {
+  async function signInWithPassword(event: FormEvent) {
     event.preventDefault();
+    setError(null);
+    setStatus("signing");
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setStatus("idle");
+      return;
+    }
+
+    setStatus("idle");
+  }
+
+  async function sendMagicLink() {
     setError(null);
     setStatus("sending");
 
@@ -58,6 +83,8 @@ export function LoginPage() {
 
     setStatus("sent");
   }
+
+  const busy = status === "signing" || status === "sending";
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background p-6 text-foreground">
@@ -86,7 +113,7 @@ export function LoginPage() {
               Check <span className="font-medium text-slate-100">{email}</span> for your sign-in link. Use only the newest email; each link works once.
             </div>
           ) : (
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={signInWithPassword} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-slate-300">
                   Email
@@ -101,12 +128,45 @@ export function LoginPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={status === "sending"}>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium text-slate-300">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={busy || !email || !password}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                {status === "signing" ? "Signing in…" : "Sign in with password"}
+              </Button>
+
+              <div className="flex items-center gap-3 py-1 text-xs text-slate-600">
+                <div className="h-px flex-1 bg-white/10" />
+                or
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={busy || !email}
+                onClick={() => void sendMagicLink()}
+              >
                 <Mail className="mr-2 h-4 w-4" />
-                {status === "sending" ? "Sending…" : "Send sign-in link"}
+                {status === "sending" ? "Sending…" : "Email me a sign-in link"}
               </Button>
             </form>
           )}
+
           <p className="mt-5 text-xs leading-5 text-slate-500">
             Signing in establishes your private Wayfinder owner scope. The web app only uses approved RPCs; it does not write canonical tables directly.
           </p>
