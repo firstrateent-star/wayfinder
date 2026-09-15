@@ -9,8 +9,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-emerald-300 text-slate-950 hover:bg-emerald-200",
-        secondary: "bg-white/8 text-slate-100 hover:bg-white/12",
-        ghost: "text-slate-300 hover:bg-white/8 hover:text-white",
+        secondary: "bg-white/[0.08] text-slate-100 hover:bg-white/[0.12]",
+        ghost: "text-slate-300 hover:bg-white/[0.08] hover:text-white",
         destructive: "bg-rose-500/90 text-white hover:bg-rose-500"
       },
       size: {
