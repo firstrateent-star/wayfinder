@@ -156,7 +156,7 @@ export function LoginPage() {
 
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 className="w-full"
                 disabled={busy || !email}
                 onClick={() => void sendMagicLink()}
