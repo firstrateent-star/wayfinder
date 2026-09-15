@@ -123,18 +123,22 @@ export interface PracticeRead {
   returned_count: number;
   matching_record_count: number;
   result_coverage: {
-    phenomenon: string;
     scope: {
       from: string;
       to: string;
       interval_semantics: "[start,end)";
     };
     completeness: "COMPLETE" | "PARTIAL";
-    reason: string | null;
-    evaluated_at: string;
+    reason: "RESULT_LIMIT" | null;
   };
   epistemic_coverage: {
-    phenomenon: string;
+    phenomenon: "lived_practice_activity";
+    source: "wayfinder_practice_session_records";
+    scope: {
+      from: string;
+      to: string;
+      interval_semantics: "[start,end)";
+    };
     completeness: "UNKNOWN";
     reason: string;
     evaluated_at: string;
