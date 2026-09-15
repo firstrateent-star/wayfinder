@@ -1,6 +1,6 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.2  
+**Version:** 0.3  
 **Status:** CANDIDATE
 
 These are conceptual contracts. They are intentionally not yet production TypeScript or SQL.
@@ -16,6 +16,8 @@ interface RecordRef {
 ```
 
 Purpose: universal address for any Wayfinder-addressable record without implying universal storage or ownership.
+
+`namespace` and `type` are stable machine identifiers, not display labels.
 
 ## EntityRef
 
@@ -40,13 +42,15 @@ interface SourceRef {
 ```ts
 interface EpistemicState {
   completeness?: "COMPLETE" | "PARTIAL" | "UNKNOWN";
-  basis?: "OBSERVED" | "REPORTED" | "DERIVED" | "INFERRED";
+  derivation?: "DIRECT" | "DERIVED" | "INFERRED";
   dispute?: "UNDISPUTED" | "DISPUTED";
   confidence?: number;
 }
 ```
 
-These dimensions are intentionally orthogonal. Provenance remains the deeper explanation of how something is known.
+These dimensions are intentionally orthogonal. Source/channel information belongs in Provenance.
+
+If numeric confidence is used, its scale and meaning must be explicit. Omit it rather than manufacture false precision.
 
 ## Provenance
 
@@ -73,6 +77,27 @@ Wayfinder distinguishes four time axes even if individual domain contracts expos
 - recorded/ingested time
 
 Exact `TemporalScope` structures remain Candidate. Domains must not reuse one timestamp field to mean multiple axes.
+
+## Bounded coverage
+
+Reads that can imply absence or zero need bounded completeness metadata.
+
+Conceptually:
+
+```ts
+interface Coverage {
+  completeness: "COMPLETE" | "PARTIAL" | "UNKNOWN";
+  namespace?: string;
+  from?: string;
+  to?: string;
+  sourceRefs?: SourceRef[];
+  reason?: string;
+}
+```
+
+This is a read/query contract, not yet a canonical persisted object.
+
+A missing record plus `UNKNOWN` coverage must not yield a zero/none conclusion.
 
 ## DirectionNode
 
@@ -162,7 +187,26 @@ Rules:
 - a record must not count as independent evidence for itself;
 - derived evidence lineage must not become circular;
 - contradictory evidence may coexist;
-- dependent derivations must be re-evaluated when a source is superseded or retracted.
+- dependent derivations must be re-evaluated when a source is superseded or retracted;
+- multiple descendants of the same source lineage must not be naively counted as independent evidence.
+
+## Projection
+
+```ts
+interface Projection<TPayload = unknown> {
+  id: string;
+  type: string;
+  subject: RecordRef;
+  asOf: string;
+  payload: TPayload;
+  sourceRefs: RecordRef[];
+  ruleVersion: string;
+  coverage?: Coverage;
+  epistemic?: EpistemicState;
+}
+```
+
+A Projection is reconstructable. Persisted projection rows, if any, are caches/read models rather than irreplaceable lived history.
 
 ## Reflection
 
@@ -226,7 +270,7 @@ interface DomainEvent<TPayload = unknown> {
 }
 ```
 
-A DomainEvent represents something accepted by the owning domain as having occurred.
+A DomainEvent represents something accepted by the owning domain as having occurred. Canonical acceptance does not imply metaphysical certainty.
 
 ## Correction lineage
 
@@ -272,3 +316,5 @@ This is intentionally small. Measurements and reflections may be separate record
 7. `EntityRef` is reserved for continuing identity.
 8. Correction lineage must be explainable without mandating full event sourcing.
 9. Graph relations may have relation-specific structural constraints.
+10. Zero/absence claims require direct evidence or bounded coverage.
+11. Derived descendants do not automatically create independent evidence mass.
