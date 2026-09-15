@@ -43,6 +43,24 @@ export async function getHelm(input: {
   });
 }
 
+export async function captureDirectionNode(input: {
+  kind: "value" | "direction" | "outcome" | "commitment" | "quest" | "plan" | "action";
+  title: string;
+  description?: string;
+  intentState?: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+  supportsTargetId?: string | null;
+  commandId?: string;
+}): Promise<CommandResponse> {
+  return rpc<CommandResponse>("wf_direction_capture_node", {
+    p_command_id: input.commandId ?? commandId(),
+    p_kind: input.kind,
+    p_title: input.title,
+    p_description: input.description ?? null,
+    p_intent_state: input.intentState ?? "ACTIVE",
+    p_supports_target_id: input.supportsTargetId ?? null
+  });
+}
+
 export async function createDirectionNode(input: {
   kind: "value" | "direction" | "outcome" | "commitment" | "quest" | "plan" | "action";
   title: string;
@@ -82,6 +100,34 @@ export async function createPractice(input: {
     p_command_id: input.commandId ?? commandId(),
     p_name: input.name,
     p_description: input.description ?? null
+  });
+}
+
+export async function capturePracticeSession(input: {
+  practiceId?: string | null;
+  newPracticeName?: string | null;
+  newPracticeDescription?: string | null;
+  occurredFrom: string;
+  occurredTo?: string | null;
+  fromPrecision?: string;
+  toPrecision?: string | null;
+  zoneId?: string | null;
+  durationSeconds?: number | null;
+  focus?: string | null;
+  commandId?: string;
+}): Promise<CommandResponse> {
+  return rpc<CommandResponse>("wf_practice_capture_session", {
+    p_command_id: input.commandId ?? commandId(),
+    p_practice_id: input.practiceId ?? null,
+    p_new_practice_name: input.newPracticeName ?? null,
+    p_new_practice_description: input.newPracticeDescription ?? null,
+    p_occurred_from: input.occurredFrom,
+    p_occurred_to: input.occurredTo ?? null,
+    p_from_precision: input.fromPrecision ?? "INSTANT",
+    p_to_precision: input.toPrecision ?? (input.occurredTo ? "INSTANT" : null),
+    p_zone_id: input.zoneId ?? null,
+    p_duration_seconds: input.durationSeconds ?? null,
+    p_focus: input.focus ?? null
   });
 }
 
