@@ -1,14 +1,42 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Compass, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
+function friendlyAuthError(message: string | null) {
+  if (!message) return null;
+
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("rate limit")) {
+    return "Too many sign-in emails were requested. Wait a little while, then request one fresh link and use only the newest email.";
+  }
+
+  if (
+    normalized.includes("expired") ||
+    normalized.includes("invalid") ||
+    normalized.includes("otp") ||
+    normalized.includes("token")
+  ) {
+    return "That sign-in link is no longer valid. Magic links are one-time use, so request a fresh link and open only the newest email.";
+  }
+
+  return message;
+}
+
 export function LoginPage() {
+  const { error: callbackError } = useAuth();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const visibleError = useMemo(
+    () => friendlyAuthError(error ?? callbackError),
+    [error, callbackError]
+  );
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -47,9 +75,15 @@ export function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {visibleError ? (
+            <div className="mb-4 rounded-xl border border-rose-300/15 bg-rose-300/5 p-4 text-sm leading-6 text-rose-200">
+              {visibleError}
+            </div>
+          ) : null}
+
           {status === "sent" ? (
             <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/5 p-4 text-sm text-slate-300">
-              Check <span className="font-medium text-slate-100">{email}</span> for your sign-in link.
+              Check <span className="font-medium text-slate-100">{email}</span> for your sign-in link. Use only the newest email; each link works once.
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">
@@ -67,7 +101,6 @@ export function LoginPage() {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
-              {error ? <p className="text-sm text-rose-300">{error}</p> : null}
               <Button type="submit" className="w-full" disabled={status === "sending"}>
                 <Mail className="mr-2 h-4 w-4" />
                 {status === "sending" ? "Sending…" : "Send sign-in link"}
