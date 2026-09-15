@@ -1,21 +1,29 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Status:** CANDIDATE
 
 These are conceptual contracts. They are intentionally not yet production TypeScript or SQL.
 
-## EntityRef
+## RecordRef
 
 ```ts
-interface EntityRef {
-  domain: string;
+interface RecordRef {
+  namespace: string;
   type: string;
   id: string;
 }
 ```
 
-Purpose: stable cross-domain reference without universal ownership.
+Purpose: universal address for any Wayfinder-addressable record without implying universal storage or ownership.
+
+## EntityRef
+
+```ts
+interface EntityRef extends RecordRef {}
+```
+
+Semantic rule: use `EntityRef` only when the target has continuing identity. Exact compile-time narrowing may evolve before implementation.
 
 ## SourceRef
 
@@ -27,19 +35,44 @@ interface SourceRef {
 }
 ```
 
+## EpistemicState
+
+```ts
+interface EpistemicState {
+  completeness?: "COMPLETE" | "PARTIAL" | "UNKNOWN";
+  basis?: "OBSERVED" | "REPORTED" | "DERIVED" | "INFERRED";
+  dispute?: "UNDISPUTED" | "DISPUTED";
+  confidence?: number;
+}
+```
+
+These dimensions are intentionally orthogonal. Provenance remains the deeper explanation of how something is known.
+
 ## Provenance
 
 ```ts
 interface Provenance {
   source: SourceRef;
   recordedAt: string;
-  actorRef?: EntityRef;
-  certainty?: "KNOWN" | "PARTIAL" | "UNKNOWN" | "INFERRED" | "DISPUTED";
+  actorRef?: RecordRef;
+  epistemic?: EpistemicState;
   revision?: number;
-  derivedFrom?: EntityRef[];
+  derivedFrom?: RecordRef[];
   ruleVersion?: string;
+  modelVersion?: string;
 }
 ```
+
+## Temporal semantics
+
+Wayfinder distinguishes four time axes even if individual domain contracts expose only the ones they need:
+
+- occurrence time
+- validity time/range
+- planned time/range
+- recorded/ingested time
+
+Exact `TemporalScope` structures remain Candidate. Domains must not reuse one timestamp field to mean multiple axes.
 
 ## DirectionNode
 
@@ -48,6 +81,7 @@ type DirectionKind =
   | "value"
   | "direction"
   | "outcome"
+  | "commitment"
   | "quest"
   | "plan"
   | "action";
@@ -64,6 +98,8 @@ interface DirectionNode {
 }
 ```
 
+`status` remains intentionally unspecialized until each Direction kind's lifecycle is pressure-tested.
+
 ## DirectionEdge
 
 ```ts
@@ -78,21 +114,39 @@ type DirectionRelation =
 
 interface DirectionEdge {
   id: string;
-  from: EntityRef;
-  to: EntityRef;
+  from: RecordRef;
+  to: RecordRef;
   relation: DirectionRelation;
   createdAt: string;
   provenance: Provenance;
 }
 ```
 
+Direction relation types may have different graph constraints. `PART_OF` and `DEPENDS_ON` should normally be acyclic.
+
+## RelationRecord
+
+```ts
+interface RelationRecord {
+  id: string;
+  type: string;
+  from: EntityRef;
+  to: EntityRef;
+  validFrom?: string;
+  validUntil?: string;
+  provenance: Provenance;
+}
+```
+
+This is a shared semantic shape, not a requirement for one central relations table. Domains may own specialized relation persistence.
+
 ## EvidenceLink
 
 ```ts
 interface EvidenceLink {
   id: string;
-  source: EntityRef;
-  target: EntityRef;
+  source: RecordRef;
+  target: RecordRef;
   relation: "SUPPORTS" | "WEAKENS" | "CONTRADICTS" | "QUALIFIES" | "RELATES_TO";
   confidence?: number;
   reason?: string;
@@ -103,15 +157,22 @@ interface EvidenceLink {
 
 EvidenceLink expresses bearing, not absolute proof.
 
+Rules:
+
+- a record must not count as independent evidence for itself;
+- derived evidence lineage must not become circular;
+- contradictory evidence may coexist;
+- dependent derivations must be re-evaluated when a source is superseded or retracted.
+
 ## Reflection
 
 ```ts
 interface Reflection {
   id: string;
-  subject?: EntityRef;
+  subject?: RecordRef;
   body: string;
   authoredAt: string;
-  authorRef: EntityRef;
+  authorRef: RecordRef;
   provenance: Provenance;
 }
 ```
@@ -121,12 +182,12 @@ interface Reflection {
 ```ts
 interface Interpretation {
   id: string;
-  subject: EntityRef;
+  subject: RecordRef;
   body: string;
   interpretationType: "hypothesis" | "interpretation";
-  evidenceRefs: EntityRef[];
-  certainty: "PARTIAL" | "INFERRED" | "DISPUTED";
-  confidence?: number;
+  evidenceRefs: RecordRef[];
+  epistemic: EpistemicState;
+  authorRef?: RecordRef;
   modelOrRuleVersion?: string;
   createdAt: string;
   provenance: Provenance;
@@ -141,7 +202,7 @@ interface Command<TPayload = unknown> {
   type: string;
   domain: string;
   payload: TPayload;
-  requestedBy: EntityRef;
+  requestedBy: RecordRef;
   requestedAt: string;
   authorization: string;
   idempotencyKey?: string;
@@ -157,7 +218,7 @@ interface DomainEvent<TPayload = unknown> {
   id: string;
   domain: string;
   type: string;
-  subject: EntityRef;
+  subject: RecordRef;
   occurredAt: string;
   recordedAt: string;
   payload: TPayload;
@@ -166,6 +227,22 @@ interface DomainEvent<TPayload = unknown> {
 ```
 
 A DomainEvent represents something accepted by the owning domain as having occurred.
+
+## Correction lineage
+
+Exact persistence remains Candidate, but an evidence-bearing record must be able to express whether it is current, superseded, or retracted and what replaced it.
+
+Conceptually:
+
+```ts
+interface RecordLifecycle {
+  status: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+  supersededBy?: RecordRef;
+  reason?: string;
+}
+```
+
+This contract does not require full event sourcing.
 
 ## PracticeSession — pilot domain example
 
@@ -187,8 +264,11 @@ This is intentionally small. Measurements and reflections may be separate record
 ## Contract design rules
 
 1. Do not add fields only because they may be useful someday.
-2. Prefer explicit null/unknown semantics over fake defaults.
-3. Separate occurrence time from record time.
+2. Prefer explicit unknown/partial semantics over fake defaults.
+3. Separate occurrence, validity, planned, and record time when they differ.
 4. Preserve provenance at canonical boundaries.
 5. Commands request; domain events assert accepted occurrence.
-6. References cross domains; persistence ownership does not.
+6. `RecordRef` crosses boundaries; persistence ownership does not.
+7. `EntityRef` is reserved for continuing identity.
+8. Correction lineage must be explainable without mandating full event sourcing.
+9. Graph relations may have relation-specific structural constraints.
