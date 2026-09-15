@@ -1,0 +1,36 @@
+name: Wayfinder Web CI
+
+on:
+  push:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-ci.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-ci.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package.json
+      - name: Install dependencies
+        run: npm install
+      - name: Architecture boundary check
+        run: npm run check:boundaries
+      - name: TypeScript and Vite build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://ngakauhlcmvwnmimtsca.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.WAYFINDER_SUPABASE_PUBLISHABLE_KEY }}
