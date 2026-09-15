@@ -13,6 +13,49 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function clearAuthParamsFromUrl() {
+  const url = new URL(window.location.href);
+  url.hash = "";
+  url.searchParams.delete("code");
+  url.searchParams.delete("error");
+  url.searchParams.delete("error_code");
+  url.searchParams.delete("error_description");
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+}
+
+async function recoverSessionFromUrl() {
+  const url = new URL(window.location.href);
+  const hash = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
+  const accessToken = hash.get("access_token");
+  const refreshToken = hash.get("refresh_token");
+  const errorDescription = hash.get("error_description") ?? url.searchParams.get("error_description");
+
+  if (errorDescription) {
+    clearAuthParamsFromUrl();
+    throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
+  }
+
+  if (accessToken && refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+    clearAuthParamsFromUrl();
+    if (error) throw error;
+    return data.session;
+  }
+
+  const code = url.searchParams.get("code");
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    clearAuthParamsFromUrl();
+    if (error) throw error;
+    return data.session;
+  }
+
+  return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [owner, setOwner] = useState<OwnerBootstrap | null>(null);
@@ -45,18 +88,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
-      if (sessionError) {
-        setError(sessionError.message);
-        setLoading(false);
-        return;
+    async function initialize() {
+      try {
+        const callbackSession = await recoverSessionFromUrl();
+        if (callbackSession) {
+          await bootstrap(callbackSession);
+          return;
+        }
+
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        await bootstrap(data.session);
+      } catch (cause) {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "Authentication failed.");
+          setLoading(false);
+        }
       }
-      void bootstrap(data.session);
-    });
+    }
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       void bootstrap(nextSession);
     });
+
+    void initialize();
 
     return () => {
       cancelled = true;
