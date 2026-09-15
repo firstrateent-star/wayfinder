@@ -1,10 +1,10 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.1  
+**Foundation version:** 0.2  
 **Status:** Active bootstrap canon  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
-Wayfinder is an evidence-grounded personal life navigation operating system. It models a person's relationship with lived reality, chosen direction, action, evidence, interpretation, and growth over time.
+Wayfinder is an evidence-grounded personal life navigation operating system. It models a person's relationship with lived reality, chosen direction, commitments, action, evidence, interpretation, and growth over time.
 
 The RPG is a representation layer. It is not the source of truth.
 
@@ -20,13 +20,14 @@ The RPG is a representation layer. It is not the source of truth.
 | Area | Status | Canon source |
 |---|---|---|
 | Constitution | CANONICAL | `00-constitution.md` |
-| Root ontology | CANONICAL | `01-ontology.md` |
-| System architecture | CANDIDATE | `02-system-architecture.md` |
-| Object contracts | CANDIDATE | `03-object-contracts.md` |
+| Root ontology v0.2 | CANONICAL | `01-ontology.md` |
+| System architecture v0.2 | CANDIDATE | `02-system-architecture.md` |
+| Object contracts v0.2 | CANDIDATE | `03-object-contracts.md` |
 | Domain protocol | CANDIDATE | `04-domain-protocol.md` |
 | Intelligence runtime | EXPERIMENTAL | `05-intelligence-runtime.md` |
 | Build roadmap | CANDIDATE | `06-build-roadmap.md` |
-| Glossary | CANONICAL | `07-glossary.md` |
+| Glossary v0.2 | CANONICAL | `07-glossary.md` |
+| Recursive validation loop | CANDIDATE | `08-validation-loop.md` |
 | Character system | EXPERIMENTAL | Lab until evidence supports promotion |
 | Archetypes | EXPERIMENTAL | Lab |
 | Skills/mastery model | EXPERIMENTAL | Lab |
@@ -40,7 +41,7 @@ Ideas move through:
 
 `LAB → CANDIDATE → CANON`
 
-Promotion requires a written rationale, explicit trade-offs, and no violation of accepted architectural invariants.
+Promotion requires a written rationale, explicit trade-offs, no violation of accepted architectural invariants, and sufficient recursive validation for the scope of the change.
 
 ## Root definition
 
@@ -58,6 +59,27 @@ Promotion requires a written rationale, explicit trade-offs, and no violation of
 8. Important derived conclusions must expose lineage.
 9. Domains own their reality.
 10. The system models the person; it is not the person.
+
+## v0.2 ontology decisions
+
+Stress testing of v0.1 promoted the following into Canon:
+
+- `RecordRef` is the universal cross-record address; `EntityRef` is narrower.
+- `Relation` is a Reality primitive.
+- artifact-like outputs are Entity types rather than a separate root primitive.
+- `Commitment` is a Direction primitive.
+- epistemic state is multidimensional rather than a single certainty ladder.
+- corrections preserve lineage without forcing universal event sourcing.
+
+See ADR-007 through ADR-011.
+
+## Database readiness gate
+
+Wayfinder is not yet authorized to design persistence merely because the ontology exists.
+
+Before the first database schema, the ontology/contracts should survive at least two consecutive full validation passes without requiring a new root category and without leaving an unresolved contradiction that blocks the first vertical slice.
+
+See `08-validation-loop.md`.
 
 ## Change control
 
