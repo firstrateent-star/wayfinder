@@ -38,12 +38,12 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
 
     const durationMinutes = Number(minutes);
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-      setMessage("Enter a positive duration in minutes.");
+      setMessage("Enter how many minutes you spent.");
       setSaving(false);
       return;
     }
     if (!practiceId && !newPracticeName.trim()) {
-      setMessage("Choose a recorded Practice or name a new one.");
+      setMessage("Choose an activity or name a new one.");
       setSaving(false);
       return;
     }
@@ -68,7 +68,7 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
       });
 
       if (result.status === "REJECTED") {
-        throw new Error(result.error_code ?? "Practice capture was rejected.");
+        throw new Error(result.error_code ?? "That activity could not be saved.");
       }
 
       const resolvedPracticeId = result.affected_refs.find((ref) => ref.type === "practice")?.id;
@@ -77,10 +77,10 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
       attemptRef.current = null;
       setFocus("");
       setNewPracticeName("");
-      setMessage(result.replayed ? "That capture was already applied; no duplicate was created." : "Practice session recorded.");
+      setMessage(result.replayed ? "Already saved — no duplicate was created." : "Saved.");
       await onSaved();
     } catch (cause) {
-      setMessage(`${cause instanceof Error ? cause.message : "Capture failed."} Retry will reuse the same command identity.`);
+      setMessage(`${cause instanceof Error ? cause.message : "Save failed."} You can try again.`);
     } finally {
       setSaving(false);
     }
@@ -90,18 +90,16 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-300/80">
-          <Plus className="h-4 w-4" /> Capture
+          <Plus className="h-4 w-4" /> Log activity
         </div>
-        <CardTitle>Record a practice session</CardTitle>
-        <CardDescription>
-          One save now resolves the Practice and records the session atomically.
-        </CardDescription>
+        <CardTitle>What did you just do?</CardTitle>
+        <CardDescription>Add a quick record of something you spent time on.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
           {knownPractices.length > 0 ? (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300" htmlFor="practice-select">Practice</label>
+              <label className="text-sm font-medium text-slate-300" htmlFor="practice-select">Activity</label>
               <select
                 id="practice-select"
                 value={practiceId}
@@ -111,7 +109,7 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
                 }}
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-slate-100 outline-none focus:border-emerald-300/50"
               >
-                <option value="">Create a new Practice…</option>
+                <option value="">Something new…</option>
                 {knownPractices.map((practice) => (
                   <option key={practice.id} value={practice.id}>{practice.name}</option>
                 ))}
@@ -121,19 +119,16 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
 
           {!practiceId ? (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300" htmlFor="new-practice">New Practice</label>
+              <label className="text-sm font-medium text-slate-300" htmlFor="new-practice">Name it</label>
               <Input
                 id="new-practice"
-                placeholder="Music production, drawing, Spanish…"
+                placeholder="Music production, drawing, reading…"
                 value={newPracticeName}
                 onChange={(event) => {
                   setNewPracticeName(event.target.value);
                   materialChanged();
                 }}
               />
-              <p className="text-xs leading-5 text-slate-600">
-                Exact case/whitespace-equivalent names reuse an existing active Practice instead of creating a duplicate.
-              </p>
             </div>
           ) : null}
 
@@ -153,10 +148,10 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300" htmlFor="focus">Focus</label>
+              <label className="text-sm font-medium text-slate-300" htmlFor="focus">What were you working on?</label>
               <Input
                 id="focus"
-                placeholder="What did you work on?"
+                placeholder="Optional"
                 value={focus}
                 onChange={(event) => {
                   setFocus(event.target.value);
@@ -166,16 +161,10 @@ export function QuickPracticeCapture({ helm, onSaved }: { helm: HelmRead; onSave
             </div>
           </div>
 
-          {helm.practice_catalog.duplicate_active_name_group_count > 0 ? (
-            <p className="text-xs leading-5 text-amber-200/60">
-              Historical same-name Practice records from earlier testing are preserved. Capture uses one preferred record per exact normalized name.
-            </p>
-          ) : null}
-
           {message ? <p className="text-sm text-slate-400">{message}</p> : null}
           <Button type="submit" disabled={saving}>
             <Save className="mr-2 h-4 w-4" />
-            {saving ? "Recording…" : "Record session"}
+            {saving ? "Saving…" : "Save activity"}
           </Button>
         </form>
       </CardContent>
