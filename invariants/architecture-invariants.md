@@ -1,6 +1,6 @@
 # Wayfinder Architecture Invariants
 
-**Version:** 0.3
+**Version:** 0.4
 
 These begin as written constraints and should progressively become executable tests.
 
@@ -30,8 +30,10 @@ These begin as written constraints and should progressively become executable te
 
 - [ ] `RecordRef` may address any Wayfinder record; `EntityRef` is reserved for continuing identity.
 - [ ] RecordRef namespace/type identifiers are stable machine keys, not display labels.
+- [ ] A `RecordRef` stored in evidence/provenance lineage remains resolvable to the historical record/version actually consumed.
 - [ ] A dangling cross-domain reference must be detectable.
 - [ ] A factual Relation must not be silently treated as a Direction edge.
+- [ ] Direction edges connect Direction nodes only; Reality/Epistemic/Projection support of Direction uses an explicit cross-layer evidence relationship.
 - [ ] A created output may be an Entity without requiring a separate Artifact root primitive.
 
 ## Commands and authority
