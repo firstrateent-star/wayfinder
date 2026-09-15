@@ -2,32 +2,37 @@
 
 **Read this first if context is lost.**  
 **Repository:** `firstrateent-star/wayfinder`  
-**Current milestone:** executable Slice 1A backend + Helm v0 + first thin React client scaffold  
-**Current phase:** validate/deploy the web client, then use real interaction as the next Flower evidence source  
-**Canon:** see `docs/CANON.md`  
-**Frontend architecture:** see `docs/14-frontend-architecture.md`
+**Current milestone:** live deployed Slice 1A + Helm v0.2 + atomic capture + Evidence/correction controls  
+**Current phase:** browser-live validation of the complete reality → evidence → correction → projection loop  
+**Canon:** `docs/CANON.md`  
+**Frontend architecture:** `docs/14-frontend-architecture.md`  
+**Latest live-use Flower:** `lab/live-slice-flower-v0.1.md`
 
 ---
 
-## 1. Root intent
+## 1. Non-negotiable project direction
 
-Wayfinder is a personal Life OS expressed through an RPG-like experience, but the RPG is a projection/experience layer rather than the source of truth.
+Wayfinder is being rebuilt from the ground up using the newer Vlourish / Flower architecture.
+
+**Do not merge or migrate the old Wayfinder architecture into this system.** Old code may be read as research evidence only.
+
+Wayfinder is a personal Life OS expressed through an RPG-like experience, but the RPG is a projection/experience layer rather than canonical truth.
 
 Root proposition:
 
 > A person exists through time, interacts with reality, forms intentions, takes actions, receives consequences, interprets experience, and changes as a result.
 
-Core loop:
+Core law:
 
 ```text
 REALITY
-  ↓ observation
-FACTS
-  ↓ evidence
+  ↓
+EVIDENCE
+  ↓
 UNDERSTANDING
-  ↙          ↘
+ ↙          ↘
 DIRECTION   GROWTH
-   \          /
+    \       /
       ACTION
         ↓
       REALITY
@@ -36,33 +41,26 @@ DIRECTION   GROWTH
 
 Flower/Vlourish recursively challenges every layer before the next layer depends on it.
 
-## 2. Non-negotiable laws
+## 2. Canonical laws
 
-1. Reality comes before interpretation.
-2. Unknown is not zero.
-3. Planned is not happened.
-4. AI is non-authoritative over canonical reality.
+1. Reality before interpretation.
+2. Unknown ≠ zero.
+3. Planned ≠ happened.
+4. AI is never authoritative over canonical reality.
 5. Permanent growth requires evidence.
 6. Derived state is disposable/reconstructable.
-7. Human-authored meaning remains distinct from system interpretation.
+7. Human meaning stays distinct from system interpretation.
 8. Important conclusions expose lineage.
-9. Stateful modules own their canonical records; life domains own factual reality.
-10. The system models the person; it is not the person.
+9. Stateful modules own canonical records.
+10. System models the person; it is not the person.
+11. Cross-domain interaction uses explicit seams.
+12. Authority and intelligence are separate.
+13. Ontology stays smaller than life.
+14. History is preserved while interpretation evolves.
+15. Build through complete vertical slices.
+16. **One indivisible user save should map to one atomic authoritative command.**
 
-Executable consequences already proven:
-
-- authenticated clients cannot directly access private `wf_*` canonical tables;
-- application mutation is command-only;
-- command ids are retry/idempotency identities;
-- same command id + changed material is a conflict;
-- corrections create new versions and preserve old history;
-- stale evidence remains explainable but does not silently count as current;
-- known ranges use `[start,end)` semantics;
-- empty stored results do not prove lived-life absence;
-- result completeness is distinct from epistemic coverage;
-- Action fulfillment, Bearing, and Helm are projections, not canonical facts.
-
-## 3. Architecture that survived stress testing
+## 3. Architecture
 
 ```text
 8 EXPERIENCE     Helm · Character · Journey · Atlas · Navigator
@@ -75,23 +73,36 @@ Executable consequences already proven:
 1 SYSTEM         owner identity · permissions · ids · contracts
 ```
 
-Implementation starts as a modular monolith on Postgres/Supabase.
+Implementation is a modular monolith on one Postgres/Supabase host.
 
-## 4. Database host and boundary
-
-Wayfinder is colocated inside the existing **`vlourish` Supabase project**:
+AI permissions remain:
 
 ```text
+READ
+PROPOSE
+EXECUTE only through authorized command paths
+```
+
+## 4. Database host and private boundary
+
+Supabase project:
+
+```text
+name: vlourish
 project ref: ngakauhlcmvwnmimtsca
 region: us-east-1
+```
 
+Wayfinder private namespaces:
+
+```text
 wf_system
 wf_direction
 wf_practice
 wf_evidence
 ```
 
-Shared physical infrastructure does **not** imply shared canonical ownership. Do not create hidden dependencies on `vl_*` tables.
+Existing Vlourish namespaces (`vl_*`) share physical infrastructure only. There is no implicit canonical ownership relationship.
 
 Canonical tables:
 
@@ -115,9 +126,11 @@ wf_evidence
 └── links
 ```
 
+Authenticated/anon clients cannot directly use the private canonical schemas.
+
 ## 5. Public command API
 
-Authenticated writes only through:
+Lower-level approved commands:
 
 ```text
 wf_ensure_owner
@@ -129,35 +142,72 @@ wf_practice_correct_session
 wf_evidence_create_fulfillment_link
 ```
 
-Path:
+Live UI atomic commands added after first real-use Flower:
 
 ```text
-client intent
-  ↓
-typed RPC
-  ↓
-auth.uid() → owner
-  ↓
-command claim/idempotency
-  ↓
-validation + authorization
-  ↓
-owning module canonical write
-  ├── receipt
-  └── outbox change
+wf_practice_capture_session
+wf_direction_capture_node
 ```
 
-## 6. Public read/projection API
+### Atomic Practice capture
 
-Base reads:
+`wf_practice_capture_session` validates the whole intended session **before** it creates a new Practice. It then resolves/creates the Practice and writes Session + SessionVersion in the same transaction.
+
+This removed the old partial-commit shape:
+
+```text
+create Practice → commit
+then log Session → possible failure
+```
+
+### Atomic Direction capture
+
+`wf_direction_capture_node` creates the Direction node and optional Action SUPPORTS edge in one transaction.
+
+### Exact-name Practice reuse
+
+For future capture only, active Practices with the same owner and exact normalized name:
+
+```text
+lower(trim(name))
+```
+
+are treated as the same capture identity. This is lexical only, not fuzzy/AI semantic dedupe.
+
+Concurrent same-name resolve/create is serialized by a transaction-scoped advisory lock.
+
+Existing historical duplicate records are preserved until there is an explicit lifecycle/cleanup operation.
+
+## 6. Versioning / evidence laws
+
+- DirectionNode and PracticeSession are versioned.
+- Practice is intentionally unversioned in Slice 1.
+- Correction creates a new PracticeSession version.
+- Evidence uses exact version refs.
+- Evidence does not silently migrate across correction.
+- Old evidence becomes historical/stale when its source version is no longer current.
+- Action does not receive canonical `completed=true`.
+
+Evidence shape:
+
+```text
+PracticeSession@exact_version
+          ↓ SUPPORTS fulfillment
+Action@exact_version
+```
+
+## 7. Public reads / projections
+
+Base/current reads:
 
 ```text
 wf_direction_current()
 wf_practice_recent(from,to,limit)
+wf_practice_catalog_v0()
 wf_evidence_for_target(action_id,action_version,limit)
 ```
 
-Derived/composed reads:
+Derived reads:
 
 ```text
 wf_action_fulfillment_v0(action_id)
@@ -165,49 +215,145 @@ wf_bearing_v0()
 wf_helm_v0(from,to,session_limit)
 ```
 
-Fulfillment states:
+### Practice catalog
+
+`wf_practice_catalog_v0()` reads active stored Practice records directly instead of inferring known Practices from recent sessions.
+
+It exposes:
+
+- stored active Practice records;
+- active-session count;
+- duplicate exact-normalized-name group counts;
+- one deterministic `capture_preferred` record per normalized name;
+- COMPLETE result coverage for the stored catalog;
+- UNKNOWN lived-reality epistemic coverage.
+
+### Helm
+
+Current rule version:
 
 ```text
-CURRENT_EVIDENCE_PRESENT
-STALE_RECORDED_EVIDENCE_ONLY
-NO_RECORDED_EVIDENCE
+helm_v0.2
 ```
 
-Bearing states:
+Composition:
 
 ```text
-NO_ACTIVE_ACTIONS
-RECORDED_EVIDENCE_OF_MOVEMENT
-NO_RECORDED_EVIDENCE_OF_MOVEMENT
+Direction current
+Bearing v0
+Practice catalog
+Recent Practice
 ```
 
-Bearing is deliberately descriptive rather than a percentage/score. Helm composes Direction + Bearing + scoped Practice and is never persisted as irreplaceable truth.
+Helm is derived/composed and is never canonical history.
 
-## 7. Backend gates already passed
+## 8. First real browser session — proven
 
-Live Postgres tests have proven:
+Production deployment is live on Vercel.
 
-- owner bootstrap and owner isolation;
-- Direction/Outcome/Action creation + SUPPORTS edges;
-- Practice + PracticeSession creation;
-- retry idempotency and command conflict detection;
-- correction versioning and stale-write rejection;
-- Evidence exact lineage + duplicate NOOP behavior;
-- stale evidence after correction;
-- direct authenticated private-table denial;
-- `[start,end)` temporal boundaries;
-- empty result semantics;
-- result-limit coverage semantics;
-- result coverage vs lived-reality epistemic coverage;
-- Fulfillment v0;
-- Bearing v0 and active-intent filtering;
-- Helm v0 under normal authenticated execution.
+Auth sequence now works with a Supabase-created email/password user:
 
-See `lab/` for the recursive test trail and `supabase/migrations/` for executable lineage.
+```text
+password auth ✅
+Supabase session ✅
+wf_ensure_owner ✅
+first Wayfinder owner ✅
+Helm load ✅
+PracticeSession write ✅
+Action write ✅
+```
 
-## 8. Frontend decision
+Magic-link testing exposed email rate limits and redirect complexity; password auth is currently the reliable development path.
 
-First client lives at:
+## 9. Important live bug found and fixed
+
+The first real PracticeSession/Action writes failed with:
+
+```text
+permission denied for schema wf_practice
+permission denied for schema wf_direction
+SQLSTATE 42501
+```
+
+Root cause:
+
+- public RPC runs SECURITY DEFINER;
+- version-head integrity constraint triggers are DEFERRABLE INITIALLY DEFERRED;
+- deferred triggers fire at transaction end after the outer RPC's definer context returns;
+- authenticated role correctly lacks direct private-schema access;
+- trigger function therefore failed as the invoker.
+
+Fix:
+
+```text
+wf_direction.assert_node_head_integrity()  SECURITY DEFINER
+wf_practice.assert_session_head_integrity() SECURITY DEFINER
+```
+
+Migration:
+
+```text
+20260915071600_secure_deferred_version_head_triggers.sql
+```
+
+Private schema access was **not** opened to clients.
+
+## 10. Live-use Flower hardening built
+
+Migration:
+
+```text
+20260915074000_harden_live_capture_workflows.sql
+```
+
+Adds/hardens:
+
+```text
+wf_practice_capture_session
+wf_direction_capture_node
+wf_practice_catalog_v0
+wf_practice_create exact-name reuse
+wf_helm_v0 → helm_v0.2
+```
+
+Detailed reasoning and tests:
+
+```text
+lab/live-slice-flower-v0.1.md
+```
+
+## 11. Backend stress tests after hardening
+
+All destructive/live-shape tests were executed inside explicit transactions and rolled back.
+
+Passed:
+
+```text
+atomic new Practice + Session             ✅
+same command retry → same refs            ✅
+replayed=true                             ✅
+invalid occurrence → no Practice residue  ✅
+normalized duplicate create → NOOP        ✅
+atomic Direction node + SUPPORTS edge     ✅
+invalid target → no node residue          ✅
+Evidence attach → Bearing current         ✅
+Session correction → evidence stale       ✅
+stale evidence retained/explainable        ✅
+Helm v0.2                                 ✅
+Practice catalog                          ✅
+```
+
+## 12. Current live data caveat
+
+The first failed browser attempts created several active Practice rows before Session creation failed. Current stored test history includes an exact normalized-name duplicate group for Music Production plus a Drawing Practice.
+
+Do **not** silently delete these records.
+
+The new catalog marks one record `capture_preferred`, and future same-name capture reuses it. A future explicit retraction/merge workflow can clean historical duplicate display state while preserving truth.
+
+## 13. Frontend
+
+Location:
 
 ```text
 apps/web/
@@ -216,20 +362,20 @@ apps/web/
 Stack:
 
 ```text
-React 18
+React
 TypeScript
 Vite
-Tailwind CSS
+Tailwind
 shadcn-style primitives
 @supabase/supabase-js
-React Router
+react-router-dom
 ```
 
 Frontend law:
 
-> The client may present state, collect intent, call commands, and request projections. It does not establish canonical truth.
+> The client presents state, collects intent, calls commands, and requests projections. It does not establish canonical truth.
 
-The application boundary is:
+Boundary:
 
 ```text
 React
@@ -238,85 +384,53 @@ wayfinder-rpc.ts
   ↓
 supabase.rpc(...)
   ↓
-approved public Wayfinder RPC
+public Wayfinder RPC
   ↓
 private wf_* modules
 ```
 
-No feature/component should use `supabase.from(...)` for canonical Wayfinder state.
+Boundary checker rejects direct Wayfinder table/schema access from frontend source.
 
-## 9. Frontend implemented so far
-
-Current files include:
+## 14. Current frontend capabilities
 
 ```text
-apps/web/
-├── package.json
-├── vite.config.ts
-├── tailwind.config.ts
-├── components.json
-├── .env.example
-├── scripts/check-boundaries.mjs
-└── src/
-    ├── app/App.tsx
-    ├── components/ui/{button,card,input}.tsx
-    ├── features/auth/AuthProvider.tsx
-    ├── features/helm/HelmView.tsx
-    ├── features/practice/QuickPracticeCapture.tsx
-    ├── features/direction/QuickDirectionCapture.tsx
-    ├── lib/supabase.ts
-    ├── lib/wayfinder-rpc.ts
-    ├── lib/wayfinder-types.ts
-    ├── pages/LoginPage.tsx
-    ├── pages/HelmPage.tsx
-    └── main.tsx
+/login                         ✅
+password auth                  ✅
+magic-link path                present but not preferred for dev
+owner bootstrap                ✅
+/helm                          ✅
+Bearing                        ✅
+Direction current              ✅
+Practice catalog               ✅
+Recent Practice                ✅
+Atomic Practice capture        ✅ deployed
+Atomic Direction capture       ✅ deployed
+Evidence attachment UI         ✅ deployed
+Practice correction UI         ✅ deployed
+RPC detailed errors            ✅
+retry identity                 ✅
+coverage language              ✅
 ```
 
-Implemented behavior:
+Evidence UI records exact SessionVersion → ActionVersion lineage.
 
-- Supabase magic-link authentication;
-- session listener;
-- owner bootstrap through `wf_ensure_owner` using browser IANA timezone;
-- logged-out users route to `/login`;
-- authenticated/bootstrapped users route to `/helm`;
-- `wf_helm_v0` drives the screen;
-- Bearing state and Action evidence language preserve epistemic humility;
-- current Direction/Outcome/Quest records render from RPC data;
-- recent Practice renders stored-record coverage separately from lived-reality coverage;
-- Practice quick capture can create a Practice and log an exact PracticeSession;
-- Practice capture retains command ids across network retry attempts;
-- Direction capture creates Direction/Outcome/Quest/Action records;
-- Action capture may add an approved SUPPORTS edge to an active target;
-- no XP/progress/completion truth is invented client-side.
+Correction UI preserves version history and only permits duration editing for exact INSTANT→INSTANT bounded temporal records.
 
-## 10. Frontend architecture guard
+## 15. Build/deploy status
 
-`apps/web/scripts/check-boundaries.mjs` fails the build if application code attempts direct Supabase table/schema access patterns.
-
-`npm run build` runs the boundary guard before TypeScript + Vite build.
-
-GitHub Actions workflow:
+Latest hardened web build has passed:
 
 ```text
-.github/workflows/web-ci.yml
+frontend boundary check ✅
+TypeScript               ✅
+Vite build               ✅
+GitHub Actions            ✅
+Vercel deployment         ✅
 ```
 
-The first CI pass completed successfully. A second validation run was triggered after the latest frontend contract alignment; check the most recent `Wayfinder Web CI` run before claiming the frontend gate fully passed.
+## 16. What is intentionally not built yet
 
-## 11. Environment configuration
-
-Local/deployment values:
-
-```text
-VITE_SUPABASE_URL=https://ngakauhlcmvwnmimtsca.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
-```
-
-Never place service-role credentials in the browser client.
-
-## 12. What is intentionally NOT built yet
-
-Do not infer permission from the existence of the frontend to add:
+Do not jump ahead to:
 
 - Character/XP persistence;
 - universal Skills;
@@ -324,50 +438,58 @@ Do not infer permission from the existence of the frontend to add:
 - Journey canonical model;
 - Atlas/world model;
 - AI canonical writes;
-- direct private-table reads/writes;
+- direct private-table access;
 - frontend-owned progress math;
-- fake `completed=true` Actions;
-- claims that empty data means something did not happen in real life.
+- fake Action completion;
+- claims that empty data means something did not happen in life.
 
-## 13. Exact next move
+Direction/Action correction/lifecycle controls and Evidence retraction/qualification controls are also not yet exposed.
 
-If context is lost, continue in this order:
+## 17. Exact next move
+
+**Do not redesign from theory first. Use the deployed app as the next evidence source.**
+
+Browser-live gate:
 
 ```text
-1. check latest Wayfinder Web CI result
-2. fix any TypeScript/Vite/boundary failure
-3. mark frontend scaffold build gate passed
-4. configure real Supabase URL + publishable key in deployment environment
-5. deploy `apps/web` as the first preview
-6. test magic-link auth end-to-end
-7. test owner bootstrap + Helm against an actual signed-in browser user
-8. test retry behavior from UI
-9. Flower/stress-test wording, empty states, stale evidence, and capture ergonomics
-10. only then expand Evidence attachment/correction UX and later Journey/Character/Navigator surfaces
+1. refresh deployed Wayfinder
+2. confirm Practice selector reads catalog (not only sessions)
+3. record a new PracticeSession using atomic capture
+4. create Direction/Outcome/Quest if desired
+5. create Action, optionally SUPPORTS a target
+6. attach the PracticeSession as evidence for the Action
+7. confirm Bearing → CURRENT_EVIDENCE_PRESENT / recorded movement
+8. correct that PracticeSession
+9. confirm Bearing shows historical/stale evidence rather than silently following correction
+10. attach the corrected Session version
+11. confirm Bearing returns to current recorded movement
+12. Flower the lived UI and workflow again
 ```
 
-Suggested recovery prompt:
+Only after that loop survives browser use should Journey/Character/Navigator consume it.
 
-> Open `PROJECT_STATE.md` in `firstrateent-star/wayfinder`, then read `docs/CANON.md`, `docs/14-frontend-architecture.md`, and the latest `apps/web` code. Continue from the exact next move. Do not reuse the old Wayfinder architecture. Preserve the command-only write boundary and recursive Flower/stress-test methodology.
+## 18. Recovery prompt
 
-## 14. Permanent process
+If context is lost:
+
+> Open `PROJECT_STATE.md` in `firstrateent-star/wayfinder`, then read `docs/CANON.md`, `docs/14-frontend-architecture.md`, `docs/15-web-client-v0.1.md`, and `lab/live-slice-flower-v0.1.md`. Inspect the latest `apps/web` and migrations. Continue from the browser-live evidence/correction gate. Do not merge/reuse old Wayfinder architecture. Preserve command-only mutation, private canonical schemas, exact-version evidence lineage, and recursive Flower/stress-testing.
+
+## 19. Permanent process
 
 ```text
 DESIGN
-  ↓
+ ↓
 FLOWER
-  ↓
+ ↓
 STRESS TEST
-  ↓
+ ↓
 CHANGE
-  ↓
+ ↓
 FLOWER AGAIN
-  ↓
+ ↓
 STRESS TEST AGAIN
-  ↓
+ ↓
 STABLE?
-  ├── NO → recurse
-  └── YES → BUILD → REAL EVIDENCE → FLOWER AGAIN ↺
+ ├─ NO → recurse
+ └─ YES → BUILD → REAL EVIDENCE → FLOWER AGAIN ↺
 ```
-
-A layer is never declared eternally finished; it is only stable enough to expose to the next evidence source.
