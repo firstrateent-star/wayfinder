@@ -1,6 +1,6 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.4  
+**Foundation version:** 0.5  
 **Status:** Active bootstrap canon  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
@@ -23,13 +23,14 @@ The RPG is a representation layer. It is not the source of truth.
 | Constitution | CANONICAL | `00-constitution.md` |
 | Root ontology v0.3 | CANONICAL / STABILITY GATE PASSED | `01-ontology.md` |
 | System architecture v0.4 | CANDIDATE-STABLE / GATE PASSED | `02-system-architecture.md` |
-| Object contracts v0.8 | CANDIDATE-STABLE / GATE PASSED | `03-object-contracts.md` |
+| Object contracts v0.9 | CANDIDATE-STABLE / GATE PASSED | `03-object-contracts.md` |
 | Stateful Module Protocol v0.4 | CANDIDATE-STABLE / GATE PASSED | `04-domain-protocol.md` |
 | Intelligence runtime | EXPERIMENTAL | `05-intelligence-runtime.md` |
 | Build roadmap | CANDIDATE | `06-build-roadmap.md` |
 | Glossary | CANONICAL, update in progress with architecture vocabulary | `07-glossary.md` |
 | Recursive validation loop | CANDIDATE | `08-validation-loop.md` |
 | First executable vertical slice v0.2 | CANDIDATE-STABLE / GATE PASSED | `09-first-vertical-slice.md` |
+| Physical schema v0.5 | CANDIDATE-STABLE / PHYSICAL SCHEMA GATE PASSED | `10-physical-schema.md` |
 | Character system | EXPERIMENTAL | Lab until evidence supports promotion |
 | Archetypes | EXPERIMENTAL | Lab |
 | Skills/mastery model | EXPERIMENTAL | Lab |
@@ -91,15 +92,16 @@ Recursive contract/system pressure further established:
 - owner scope is explicit and distinct from subject;
 - commands separate requester from authorization and revalidate permission at execution;
 - Command id is the retry/idempotency identity;
+- material Command hashing uses deterministic canonical serialization;
 - version preconditions prevent silent lost updates;
+- known TemporalRanges use half-open `[start, end)` semantics;
+- coarse occurrence uncertainty ranges do not imply actual event duration;
 - `ModuleChange` is change/invalidation infrastructure, not lived Event or automatic event-sourcing ledger;
 - core canonical capabilities and life domains share the **Stateful Module** execution abstraction;
 - Wayfinder starts as a modular monolith on one Postgres/Supabase database;
 - canonical application mutation is command-only;
 - transactional outbox couples canonical writes to durable ModuleChange publication;
 - epistemic Coverage is source/phenomenon coverage, not mere query completeness.
-
-See ADR-016 through ADR-021.
 
 ## Recursive validation evidence
 
@@ -134,23 +136,47 @@ First executable vertical slice:
 - `lab/first-vertical-slice-stress-test-v0.1.md`
 - `lab/first-vertical-slice-stress-test-v0.2.md`
 
-Repeated later passes stopped requiring new root ontology primitives and then stopped requiring blocking operational contract changes for Slice 1A.
+Physical schema:
 
-## Current database readiness gate
+- `lab/physical-schema-stress-test-v0.1.md`
+- `lab/physical-schema-stress-test-v0.2.md`
+- `lab/physical-schema-stress-test-v0.3.md`
+- `lab/physical-schema-stress-test-v0.4.md`
+- `lab/physical-schema-stress-test-v0.5-confirmation.md`
 
-### Status: **AUTHORIZED FOR PHYSICAL SCHEMA DESIGN — NOT YET FOR PRODUCTION CREATION**
+The final physical-schema confirmation pass required no new table family, stateful module, root ontology primitive, or blocking topology change.
 
-The conceptual database gate is now satisfied for designing the first schema:
+## Supabase/project readiness gate
 
-1. multiple ontology passes produced no new root category/primitive;
-2. RecordRef/version/time/provenance/correction semantics are implementable enough to map;
-3. command/write authority is unambiguous;
-4. the first Practice life domain fits without changing unrelated ontology;
-5. the first vertical slice has no unresolved semantic blocker.
+### Status: **AUTHORIZED TO CREATE EMPTY WAYFINDER SUPABASE PROJECT**
 
-The next step is to design the **minimal physical Postgres/Supabase schema**, Flower/stress-test that schema repeatedly, and only then create the new Wayfinder database/project.
+The Physical Schema Gate is passed.
 
-Schema design is not permission to pre-build future tables.
+Authorized now:
+
+1. create a new empty Supabase project for Wayfinder;
+2. use a region/organization explicitly approved by the user;
+3. record project metadata in Canon after creation;
+4. design migration `0001` against `docs/10-physical-schema.md` v0.5.
+
+Not yet authorized:
+
+- applying migration `0001`;
+- creating speculative future tables;
+- building Character/XP/skills/calendar/AI infrastructure;
+- granting frontend direct canonical-table mutation.
+
+Before the first migration is applied, the SQL itself must be recursively reviewed and tested for:
+
+- FK/DEFERRABLE constraint validity;
+- immutable/lifecycle triggers;
+- auth/RLS/RPC boundary safety;
+- command idempotency/concurrency;
+- cross-owner isolation;
+- restore/migration behavior;
+- Evidence resolver/integrity behavior.
+
+After migration application, run Supabase security/performance advisors and convert written invariants into executable database tests.
 
 ## Change control
 
