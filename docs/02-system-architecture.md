@@ -1,6 +1,6 @@
 # Wayfinder System Architecture
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Status:** CANDIDATE
 
 Wayfinder is layered so that reality, intention, evidence, reasoning, and experience remain separable.
@@ -11,11 +11,12 @@ Wayfinder is layered so that reality, intention, evidence, reasoning, and experi
    - person identity
    - permissions
    - source registry
-   - stable IDs
+   - universal `RecordRef`
+   - entity-specific `EntityRef`
    - versioning and time conventions
 
 2. **Reality Kernel**
-   - shared contracts for events, observations, state, artifacts, provenance, and references
+   - shared contracts for entities, events, observations, factual states, relations, provenance, and references
    - no giant universal fact table
 
 3. **Life Domains**
@@ -23,7 +24,7 @@ Wayfinder is layered so that reality, intention, evidence, reasoning, and experi
    - examples: Practice, Training, Finance, Relationships, Creative, Home, Inner Life
 
 4. **Direction**
-   - values, directions, outcomes, quests, plans, actions
+   - values, directions, outcomes, commitments, quests, plans, actions
    - graph relationships rather than forced hierarchy
 
 5. **Evidence & Meaning**
@@ -31,7 +32,7 @@ Wayfinder is layered so that reality, intention, evidence, reasoning, and experi
    - reflections
    - hypotheses
    - interpretations
-   - certainty and lineage
+   - multidimensional epistemic state and lineage
 
 6. **Derivations / Projections**
    - metrics
@@ -88,13 +89,17 @@ This keeps the frontend simple while allowing backend complexity to grow respons
 
 Domains interact through explicit seams:
 
-- EntityRef
+- `RecordRef`
+- `EntityRef` where continuing identity specifically matters
 - domain events
+- factual relations
 - evidence links
 - query/read contracts
 - authorized commands
 
 A domain must not directly mutate another domain's factual tables.
+
+Shared references do not imply shared persistence ownership.
 
 ## Authority boundary
 
@@ -108,6 +113,18 @@ Low-risk pre-authorized commands may be introduced later, but must still pass th
 
 Anything reconstructable from deeper records is a projection, not truth. Projections may be cached for performance, but cache loss must not destroy lived history.
 
+If an evidence-bearing source is corrected, superseded, or retracted, dependent projections must be re-evaluated.
+
+## Correction rule
+
+Wayfinder preserves correction/supersession lineage without requiring every domain to become a full event-sourced system.
+
+The implementation mechanism may vary by domain so long as prior explanations remain recoverable and stale derived state can be detected.
+
 ## Expansion rule
 
 A new domain should be addable without changing the core ontology or rewriting existing domains. If repeated core edits are required, treat that as architectural evidence and review the boundary rather than patching around it.
+
+## Recursive validation rule
+
+Architecture is not considered settled after one design pass. Ontology and contracts must re-enter the validation loop after material changes and after executable vertical slices expose real implementation evidence.
