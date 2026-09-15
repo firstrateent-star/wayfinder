@@ -1,11 +1,17 @@
 # Wayfinder Ontology
 
-**Version:** 0.2  
+**Version:** 0.3  
 **Status:** CANONICAL
 
 The ontology defines the smallest shared vocabulary Wayfinder needs to model lived reality, intention, evidence, meaning, and derived personal state without forcing all life domains into one schema.
 
-Ontology v0.2 is the first stress-tested revision. It introduces a universal record reference, adds factual relations and commitments, decomposes epistemic certainty into orthogonal dimensions, and removes Artifact as a separate root primitive.
+Ontology v0.3 incorporates the second recursive stress test. It further simplifies the Derived layer, separates provenance from reasoning mode, and makes bounded coverage and evidence ancestry explicit constraints.
+
+## Model humility
+
+The category named `REALITY` contains Wayfinder's factual records *about* lived reality. These records are not reality itself and are not metaphysical proof.
+
+`canonical` means the current authoritative representation inside Wayfinder, subject to provenance, correction, dispute, and incomplete knowledge.
 
 ## Root categories
 
@@ -21,7 +27,7 @@ Shared infrastructure, authority, identity, and addressability.
 - EntityRef
 
 ### REALITY
-Things that exist, happen, are observed, persist, or relate.
+Wayfinder's factual records of things that exist, happen, are observed, persist, or relate.
 
 - Entity
 - Event
@@ -52,14 +58,10 @@ How Wayfinder represents support, uncertainty, explanation, and meaning.
 ### DERIVED
 Reconstructable representations computed from deeper records.
 
+- Projection
+- Metric
 - Signal
 - Pattern
-- Metric
-- Growth
-- Momentum
-- Bearing
-- Mastery
-- Character
 
 ## Fundamental distinctions
 
@@ -76,10 +78,13 @@ These are not synonyms:
 - Hypothesis != Fact
 - Projection != Fact
 - Absence != Zero
+- Missing != Absent
 - Scheduled != Occurred
 - Source != Subject
+- Provenance != Inference
 - Confidence != Truth
 - RecordRef != EntityRef
+- Canonical != Certain
 
 ## System primitives
 
@@ -91,6 +96,8 @@ Where a record or claim came from, such as user entry, connector, import, API, s
 
 ### Provenance
 Information required to trace origin and transformation. May include source record identity, ingestion time, author/actor, version, original value, transformation lineage, and rule/model version.
+
+Provenance describes where information came from and how it moved through Wayfinder. It is distinct from whether a conclusion was direct, derived, or inferred.
 
 ### Time
 Time is multidimensional. Wayfinder must preserve the semantic difference among:
@@ -118,6 +125,8 @@ interface RecordRef {
 }
 ```
 
+`namespace` and `type` are stable machine identifiers, not display labels. A UI rename must not silently break references.
+
 A universal reference does not create universal storage or ownership.
 
 ### EntityRef
@@ -135,7 +144,7 @@ Examples: person, boat, business, place, project, skill, piece of equipment, son
 Created outputs such as songs, videos, documents, photos, proposals, and websites may be modeled as Entity types. `Artifact` is therefore not a separate root primitive.
 
 ### Event
-Something that occurred.
+A canonical factual record that something occurred.
 
 Examples: workout completed, invoice paid, conversation occurred, song recorded, meal eaten.
 
@@ -212,6 +221,8 @@ A typed relationship describing how one record supports, weakens, contradicts, q
 
 Evidence is not automatically proof. Contradictory evidence is valid and should remain representable.
 
+Derived records do not become independent evidence merely because they are new records. Evidence-consuming rules must preserve ancestry strongly enough to avoid circular self-support and material double-counting of the same underlying evidence.
+
 ### Hypothesis
 A tentative explanation or proposition requiring further evidence.
 
@@ -226,20 +237,39 @@ Interpretation is not inherently an AI concept; AI is one possible author/source
 Meaning or perspective authored by the person. Reflection is not converted into objective fact merely because it is sincere or important.
 
 ### EpistemicState
-A single certainty ladder is insufficient because completeness, inference, disagreement, and confidence are different dimensions.
+A single certainty ladder is insufficient because completeness, derivation mode, disagreement, and confidence are different dimensions.
 
 Initial dimensions are:
 
 - **completeness:** `COMPLETE | PARTIAL | UNKNOWN`
-- **basis:** `OBSERVED | REPORTED | DERIVED | INFERRED`
+- **derivation:** `DIRECT | DERIVED | INFERRED`
 - **dispute:** `UNDISPUTED | DISPUTED`
 - **confidence:** optional numeric or bounded qualitative confidence when useful
 
-Not every record must populate every dimension. Provenance remains authoritative for detailed lineage.
+Source/channel information such as user report, sensor, bank connector, API, or import belongs in Provenance rather than the derivation axis.
 
-No combination of epistemic metadata should be presented as metaphysical certainty.
+Not every record must populate every dimension. No combination of epistemic metadata should be presented as metaphysical certainty.
+
+## Bounded coverage and absence
+
+Missing records do not establish absence.
+
+A statement such as “zero transactions occurred” or “no workout happened” requires either:
+
+1. direct evidence of absence, or
+2. a sufficiently complete bounded source/domain/time scope from which absence can validly be derived.
+
+Exact coverage contracts remain Candidate, but the semantic requirement is canonical.
 
 ## Derived primitives
+
+### Projection
+A reconstructable representation computed from deeper records for understanding, decision support, or experience.
+
+A Projection may be cached, but deleting the cache must not destroy the underlying lived record.
+
+### Metric
+A defined quantitative readout with clear source, scope, calculation, and coverage semantics.
 
 ### Signal
 A bounded derived indicator over domain facts or observations.
@@ -247,23 +277,17 @@ A bounded derived indicator over domain facts or observations.
 ### Pattern
 A recurring or structured relationship inferred from evidence over time.
 
-### Metric
-A defined quantitative readout with clear source and calculation.
+## Named projection families
 
-### Growth
-Evidence-backed accumulated development. Growth is distinct from recent activity.
+The following are useful Wayfinder projection families, but they are not separate root ontology primitives:
 
-### Momentum
-A recent continuity/movement projection. It must not erase permanent growth and must not shame rest.
+- **Growth** — evidence-backed accumulated development.
+- **Momentum** — recent continuity/movement.
+- **Bearing** — relationship between current action and authored direction/commitments.
+- **Mastery** — demonstrated depth/reliability/complexity within a capability.
+- **Character** — RPG-facing representation of accumulated evidence and development.
 
-### Bearing
-A projection of how current actions relate to authored direction and recognized commitments.
-
-### Mastery
-A derived representation of demonstrated depth, reliability, or complexity within a capability. Detailed semantics remain experimental.
-
-### Character
-The RPG-facing projection of accumulated evidence, development, identity expression, and related derived state. Character is never canonical truth.
+Their exact models have independent maturity states in Canon and may evolve without changing the root ontology.
 
 ## Correction and supersession semantics
 
@@ -276,6 +300,12 @@ Canonical rule:
 Exact storage strategy remains Candidate until implementation.
 
 When evidence or a projection depends on a record that becomes superseded or retracted, dependent derived state must be re-evaluated rather than left silently stale.
+
+## Cross-domain same-world occurrences
+
+A single real-world occurrence may matter to multiple domains. Wayfinder does not require a universal Event table to represent this.
+
+One domain may own the canonical occurrence while others reference it, or domains may own distinct records that preserve shared source/equivalence lineage. Identity resolution remains a Candidate capability.
 
 ## Domain ownership
 
@@ -301,8 +331,10 @@ The following ideas are intentionally not promoted yet:
 
 - Inquiry / durable open question
 - Criterion / shared evaluation specification
+- Coverage / explicit bounded dataset completeness object
 - Scenario / counterfactual world
+- Equivalence / same-world identity resolution
 - universal Skill or Capability primitive
 - universal Schedule primitive
 
-They remain candidates until the first executable slices demonstrate cross-domain necessity.
+They remain candidates until executable slices demonstrate cross-domain necessity.
