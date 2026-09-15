@@ -1,9 +1,9 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.6  
-**Status:** CANDIDATE
+**Version:** 0.7  
+**Status:** CANDIDATE-STABLE
 
-These are conceptual contracts. They are intentionally not yet production TypeScript or SQL.
+These are conceptual contracts. They are intentionally not yet production TypeScript or SQL. `CANDIDATE-STABLE` means they have survived repeated semantic and operational pressure well enough to let the next architecture layer depend on them provisionally.
 
 ## RecordRef
 
@@ -15,9 +15,9 @@ interface RecordRef {
 }
 ```
 
-Purpose: stable address for a logical Wayfinder record without implying universal storage or ownership.
+A `RecordRef` addresses one logical Wayfinder record. It does not imply universal storage or ownership.
 
-`namespace` and `type` are stable machine identifiers, not display labels.
+`namespace` and `type` are stable machine identifiers, not display labels. Record ids should be globally collision-resistant; authorization still scopes whether the caller may resolve them.
 
 ## RecordVersionRef
 
@@ -27,9 +27,10 @@ interface RecordVersionRef extends RecordRef {
 }
 ```
 
-A `RecordVersionRef` addresses the exact immutable version consumed by evidence, provenance, or a derivation. `version` is opaque.
+A `RecordVersionRef` addresses the exact historical representation consumed by evidence, provenance, or derivation. `version` is opaque.
 
-A stable `RecordRef` answers “which logical record?” A `RecordVersionRef` answers “which exact historical representation?”
+- `RecordRef` = which logical record?
+- `RecordVersionRef` = which exact version of that record?
 
 ## Reference resolution
 
@@ -49,9 +50,9 @@ interface ReferenceResolution<T = unknown> {
 }
 ```
 
-Historical explainability does not require indefinite content retention. Privacy policy may cause an old reference to resolve to an explicit redaction/deletion state rather than content.
+Historical explainability does not require indefinite content retention. Privacy policy may cause an old reference to resolve to an explicit redaction/deletion state.
 
-`MISSING` represents an unexpected unresolved/corrupt reference and must be detectable rather than treated as ordinary absence.
+`MISSING` means an unexpected unresolved/corrupt reference and must be detectable rather than treated as ordinary absence.
 
 ## EntityRef
 
@@ -82,7 +83,24 @@ interface EpistemicState {
 }
 ```
 
-The dimensions are orthogonal. Source/channel belongs in Provenance. Numeric confidence requires an explicit scale/meaning or should be omitted.
+These dimensions are orthogonal. Source/channel belongs in Provenance. Numeric confidence requires an explicit scale/meaning or is omitted.
+
+## LineageSpec
+
+```ts
+interface LineageSpec {
+  directRefs?: RecordVersionRef[];
+  manifestRef?: RecordVersionRef;
+}
+```
+
+Lineage must identify the exact historical input set used by a derivation.
+
+For small derivations, `directRefs` is sufficient. For large derivations, `manifestRef` may point to an immutable versioned lineage manifest that preserves the exact input set without embedding hundreds of thousands of references in every projection.
+
+A query description alone is not historical lineage because its results can change later.
+
+At least one lineage form is required when a record claims `DERIVED` or `INFERRED` status from other Wayfinder records.
 
 ## Provenance
 
@@ -92,13 +110,13 @@ interface Provenance {
   recordedAt: string;
   actorRef?: RecordRef;
   epistemic?: EpistemicState;
-  derivedFrom?: RecordVersionRef[];
+  lineage?: LineageSpec;
   ruleVersion?: string;
   modelVersion?: string;
 }
 ```
 
-`derivedFrom` uses exact historical versions. Provenance must not resolve old derivations against whatever is current today.
+Provenance must not explain an old derivation by resolving whatever input happens to be current today.
 
 ## Record lifecycle and envelope
 
@@ -117,6 +135,7 @@ interface RecordLifecycle {
 interface RecordEnvelope {
   ref: RecordRef;
   version: string;
+  ownerRef: EntityRef;
   lifecycle: RecordLifecycle;
   provenance: Provenance;
 }
@@ -124,9 +143,13 @@ interface RecordEnvelope {
 
 This is a logical contract, not a universal table requirement.
 
+`ownerRef` identifies the Wayfinder person/workspace/entity whose authority scope owns the record. Owner is not the same as subject.
+
+Record-version payload is immutable once addressable as a `RecordVersionRef`; lifecycle metadata may later mark that version superseded/retracted without rewriting the historical payload.
+
 A correction may reuse the same logical id with a new version or replace it with another logical record. Split/merge corrections remain possible.
 
-`WITHDRAWN` Direction intent and `RETRACTED` record lifecycle are different: the former means the person no longer holds an intention; the latter means the record itself is no longer accepted as current canonical representation.
+`WITHDRAWN` Direction intent and `RETRACTED` record lifecycle are different: the former means an intention is no longer held; the latter means the record itself is no longer accepted as the current canonical representation.
 
 ## Temporal contracts
 
@@ -145,9 +168,14 @@ interface TemporalPoint {
   zoneId?: string;
 }
 
+type TemporalBoundary =
+  | { kind: "KNOWN"; point: TemporalPoint }
+  | { kind: "OPEN" }
+  | { kind: "UNKNOWN" };
+
 interface TemporalRange {
-  from?: TemporalPoint;
-  to?: TemporalPoint;
+  start: TemporalBoundary;
+  end: TemporalBoundary;
 }
 
 interface TemporalScope {
@@ -157,7 +185,9 @@ interface TemporalScope {
 }
 ```
 
-Approximate historical time should normally be represented as a bounded range rather than fabricated precision. Unknown axes are omitted.
+`OPEN` means the record intentionally asserts no closed endpoint at present (for example, a currently ongoing State). `UNKNOWN` means Wayfinder does not know the endpoint. Those are not synonyms.
+
+Approximate historical time should normally be represented as a bounded range rather than fabricated timestamp precision.
 
 `Provenance.recordedAt` is system record/ingestion time and remains distinct from lived/intended time axes.
 
@@ -280,9 +310,9 @@ interface EvidenceLink {
 }
 ```
 
-`aspect` is a stable machine key that clarifies what feature of the target the evidence bears on when the record itself is not sufficiently specific. Examples may include `fulfillment`, `progress`, `validity`, or `quality`. Domain/feature contracts own allowed aspect semantics; do not invent arbitrary display strings as machine meaning.
+`aspect` is a stable machine key clarifying what feature of a target the evidence bears on when the record itself is not sufficiently specific. Example families include `fulfillment`, `progress`, `validity`, or `quality`; each owning feature/domain defines its allowed semantics.
 
-EvidenceLink expresses bearing, not proof. Mere association is not evidence and therefore has no `RELATES_TO` relation.
+EvidenceLink expresses bearing, not proof. Mere association is not evidence.
 
 Rules:
 
@@ -303,17 +333,15 @@ interface Projection<TPayload = unknown> {
   asOf?: TemporalPoint;
   computedAt: string;
   payload: TPayload;
-  inputRefs: RecordVersionRef[];
   coverage?: Coverage[];
-  ruleVersion?: string;
-  modelVersion?: string;
-  epistemic?: EpistemicState;
 }
 ```
 
-A Projection is reconstructable. Persisted projection rows are caches/read models, not irreplaceable lived history.
+A Projection is reconstructable. Its exact input set and derivation identity live in `meta.provenance.lineage`, `ruleVersion`, and/or `modelVersion` rather than duplicated projection fields.
 
-If any input becomes superseded, retracted, redacted, deleted, or unexpectedly missing, a persisted projection must not remain silently current. It must be recomputed, invalidated, or surfaced as unsupported/stale according to projection-runtime policy.
+Persisted projection rows are caches/read models, not irreplaceable lived history.
+
+If an input becomes superseded, retracted, redacted, deleted, unavailable, or unexpectedly missing, a persisted projection must not remain silently current. It must be recomputed, invalidated, or surfaced as unsupported/stale according to projection-runtime policy.
 
 ## Reflection
 
@@ -340,10 +368,11 @@ interface Interpretation {
   evidenceRefs: RecordVersionRef[];
   epistemic: EpistemicState;
   authorRef?: RecordRef;
-  modelOrRuleVersion?: string;
   createdAt: string;
 }
 ```
+
+Model/rule identity belongs in provenance rather than a second interpretation-specific field.
 
 ## AuthorizationContext
 
@@ -360,7 +389,7 @@ interface AuthorizationContext {
 }
 ```
 
-AuthorizationContext is a claim presented to the owning domain, not a bypass token. Permission/grant validity must be checked at execution time. An AI/model cannot self-authorize canonical mutation.
+AuthorizationContext is evidence presented to the owning domain, not a bypass token. Permission/grant validity must be checked at execution time. An AI/model cannot self-authorize canonical mutation.
 
 ## VersionPrecondition
 
@@ -380,21 +409,21 @@ interface Command<TPayload = unknown> {
   id: string;
   type: string;
   domain: string;
+  ownerRef: EntityRef;
   payload: TPayload;
   requestedBy: RecordRef;
   requestedAt: string;
   authorization: AuthorizationContext;
-  idempotencyKey: string;
   preconditions?: VersionPrecondition[];
   correlationId?: string;
 }
 ```
 
-Commands request change. They are not facts.
+`Command.id` is the retry/idempotency identity. A true retry reuses the same command id.
 
-Idempotency rule: the same key represents the same logical mutation attempt. Reuse of a key with materially different command content must be rejected as a conflict rather than treated as an update.
+Same command id + materially different command content is a conflict and must be rejected. Semantic duplicate detection across different command ids (for example re-importing the same bank transaction) remains the owning domain's responsibility.
 
-The owning domain validates authorization, payload, preconditions, and domain semantics.
+Commands request change. They are not facts. The owning domain validates authorization, payload, preconditions, ownership scope, and domain semantics.
 
 ## CommandReceipt
 
@@ -410,7 +439,7 @@ interface CommandReceipt {
 }
 ```
 
-A true retry of the same idempotent command returns the same logical result and does not duplicate effects.
+A true retry returns the same logical result and does not duplicate effects.
 
 ## DomainChange
 
@@ -420,6 +449,7 @@ type ChangeOperation = "CREATED" | "SUPERSEDED" | "RETRACTED";
 interface DomainChange {
   id: string;
   domain: string;
+  ownerRef: EntityRef;
   type: string;
   commandId?: string;
   committedAt: string;
@@ -455,18 +485,20 @@ If exact start/end timing and explicit duration are both present, the Practice d
 
 1. Do not add fields only because they may be useful someday.
 2. Prefer explicit unknown/partial semantics over fake defaults.
-3. Stable logical identity and immutable historical version identity are distinct.
+3. Stable logical identity and exact historical version identity are distinct.
 4. Historical explainability permits explicit redaction/deletion states; it does not require indefinite content retention.
-5. Separate occurrence, validity, planned, and record time when they differ.
-6. Commands request; lived Events record occurrence; DomainChanges notify canonical state change.
-7. `RecordRef` crosses boundaries; persistence ownership does not.
-8. `EntityRef` is reserved for continuing identity.
-9. Direction edges represent intentional structure; evidence represents epistemic bearing.
-10. Evidence/provenance/derivation inputs use version-addressable lineage.
-11. Correction lineage must be explainable without mandating full event sourcing.
-12. Zero/absence claims require direct evidence or matching bounded coverage.
-13. Derived descendants do not automatically create independent evidence mass.
-14. Request origin and execution authorization are separate, and authorization is revalidated at execution.
-15. Retry safety is a command-level concern; conflicting key reuse is rejected.
-16. Direction intent state does not assert factual fulfillment.
-17. Stale or invalidated projection inputs must not leave silently current projections.
+5. Ownership scope is explicit and distinct from record subject.
+6. Separate occurrence, validity, planned, and record time; open and unknown endpoints are distinct.
+7. Commands request; lived Events record occurrence; DomainChanges notify canonical state change.
+8. `RecordRef` crosses boundaries; persistence ownership does not.
+9. `EntityRef` is reserved for continuing identity.
+10. Direction edges represent intentional structure; evidence represents epistemic bearing.
+11. Derivations preserve exact input ancestry using direct refs or an immutable lineage manifest.
+12. Correction lineage must be explainable without mandating full event sourcing.
+13. Zero/absence claims require direct evidence or matching bounded coverage.
+14. Derived descendants do not automatically create independent evidence mass.
+15. Request origin and execution authorization are separate, and authorization is revalidated at execution.
+16. Command id is the retry identity; semantic duplicate prevention remains domain-specific.
+17. Direction intent state does not assert factual fulfillment.
+18. Stale or invalidated projection inputs must not leave silently current projections.
+19. Version preconditions protect non-commutative edits from silent lost updates.
