@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { CommandResponse, HelmRead, OwnerBootstrap } from "@/lib/wayfinder-types";
+import type { CommandResponse, HelmRead, JourneyRead, OwnerBootstrap } from "@/lib/wayfinder-types";
 
 function rpcErrorMessage(error: {
   message?: string;
@@ -40,6 +40,18 @@ export async function getHelm(input: {
     p_from: input.from,
     p_to: input.to,
     p_session_limit: input.sessionLimit ?? 20
+  });
+}
+
+export async function getJourney(input: {
+  from: string;
+  to: string;
+  limit?: number;
+}): Promise<JourneyRead> {
+  return rpc<JourneyRead>("wf_journey_v0", {
+    p_from: input.from,
+    p_to: input.to,
+    p_limit: input.limit ?? 100
   });
 }
 
