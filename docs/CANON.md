@@ -20,9 +20,9 @@ The RPG is a representation layer. It is not the source of truth.
 | Area | Status | Canon source |
 |---|---|---|
 | Constitution | CANONICAL | `00-constitution.md` |
-| Root ontology v0.3 | CANONICAL | `01-ontology.md` |
+| Root ontology v0.3 | CANONICAL / STABILITY GATE PASSED | `01-ontology.md` |
 | System architecture v0.2 | CANDIDATE | `02-system-architecture.md` |
-| Object contracts v0.3 | CANDIDATE | `03-object-contracts.md` |
+| Object contracts v0.4 | CANDIDATE | `03-object-contracts.md` |
 | Domain protocol | CANDIDATE | `04-domain-protocol.md` |
 | Intelligence runtime | EXPERIMENTAL | `05-intelligence-runtime.md` |
 | Build roadmap | CANDIDATE | `06-build-roadmap.md` |
@@ -86,13 +86,36 @@ The second recursive pass further established:
 
 See ADR-012 through ADR-015.
 
+## Ontology stability evidence
+
+The recursive stress-test trail is preserved in:
+
+- `lab/ontology-stress-test-v0.1.md`
+- `lab/ontology-stress-test-v0.2.md`
+- `lab/ontology-stress-test-v0.3.md`
+- `lab/ontology-stress-test-v0.3b.md`
+
+The latest pass produced no root category change, no root primitive change, and no required ontology wording change.
+
+**Ontology stability gate is satisfied for the first executable vertical slice.**
+
+This is an authorization to continue designing, not a declaration that ontology can never change.
+
 ## Database readiness gate
 
-Wayfinder is not authorized to design persistence merely because the ontology exists.
+The database is **not yet authorized**.
 
-Before the first database schema, the ontology/contracts should survive at least two consecutive full validation passes without requiring a new root category and without leaving an unresolved contradiction that blocks the first vertical slice.
+Ontology is stable enough to proceed, but Object Contracts remain Candidate. Before persistence design, the current contract set must receive the same adversarial/recursive treatment, especially:
 
-Because v0.3 materially refined the ontology, another full recursive pass is required before declaring this gate satisfied.
+- temporal representation;
+- historical RecordRef resolution;
+- correction lifecycle;
+- Direction-node lifecycle;
+- bounded coverage;
+- command idempotency/authorization;
+- projection/evidence lineage.
+
+After that contract pass, we can decide whether the first minimal schema is justified.
 
 See `08-validation-loop.md`.
 
