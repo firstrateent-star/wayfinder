@@ -1,6 +1,6 @@
 # Wayfinder Architecture Invariants
 
-**Version:** 0.5
+**Version:** 0.6
 
 These begin as written constraints and should progressively become executable tests.
 
@@ -40,6 +40,7 @@ These begin as written constraints and should progressively become executable te
 - [ ] Historical references may resolve to explicit redacted/deleted tombstones under policy; they must not silently become ordinary absence.
 - [ ] An unexpected dangling/corrupt reference must be detectable.
 - [ ] Every canonical record has explicit owner scope distinct from subject.
+- [ ] Every owner-scoped physical row must maintain referential integrity to the owning Wayfinder owner unless a documented bootstrap exception exists.
 - [ ] One owner's reads/writes cannot resolve or mutate another owner's protected canonical records without explicit authorization.
 - [ ] A factual Relation must not be silently treated as a Direction edge.
 - [ ] Direction edges connect Direction nodes only; cross-layer epistemic bearing uses Evidence.
@@ -52,6 +53,7 @@ These begin as written constraints and should progressively become executable te
 - [ ] Frontend/direct-table mutation is not an accepted canonical application write path.
 - [ ] Command id is the retry/idempotency identity; a true retry cannot duplicate canonical effects.
 - [ ] Reuse of one Command id with materially different content must be rejected.
+- [ ] Material command request hashing uses deterministic canonical serialization; JSON key order, whitespace, or client serialization differences cannot alter retry semantics.
 - [ ] Semantic duplicate prevention across different Command ids remains owning-module responsibility.
 - [ ] Authorization is revalidated at execution time rather than trusted because a proposal was previously allowed.
 - [ ] Stale non-commutative updates protected by version preconditions must be rejected rather than silently overwrite newer state.
@@ -99,6 +101,9 @@ These begin as written constraints and should progressively become executable te
 - [ ] Planned time and occurred time are never treated as interchangeable.
 - [ ] Approximate historical time must not be silently presented as exact.
 - [ ] OPEN and UNKNOWN temporal boundaries remain distinct.
+- [ ] Known temporal ranges use half-open `[start, end)` semantics.
+- [ ] Adjacent known ranges therefore do not double-count their shared boundary.
+- [ ] A coarse occurrence uncertainty window must not be mistaken for actual event duration; duration consistency checks are precision-aware.
 
 ## Corrections and lifecycle
 
@@ -106,6 +111,11 @@ These begin as written constraints and should progressively become executable te
 - [ ] Full event sourcing is not required as long as correction/supersession lineage is preserved.
 - [ ] Privacy/deletion policy may override content retention only through an explicit rule/tombstone state.
 - [ ] Ordinary correction/removal must not silently hard-delete lineage-bearing records.
+- [ ] A stable record's `current_version_id` must resolve to a version of that same record and owner.
+- [ ] A current pointer must not point to a `SUPERSEDED` version.
+- [ ] A `superseded_by` pointer must resolve to a replacement version of the same logical record/owner unless a future explicit split/merge contract says otherwise.
+- [ ] Historical lifecycle transitions are monotonic in the first slice: `ACTIVE → SUPERSEDED` or `ACTIVE → RETRACTED`; terminal historical versions do not silently reactivate.
+- [ ] Immutable-payload record families such as initial DirectionEdge/EvidenceLink permit only the explicitly defined lifecycle transition, not semantic payload mutation.
 
 ## Projections and reads
 
