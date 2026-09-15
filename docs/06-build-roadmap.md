@@ -1,9 +1,9 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.2  
-**Status:** CANDIDATE — updated from live use
+**Version:** 0.3  
+**Status:** CANDIDATE — realigned after player-UI rollback and Life RPG Flower
 
-The roadmap prioritizes complete vertical slices and real evidence over feature count.
+The roadmap prioritizes architectural leverage, complete vertical slices, and real evidence over feature count or screen count.
 
 ## Phase 0 — Foundation
 
@@ -11,14 +11,11 @@ The roadmap prioritizes complete vertical slices and real evidence over feature 
 
 Constitution, ontology, architecture, object contracts, domain protocol, validation loop, physical schema, ADR process, and recovery documentation exist and have survived multiple recursive passes.
 
-Foundation is not considered eternally finished; later evidence may revise it.
-
 ## Phase 1 — Executable kernel
 
 **Status: passed for Slice 1A**
 
 Proven:
-
 - owner identity;
 - command envelope + idempotency;
 - private module boundaries;
@@ -26,134 +23,232 @@ Proven:
 - exact Evidence links;
 - versioned correction lineage;
 - read/projection seam;
-- result coverage vs epistemic coverage.
+- result coverage vs epistemic coverage;
+- atomic user-intent command boundaries.
 
-## Phase 2 — Practice vertical slice
+## Phase 2 — Practice proving slice
 
-**Status: live backbone proven**
+**Status: backend proven**
 
-Implemented:
+Practice remains architectural evidence, not the shape of the final product.
 
+Proven:
 - Practice identity;
 - atomic PracticeSession capture;
 - occurrence time vs record time;
-- PracticeSession correction;
+- correction;
 - exact Evidence to Action;
 - current/stale evidence behavior;
 - Practice catalog;
-- browser capture flows.
+- browser command boundary.
 
-Reflection remains intentionally unimplemented as a canonical slice.
+## Phase 3 — Projection proving slices
 
-## Phase 3 — First projections
-
-**Status: active / mostly built**
+**Status: backend proven / player surface intentionally reduced**
 
 Implemented:
+- Action Fulfillment;
+- Bearing;
+- Helm projection;
+- Journey projection.
 
-- recent Practice;
-- Action Fulfillment v0;
-- Bearing v0;
-- Helm v0.2;
-- **Journey v0.1**.
+These remain evidence that reconstructable projections work. They do not force the final player experience to expose their technical detail.
 
-Journey is the first temporal experience projection. It reconstructs selected history without a canonical Journey table and preserves `OCCURRED` vs `RECORDED` time semantics.
+## Phase 4 — Quiet player shell
 
-Current gate: browser-live Journey validation.
+**Status: live**
 
-## Phase 4 — First product surfaces
+The player UI was intentionally rolled back to a quiet read-only Helm.
+
+Current law:
+
+> Build the intelligence/model first. Add player UI only when the system has something genuinely useful to show or ask.
+
+No manual Practice/Direction/Evidence/correction inputs are currently part of normal player mode.
+
+## Phase 5 — Life RPG architectural freeze
 
 **Status: active**
 
-Live:
+Before new physical domains, freeze the next high-leverage laws:
+
+- four epistemic layers: Recorded Reality → Deterministic Derivation → Intelligent Inference → Symbolic Interpretation;
+- player-facing RPG mechanics are projections by default;
+- inventory/gear modifies effective state, not permanent base mastery;
+- Discovery produces candidates/hypotheses and routes factual mutations through owning modules;
+- Navigator questions are information-need driven, not blank-field driven;
+- astrology uses canonical birth data + deterministic chart calculation + separately labeled symbolic interpretation;
+- no universal life/facts table.
+
+Reference: `docs/17-life-rpg-discovery-architecture-v0.1.md` and ADR-030.
+
+## Phase 6 — Person / Character Creation vertical slice
+
+**Status: next executable candidate**
+
+Build the smallest canonical Person module.
+
+Candidate first facts:
+- preferred/display name;
+- birth date;
+- birth time optional;
+- birth place optional.
+
+Do not store Role, XP, Level, Skill, or archetypal interpretation as Person facts.
+
+Height/weight should wait for Body rather than being temporarily stored in Person.
+
+The Character Creation player experience may eventually collect Person + Body + present-context information in one flow, while routing each fact to its proper owner.
+
+## Phase 7 — Discovery contract
+
+**Status: follows Person**
+
+Prove the structured path:
 
 ```text
-/login
-/helm
-/journey
+source/conversation
+ -> candidate
+ -> provenance
+ -> reconciliation
+ -> user/system authorization
+ -> owning module command
 ```
 
-Helm answers “Where am I?”
+Do not create a universal persistent candidate table until multiple real sources demonstrate that durable candidate state is necessary.
 
-Journey begins to answer “How did the record arrive here?”
+## Phase 8 — Body asymmetric slice
 
-The next product surface should be chosen from live evidence rather than roadmap inertia.
+**Status: candidate**
 
-## Phase 5 — Meaning / Reflection seam
+Use Body to pressure-test time-varying observations and AI extraction.
 
-**Status: candidate, not authorized yet**
+Example proof:
 
-Journey v0.1 is intentionally pre-interpretive. Live use may show that the next missing layer is a canonical/user-authored Reflection seam.
+```text
+“I weigh 152 lb”
+ -> DIRECT_EXTRACTION candidate
+ -> authorized Body command
+ -> temporal weight observation
+ -> current Body projection
+```
 
-Candidate capabilities:
+Prove correction, provenance, duplicate semantics, uncertainty, and read coverage.
 
-- attach a user-authored Reflection to exact records or a declared time scope;
-- keep Reflection distinct from Observation and Evidence;
-- preserve authorship and provenance;
-- allow later AI Interpretation to reference, but not overwrite, human meaning.
+## Phase 9 — Inventory / effective-state slice
 
-Do not build until Journey use demonstrates the need.
+**Status: candidate**
 
-## Phase 6 — Character projection
+Prove one real item and one explainable modifier.
 
-**Status: deferred / experimental**
+```text
+item ownership
+ -> capability metadata
+ -> available/equipped/in-use relationship
+ -> loadout/context
+ -> effective capability modifier
+```
 
-Character should initially be a projection over evidence-supported patterns, not a canonical XP ledger.
+Ownership alone must not create permanent Skill/Mastery growth.
 
-Questions to prove first:
+## Phase 10 — Skill discovery projection
 
-- what change can Wayfinder actually support with evidence?
-- what is interpretation vs durable reality?
-- how do Fire/Earth/Water/Air represent without becoming fabricated truth?
-- when is a skill/mastery construct justified?
+**Status: candidate**
 
-## Phase 7 — Navigator read/propose loop
+Infer one narrow skill family from evidence instead of accepting a user-entered level.
 
-**Status: deferred until current product surfaces stabilize**
+Prove:
+- evidence lineage;
+- confidence/uncertainty;
+- recency/frequency/depth effects;
+- explainability;
+- no permanent skill rewrite from equipment alone.
 
-Future Navigator should:
+Role/Class remains a higher-order projection over skills + behavior, not an onboarding choice.
 
-- read approved projections/context;
-- explain lineage;
-- propose Actions/Quests/records;
-- require explicit authorization before canonical mutation;
-- use the same command API as the UI.
+## Phase 11 — Navigator read / question / propose loop
 
-## Phase 8 — Architecture stress with asymmetric domains
+**Status: candidate**
 
-Before broad expansion, add domains with different truth shapes, likely one of:
+Navigator should prove:
+- bounded context assembly;
+- KNOWN / INFERRED / CONFLICTING / UNKNOWN separation;
+- supported answer first;
+- one high-value missing-information question when necessary;
+- proposal separate from command;
+- explicit authorization before consequential canonical mutation;
+- lineage explanation.
 
-- Body / Training;
-- Money / Finance;
-- Relationships / People.
+Question selection should optimize information value versus user burden.
 
-The goal is to test the domain protocol under asymmetry, not accumulate modules.
+## Phase 12 — Astrology lens
+
+**Status: candidate after Person birth facts**
+
+Build:
+
+```text
+canonical birth facts
+ -> deterministic ephemeris/chart calculation
+ -> natal geometry / houses / aspects
+ -> symbolic interpretation
+```
+
+Current transits may be deterministically calculated and compared to natal geometry.
+
+Astrological interpretation must remain a symbolic guidance lens rather than factual evidence about guaranteed traits or outcomes.
+
+## Phase 13 — Position + Character composition
+
+Once Person, Body, Inventory, Discovery, and Navigator seams are proven, compose:
+
+- Position: “Where am I?”
+- Character: “Who am I becoming?”
+- Effective Player State: base capability + equipment + context + conditions.
+
+Do not persist these if they can be reconstructed reliably.
+
+## Phase 14 — Expand domains under pressure
+
+Admit new modules only when they have distinct factual semantics:
+- Training;
+- Nutrition;
+- Finance;
+- World / Atlas;
+- Social / Relationships;
+- Knowledge/Lore;
+- other domains proven by real use.
+
+The goal is to validate asymmetry, not accumulate modules.
 
 ## Deferred until architecture earns them
 
-- canonical Character/XP persistence;
+- permanent XP ledger;
 - universal skill taxonomy;
-- archetype engine;
-- astrology engine;
-- Atlas/world simulation;
-- autonomous agents;
-- inventory graph;
-- broad health record modeling;
-- complex scheduling engine;
-- large connector ecosystem;
-- a universal Journey event table.
+- persisted Role/Class;
+- giant stat table;
+- autonomous canonical AI writes;
+- arbitrary gear-score persistence;
+- universal life-events/facts table;
+- astrology interpretations stored as facts;
+- large fixed domain enum;
+- broad frontend forms;
+- universal Journey event table.
 
 ## Build discipline
 
 For every expansion:
 
 1. define the smallest useful human question;
-2. identify existing canonical records that can answer it;
-3. avoid persistence if a reconstructable projection is sufficient;
-4. preserve time/provenance/epistemic distinctions;
-5. implement end-to-end;
-6. stress invariants and complements;
-7. observe real use;
-8. promote, adapt, or reject assumptions.
+2. identify whether new canonical reality actually exists;
+3. prefer reconstructable projection when possible;
+4. assign exactly one canonical owner for each factual mutation;
+5. preserve provenance/time/epistemic distinctions;
+6. define what Discovery may recognize;
+7. define what Navigator may ask only if materially useful;
+8. implement one end-to-end slice;
+9. stress invariants and complements;
+10. observe real use;
+11. promote, adapt, or reject assumptions.
 
-The measure of progress is how much real life Wayfinder can model and explain correctly — not lines of code, number of screens, or amount of gamification.
+The measure of progress is how much real life Wayfinder can model, discover, explain, and guide correctly while asking less of the player — not the number of screens, tables, or game mechanics.
