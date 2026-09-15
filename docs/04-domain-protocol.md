@@ -1,9 +1,9 @@
 # Wayfinder Domain Protocol
 
-**Version:** 0.2  
-**Status:** CANDIDATE
+**Version:** 0.3  
+**Status:** CANDIDATE-STABLE
 
-A Wayfinder domain is an independently understandable area of lived reality with its own facts, rules, commands, and reads.
+A Wayfinder domain is an independently understandable area of lived reality with its own facts, rules, commands, reads, and failure boundary.
 
 The protocol exists so new domains can join Wayfinder without weakening truth boundaries or requiring scattered core edits.
 
@@ -31,7 +31,7 @@ At minimum:
 3. **commands** — allowed requests for canonical mutation
 4. **validation** — payload, authority, ownership, lifecycle, and precondition rules
 5. **references** — stable `RecordRef` / `EntityRef` resolution surfaces
-6. **version resolution** — `RecordVersionRef` resolution, including explicit redacted/deleted/missing states
+6. **version resolution** — `RecordVersionRef` resolution, including explicit redacted/deleted/unavailable/missing states
 7. **reads** — bounded authorized query surfaces
 8. **changes** — durable `DomainChange` publication after canonical mutation
 9. **capability readiness** — dependency-scoped readiness rather than one global healthy flag
@@ -63,6 +63,8 @@ A display rename is not a machine-identifier migration.
 
 Breaking public-contract changes require explicit versioning/migration rather than silent replacement.
 
+Disabling or retiring a domain feature must not silently orphan durable historical references. Historical resolver compatibility, explicit migration, or tombstone resolution remains required for records already used by lineage/evidence.
+
 ## Command execution
 
 A domain command handler must:
@@ -73,8 +75,9 @@ A domain command handler must:
 4. validate version preconditions when required;
 5. apply semantic duplicate protections appropriate to the domain;
 6. commit canonical mutation atomically;
-7. durably append the corresponding `DomainChange` in the same commit boundary or an equivalent mechanism;
-8. return a `CommandReceipt`.
+7. durably append the corresponding `DomainChange` in the same commit boundary or equivalent mechanism;
+8. persist enough command-result identity to make retries safe;
+9. return a `CommandReceipt`.
 
 A command may affect multiple records inside one owning domain transaction.
 
@@ -94,7 +97,15 @@ Logical guarantees:
 - duplicate DomainChanges must not duplicate projection/evidence effects;
 - publishing failure after commit must be recoverable by the durable outbox.
 
-Exact transport (database polling, queue, event bus, etc.) is an implementation detail.
+### DomainChange is not an event-sourcing ledger
+
+A DomainChange is a durable invalidation/change notification.
+
+Core consumers must **not** assume that replaying DomainChanges alone reconstructs canonical truth unless a domain explicitly offers a separate ordered/complete replay contract.
+
+This lets the first architecture avoid unnecessary event-sourcing constraints.
+
+For current-state projections, a DomainChange may simply trigger authorized re-resolution/recomputation from canonical domain reads.
 
 ## Reads
 
@@ -109,11 +120,13 @@ interface DomainReadResult<T> {
   data: T;
   evaluatedAt: string;
   coverage?: Coverage[];
-  readiness?: CapabilityReadiness;
+  readiness?: CapabilityReadiness[];
 }
 ```
 
 A read must not quietly convert missing dependencies into empty factual results.
+
+Cross-domain composition consumes public reads/reference resolvers or explicitly exported stable views. It must not couple itself to private domain tables merely for convenience.
 
 ## Reference resolution
 
@@ -127,6 +140,8 @@ A domain provides authorized resolution for:
 Historical resolution may return resolved content, redacted/deleted tombstone, temporary unavailable state, or unexpected missing/corrupt state according to the Object Contracts.
 
 Anything used in durable evidence or provenance lineage must be version-addressable.
+
+An internal schema migration must preserve these semantics or explicitly migrate/tombstone affected references.
 
 ## Capability readiness
 
@@ -186,7 +201,21 @@ Conceptually:
 
 Cross-domain completion may be eventual. Do not require distributed transactions for the first architecture.
 
-If partial completion matters, the orchestrator must expose it rather than pretending the whole workflow was atomic.
+If partial completion matters, the orchestrator must expose it rather than pretending the whole workflow was atomic. Retry/compensation logic belongs to orchestration, not hidden domain side effects.
+
+## Derived systems are read-only toward source truth
+
+Projection, Character, recommendation, and intelligence consumers may read domain facts and propose actions, but they do not silently mutate canonical life-domain facts based on their own interpretations.
+
+If a derived system detects inconsistency, it may:
+
+- invalidate/recompute its own projection;
+- raise a diagnostic;
+- propose an authorized corrective command.
+
+It must not self-author a factual correction in the source domain.
+
+This prevents interpretation/derivation feedback loops from rewriting the evidence they depend on.
 
 ## Semantic duplicate prevention
 
@@ -243,6 +272,8 @@ interface DomainModule {
 ```
 
 Concrete handler types should be added only when the first vertical slice proves the common shape.
+
+`disabled` means active behavior is disabled. It does not license orphaning previously durable historical references.
 
 ## Fault isolation
 
