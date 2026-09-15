@@ -39,9 +39,10 @@ export interface DirectionEdgeRead {
 export interface DirectionRead {
   nodes: DirectionNodeRead[];
   edges: DirectionEdgeRead[];
-  storage_coverage: {
+  record_coverage: {
     phenomenon: string;
     completeness: "COMPLETE";
+    does_not_assert: string;
     evaluated_at: string;
   };
 }
@@ -95,6 +96,34 @@ export interface BearingRead {
     reason: string;
   };
   does_not_assert: string[];
+}
+
+export interface PracticeCatalogItem {
+  id: string;
+  name: string;
+  description: string | null;
+  lifecycle_status: "ACTIVE";
+  created_at: string;
+  active_session_count: number;
+  same_name_active_count: number;
+  capture_preferred: boolean;
+}
+
+export interface PracticeCatalogRead {
+  practices: PracticeCatalogItem[];
+  active_record_count: number;
+  duplicate_active_name_group_count: number;
+  record_coverage: {
+    phenomenon: "active_wayfinder_practice_records";
+    completeness: "COMPLETE";
+    evaluated_at: string;
+  };
+  epistemic_coverage: {
+    phenomenon: "practices_in_lived_reality";
+    source: "wayfinder_practice_records";
+    completeness: "UNKNOWN";
+    reason: string;
+  };
 }
 
 export interface PracticeSessionRead {
@@ -156,6 +185,7 @@ export interface HelmRead {
   };
   direction: DirectionRead;
   bearing: BearingRead;
+  practice_catalog: PracticeCatalogRead;
   practice: PracticeRead;
   composition_note: string;
 }
