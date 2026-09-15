@@ -1,6 +1,6 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.7  
+**Version:** 0.8  
 **Status:** CANDIDATE-STABLE
 
 These are conceptual contracts. They are intentionally not yet production TypeScript or SQL. `CANDIDATE-STABLE` means they have survived repeated semantic and operational pressure well enough to let the next architecture layer depend on them provisionally.
@@ -310,7 +310,7 @@ interface EvidenceLink {
 }
 ```
 
-`aspect` is a stable machine key clarifying what feature of a target the evidence bears on when the record itself is not sufficiently specific. Example families include `fulfillment`, `progress`, `validity`, or `quality`; each owning feature/domain defines its allowed semantics.
+`aspect` is a stable machine key clarifying what feature of a target the evidence bears on when the record itself is not sufficiently specific. Example families include `fulfillment`, `progress`, `validity`, or `quality`; each owning feature/module defines its allowed semantics.
 
 EvidenceLink expresses bearing, not proof. Mere association is not evidence.
 
@@ -389,7 +389,7 @@ interface AuthorizationContext {
 }
 ```
 
-AuthorizationContext is evidence presented to the owning domain, not a bypass token. Permission/grant validity must be checked at execution time. An AI/model cannot self-authorize canonical mutation.
+AuthorizationContext is evidence presented to the owning module, not a bypass token. Permission/grant validity must be checked at execution time. An AI/model cannot self-authorize canonical mutation.
 
 ## VersionPrecondition
 
@@ -408,7 +408,7 @@ Use version preconditions for non-commutative updates where stale writes could d
 interface Command<TPayload = unknown> {
   id: string;
   type: string;
-  domain: string;
+  module: string;
   ownerRef: EntityRef;
   payload: TPayload;
   requestedBy: RecordRef;
@@ -421,9 +421,9 @@ interface Command<TPayload = unknown> {
 
 `Command.id` is the retry/idempotency identity. A true retry reuses the same command id.
 
-Same command id + materially different command content is a conflict and must be rejected. Semantic duplicate detection across different command ids (for example re-importing the same bank transaction) remains the owning domain's responsibility.
+Same command id + materially different command content is a conflict and must be rejected. Semantic duplicate detection across different command ids remains the owning module's responsibility.
 
-Commands request change. They are not facts. The owning domain validates authorization, payload, preconditions, ownership scope, and domain semantics.
+Commands request change. They are not facts. The owning module validates authorization, payload, preconditions, ownership scope, and module semantics.
 
 ## CommandReceipt
 
@@ -441,14 +441,14 @@ interface CommandReceipt {
 
 A true retry returns the same logical result and does not duplicate effects.
 
-## DomainChange
+## ModuleChange
 
 ```ts
 type ChangeOperation = "CREATED" | "SUPERSEDED" | "RETRACTED";
 
-interface DomainChange {
+interface ModuleChange {
   id: string;
-  domain: string;
+  module: string;
   ownerRef: EntityRef;
   type: string;
   commandId?: string;
@@ -461,11 +461,11 @@ interface DomainChange {
 }
 ```
 
-A DomainChange is an infrastructure notification that canonical domain state changed. It is **not** automatically a lived-reality Event and must not be treated as life evidence merely because it exists.
+A ModuleChange is an infrastructure notification that canonical state changed inside an owning stateful module. It is **not** automatically a lived-reality Event and must not be treated as life evidence merely because it exists.
 
-Publication reliability, transaction coupling, delivery semantics, and consumer idempotency belong to the Domain Protocol/System Architecture.
+Publication reliability, transaction coupling, delivery semantics, and consumer idempotency belong to the Stateful Module Protocol/System Architecture.
 
-## PracticeSession — pilot domain example
+## PracticeSession — pilot life-domain example
 
 ```ts
 interface PracticeSession {
@@ -479,7 +479,7 @@ interface PracticeSession {
 
 Measurements and reflections remain separate records. Free-form notes are excluded to avoid mixing reflection, observation, and factual session data.
 
-If exact start/end timing and explicit duration are both present, the Practice domain must validate consistency or explicitly mark one representation as estimated/derived.
+If exact start/end timing and explicit duration are both present, the Practice module must validate consistency or explicitly mark one representation as estimated/derived.
 
 ## Contract design rules
 
@@ -489,7 +489,7 @@ If exact start/end timing and explicit duration are both present, the Practice d
 4. Historical explainability permits explicit redaction/deletion states; it does not require indefinite content retention.
 5. Ownership scope is explicit and distinct from record subject.
 6. Separate occurrence, validity, planned, and record time; open and unknown endpoints are distinct.
-7. Commands request; lived Events record occurrence; DomainChanges notify canonical state change.
+7. Commands request; lived Events record occurrence; ModuleChanges notify canonical state change.
 8. `RecordRef` crosses boundaries; persistence ownership does not.
 9. `EntityRef` is reserved for continuing identity.
 10. Direction edges represent intentional structure; evidence represents epistemic bearing.
@@ -498,7 +498,8 @@ If exact start/end timing and explicit duration are both present, the Practice d
 13. Zero/absence claims require direct evidence or matching bounded coverage.
 14. Derived descendants do not automatically create independent evidence mass.
 15. Request origin and execution authorization are separate, and authorization is revalidated at execution.
-16. Command id is the retry identity; semantic duplicate prevention remains domain-specific.
+16. Command id is the retry identity; semantic duplicate prevention remains module-specific.
 17. Direction intent state does not assert factual fulfillment.
 18. Stale or invalidated projection inputs must not leave silently current projections.
 19. Version preconditions protect non-commutative edits from silent lost updates.
+20. Shared operational contracts target **stateful modules**; a life domain is one module kind, not the universal module type.
