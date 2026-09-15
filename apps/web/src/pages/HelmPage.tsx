@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Compass, LogOut, RefreshCw } from "lucide-react";
+import { Compass, LogOut, RefreshCw, Route } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QuickDirectionCapture } from "@/features/direction/QuickDirectionCapture";
 import { EvidenceLinkCapture } from "@/features/evidence/EvidenceLinkCapture";
@@ -60,7 +61,12 @@ export function HelmPage() {
               <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Helm</h1>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" asChild>
+              <Link to="/journey">
+                <Route className="mr-2 h-4 w-4" /> Journey
+              </Link>
+            </Button>
             <Button variant="ghost" onClick={() => void load()} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
