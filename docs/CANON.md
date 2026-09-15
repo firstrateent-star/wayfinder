@@ -1,7 +1,7 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.6  
-**Status:** Active bootstrap canon  
+**Foundation version:** 0.7  
+**Status:** Active bootstrap canon with executable Slice 1A backend  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
 Wayfinder is an evidence-grounded personal life navigation operating system. It models a person's relationship with lived reality, chosen direction, commitments, action, evidence, interpretation, and growth over time.
@@ -11,7 +11,7 @@ The RPG is a representation layer. It is not the source of truth.
 ## Canon status vocabulary
 
 - **CANONICAL** — architecture may depend on this.
-- **CANDIDATE-STABLE** — repeatedly stress-tested and safe for the next layer to depend on provisionally, but still awaiting executable evidence before full Canon promotion.
+- **CANDIDATE-STABLE** — repeatedly stress-tested and supported by enough evidence for the next layer to depend on provisionally.
 - **CANDIDATE** — defined enough to test, but not yet stable.
 - **EXPERIMENTAL** — intentionally open for exploration.
 - **SUPERSEDED** — retained for reasoning history but no longer authoritative.
@@ -27,27 +27,19 @@ The RPG is a representation layer. It is not the source of truth.
 | Stateful Module Protocol v0.4 | CANDIDATE-STABLE / GATE PASSED | `04-domain-protocol.md` |
 | Intelligence runtime | EXPERIMENTAL | `05-intelligence-runtime.md` |
 | Build roadmap | CANDIDATE | `06-build-roadmap.md` |
-| Glossary | CANONICAL, update in progress with architecture vocabulary | `07-glossary.md` |
-| Recursive validation loop | CANDIDATE | `08-validation-loop.md` |
+| Recursive validation loop | CANDIDATE-STABLE | `08-validation-loop.md` |
 | First executable vertical slice v0.2 | CANDIDATE-STABLE / GATE PASSED | `09-first-vertical-slice.md` |
-| Physical schema v0.5 | CANDIDATE-STABLE / PHYSICAL SCHEMA GATE PASSED | `10-physical-schema.md` |
-| Database bootstrap v0.1 | DEPLOYED — NAMESPACE ONLY | `11-database-bootstrap.md` |
-| Character system | EXPERIMENTAL | Lab until evidence supports promotion |
+| Physical schema v0.5 | CANDIDATE-STABLE / GATE PASSED | `10-physical-schema.md` |
+| Database bootstrap | DEPLOYED | `11-database-bootstrap.md` |
+| Command API | DEPLOYED / LIVE WRITE GATE PASSED | `12-command-api.md` |
+| Slice 1A read API | DEPLOYED / READ GATE PASSED | migrations + live tests |
+| Projection reads v0 | DEPLOYED / PROJECTION READ GATE PASSED | `13-projection-reads.md` |
+| Character system | EXPERIMENTAL | Lab |
 | Archetypes | EXPERIMENTAL | Lab |
-| Skills/mastery model | EXPERIMENTAL | Lab |
+| Skills/mastery | EXPERIMENTAL | Lab |
 | Astrology | EXPERIMENTAL / domain candidate | Lab |
 | Atlas/world model | EXPERIMENTAL | Lab |
 | Agent autonomy | EXPERIMENTAL | Lab |
-
-## Promotion path
-
-Ideas move through:
-
-`LAB → CANDIDATE → CANDIDATE-STABLE → CANON`
-
-Promotion requires a written rationale, explicit trade-offs, no violation of accepted architectural invariants, and sufficient recursive validation for the scope of the change.
-
-Executable evidence is preferred before promoting operational contracts from Candidate-Stable to Canon.
 
 ## Root definition
 
@@ -66,140 +58,174 @@ Executable evidence is preferred before promoting operational contracts from Can
 9. Stateful modules own their canonical records; life domains own their factual reality.
 10. The system models the person; it is not the person.
 
-## Ontology decisions through v0.3
+## Accepted architecture through Slice 1A
 
-Stress testing established:
+- `RecordRef` addresses logical identity; `RecordVersionRef` addresses exact historical representation.
+- Owner scope is explicit and distinct from subject.
+- Known TemporalRanges use half-open `[start,end)` semantics.
+- Canonical mutation is command-only and owner authorization is revalidated at execution.
+- Command id is retry/idempotency identity; deterministic normalized material determines conflict identity.
+- Correction preserves historical versions and rejects stale non-commutative writes.
+- ModuleChange is durable change infrastructure, not lived-reality Event truth.
+- Wayfinder is a modular monolith on one Postgres/Supabase host with isolated `wf_*` namespaces.
+- Sharing the Vlourish physical host does not grant Vlourish canonical ownership over Wayfinder data.
+- Evidence uses exact historical refs and does not silently migrate across correction.
+- Operational change/result refs may use a plain RecordRef for intentionally unversioned records; durable evidence/derivation lineage remains version-addressed where history matters.
+- Result completeness and epistemic coverage are separate axes.
+- Fulfillment, Bearing, and Helm are projections/composed reads, not canonical truth stores.
 
-- `RecordRef` as universal logical address, with narrower `EntityRef` semantics;
-- `Relation` as a Reality primitive;
-- artifact-like outputs as Entity types rather than a separate root primitive;
-- `Commitment` as a Direction primitive;
-- multidimensional epistemic state;
-- correction lineage without universal event sourcing;
-- the Derived root centered on Projection, Metric, Signal, and Pattern;
-- Growth, Momentum, Bearing, Mastery, Character, and Fulfillment as projection families rather than root truth;
-- canonical records as model representations, not metaphysical certainty;
-- provenance/source distinct from derivation mode;
-- zero/absence claims requiring direct evidence or bounded source coverage;
-- derived descendants not automatically becoming independent evidence.
+See ADR-016 through ADR-026.
 
-See ADR-007 through ADR-015.
+## Deployed database
 
-## Contract and architecture decisions after ontology stability
+Wayfinder currently lives inside the existing `vlourish` Supabase project in isolated top-level schemas:
 
-Recursive contract/system pressure further established:
+```text
+wf_system
+wf_direction
+wf_practice
+wf_evidence
+```
 
-- exact historical lineage uses `RecordVersionRef`, while `RecordRef` remains stable logical identity;
-- owner scope is explicit and distinct from subject;
-- commands separate requester from authorization and revalidate permission at execution;
-- Command id is the retry/idempotency identity;
-- material Command hashing uses deterministic canonical serialization;
-- version preconditions prevent silent lost updates;
-- known TemporalRanges use half-open `[start, end)` semantics;
-- coarse occurrence uncertainty ranges do not imply actual event duration;
-- `ModuleChange` is change/invalidation infrastructure, not lived Event or automatic event-sourcing ledger;
-- core canonical capabilities and life domains share the **Stateful Module** execution abstraction;
-- Wayfinder starts as a modular monolith on one Postgres/Supabase database;
-- canonical application mutation is command-only;
-- transactional outbox couples canonical writes to durable ModuleChange publication;
-- epistemic Coverage is source/phenomenon coverage, not mere query completeness;
-- Wayfinder may share the existing `vlourish` Supabase physical host while preserving canonical isolation in dedicated `wf_*` schemas.
+Canonical Slice 1A tables:
 
-See ADR-016 through ADR-024.
+```text
+wf_system
+├── owners
+├── command_receipts
+└── module_change_outbox
 
-## Recursive validation evidence
+wf_direction
+├── nodes
+├── node_versions
+└── edges
 
-Ontology:
+wf_practice
+├── practices
+├── sessions
+└── session_versions
 
-- `lab/ontology-stress-test-v0.1.md`
-- `lab/ontology-stress-test-v0.2.md`
-- `lab/ontology-stress-test-v0.3.md`
-- `lab/ontology-stress-test-v0.3b.md`
+wf_evidence
+└── links
+```
 
-Object contracts:
+Authenticated clients do not directly access canonical tables. Public typed RPCs form the application boundary.
 
-- `lab/object-contract-stress-test-v0.4.md`
-- `lab/object-contract-stress-test-v0.5.md`
-- `lab/object-contract-stress-test-v0.6.md`
-- `lab/object-contract-stress-test-v0.7.md`
+## Live command/write evidence
 
-Stateful Module Protocol:
+Deployed commands include:
 
-- `lab/domain-protocol-stress-test-v0.1.md`
-- `lab/domain-protocol-stress-test-v0.2.md`
-- `lab/domain-protocol-stress-test-v0.3.md`
+- `wf_ensure_owner`
+- `wf_direction_create_node`
+- `wf_direction_create_edge`
+- `wf_practice_create`
+- `wf_practice_log_session`
+- `wf_practice_correct_session`
+- `wf_evidence_create_fulfillment_link`
 
-System architecture:
+Live transactional testing proved idempotent retries, command-id conflict detection, stale correction rejection, exact correction lineage, current/stale Evidence behavior, owner isolation, direct-table denial, and atomic command/outbox behavior.
 
-- `lab/system-architecture-stress-test-v0.2.md`
-- `lab/system-architecture-stress-test-v0.3.md`
-- `lab/system-architecture-stress-test-v0.4.md`
+See `lab/command-api-live-test-v0.1.md`.
 
-First executable vertical slice:
+## Live read evidence
 
-- `lab/first-vertical-slice-stress-test-v0.1.md`
-- `lab/first-vertical-slice-stress-test-v0.2.md`
+Deployed base reads:
 
-Physical schema:
+- `wf_direction_current()`
+- `wf_practice_recent(from,to,limit)`
+- `wf_evidence_for_target(action_id,action_version,limit)`
 
-- `lab/physical-schema-stress-test-v0.1.md`
-- `lab/physical-schema-stress-test-v0.2.md`
-- `lab/physical-schema-stress-test-v0.3.md`
-- `lab/physical-schema-stress-test-v0.4.md`
-- `lab/physical-schema-stress-test-v0.5.md`
+Two recursive live passes proved:
 
-The final physical-schema confirmation pass required no new table family, stateful module, root ontology primitive, or blocking topology change.
+- half-open temporal boundaries;
+- owner isolation;
+- stale Evidence handling;
+- empty stored-result semantics;
+- result-limit behavior;
+- separation of `result_coverage` from `epistemic_coverage`.
 
-## Supabase state
+**READ GATE: PASSED**
 
-### Status: **WAYFINDER NAMESPACE BOOTSTRAPPED INSIDE `vlourish`**
+See ADR-026 and:
 
-The user chose to colocate Wayfinder in the existing `vlourish` Supabase project instead of creating another project.
+- `lab/read-api-live-test-v0.1.md`
+- `lab/read-api-live-test-v0.2-confirmation.md`
 
-Deployed top-level schemas:
+## Live projection reads
 
-- `wf_system`
-- `wf_direction`
-- `wf_practice`
-- `wf_evidence`
+Deployed:
 
-The bootstrap migration revoked schema privileges from `public`, `anon`, and `authenticated` and created no canonical tables.
+- `wf_action_fulfillment_v0(action_id)`
+- `wf_bearing_v0()`
+- `wf_helm_v0(from,to,session_limit)`
 
-Migration source:
+Action Fulfillment states:
 
-`supabase/migrations/20260915044820_bootstrap_wayfinder_namespaces.sql`
+- `CURRENT_EVIDENCE_PRESENT`
+- `STALE_RECORDED_EVIDENCE_ONLY`
+- `NO_RECORDED_EVIDENCE`
 
-See `11-database-bootstrap.md` and ADR-024.
+Bearing states:
 
-Security/performance advisors were run after bootstrap. No advisor findings concern the empty `wf_*` namespaces; existing notices relate to pre-existing `vl_*` schemas/configuration.
+- `NO_ACTIVE_ACTIONS`
+- `RECORDED_EVIDENCE_OF_MOVEMENT`
+- `NO_RECORDED_EVIDENCE_OF_MOVEMENT`
 
-## Current database gate
+Bearing deliberately does not manufacture a progress percentage. It exposes exact qualifying lineage and only presents SUPPORTS targets that are current ACTIVE intentions.
 
-### Status: **AUTHORIZED TO DESIGN + REVIEW SLICE 1A TABLE MIGRATION — NOT YET AUTHORIZED TO APPLY IT**
+Helm composes Direction + Bearing + scoped Practice while preserving nested coverage/lineage semantics.
 
-Next:
+**PROJECTION READ GATE: PASSED**
 
-1. write executable SQL for the ten-table first-slice model;
-2. recursively review the SQL itself;
-3. verify FK/DEFERRABLE constraints and lifecycle triggers;
-4. verify auth/RPC/security-definer boundaries and cross-owner isolation;
-5. verify command idempotency/concurrency and Evidence resolution;
-6. only then apply the first canonical Wayfinder table migration.
+See:
 
-Still not authorized:
+- `docs/13-projection-reads.md`
+- `lab/projection-read-stress-test-v0.1.md`
+- `lab/projection-read-stress-test-v0.2.md`
+- `lab/projection-read-live-test-v0.1.md`
 
-- speculative future tables;
-- Character/XP/skills/calendar/AI infrastructure;
-- frontend direct canonical-table mutation;
-- hidden dependencies on `vl_*` canonical tables.
+## Security posture
 
-After the first table migration is applied, run Supabase security/performance advisors again and convert written invariants into executable database tests.
+The public authenticated Wayfinder RPCs are intentionally `SECURITY DEFINER` because the private `wf_*` schemas are not exposed to ordinary clients.
+
+Each RPC must continue to:
+
+- derive owner identity from `auth.uid()`;
+- use fixed `search_path=pg_catalog`;
+- fully qualify private objects;
+- scope reads/writes by owner;
+- deny anon unless explicitly justified;
+- pass cross-owner tests.
+
+Supabase's security advisor intentionally warns that authenticated users can execute these privileged RPCs. This warning is accepted only because the functions are the designed privilege boundary and are continuously stress-tested. New public RPCs must receive the same review.
+
+## Current implementation gate
+
+### Status: **BACKEND SLICE 1A + HELM v0 ARE EXECUTABLE**
+
+The backend can now answer, without a frontend inventing truth:
+
+- What current Directions/Actions are recorded?
+- What PracticeSessions are recorded in a declared time scope?
+- What exact Evidence bears on an Action?
+- Is that Evidence still current after correction?
+- What is the current Action Fulfillment evidence state?
+- Is there recorded evidence of movement across active Actions?
+- What does the composed Helm view currently show?
+
+Still not authorized by default:
+
+- Character/XP/skills persistence;
+- speculative future domain tables;
+- AI-authored canonical truth;
+- frontend direct canonical-table writes;
+- hidden dependencies on `vl_*` canonical tables;
+- treating no stored record as proof no lived event occurred.
+
+## Next evidence source
+
+The next sensible layer is a **thin frontend shell over the existing Helm/command APIs**, deliberately avoiding frontend-owned domain logic. Real user interaction should then become the next source of evidence for the architecture.
 
 ## Change control
 
-A change to Canon should either:
-
-- update the relevant canonical document and add an ADR, or
-- supersede an existing ADR with a new ADR.
-
-Do not silently rewrite foundational reasoning.
+A change to Canon should update the relevant canonical document and, when it changes a durable architectural decision, add or supersede an ADR. Do not silently rewrite foundational reasoning.
