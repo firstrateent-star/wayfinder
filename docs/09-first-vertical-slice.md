@@ -1,7 +1,7 @@
 # Wayfinder First Executable Vertical Slice
 
-**Version:** 0.1  
-**Status:** CANDIDATE
+**Version:** 0.2  
+**Status:** CANDIDATE-STABLE
 
 ## Purpose
 
@@ -20,10 +20,10 @@ A person wants to grow in a practice such as music production.
 They can:
 
 1. create a Direction;
-2. create an Outcome beneath/related to that Direction;
+2. create an Outcome related to that Direction;
 3. create an Action intended to support the Outcome;
 4. log a real PracticeSession, whether planned or spontaneous;
-5. optionally link that real session as evidence bearing on the Action's fulfillment;
+5. explicitly link that real session as evidence bearing on the Action's fulfillment when desired;
 6. see the session in Journey;
 7. see a minimal Helm view of current Direction, intended Action, recent recorded Practice, and evidence-backed Bearing;
 8. correct a PracticeSession without erasing the old explanation trail.
@@ -49,7 +49,7 @@ Evidence
   Session v1 SUPPORTS Action v1 / aspect: fulfillment
 
 Derived read
-  "Recorded activity supports your current Direction."
+  "Recorded evidence supports fulfillment of this Action."
 ```
 
 The Action existing is not evidence that it happened. The PracticeSession existing is not automatically proof that the Outcome is achieved.
@@ -62,10 +62,12 @@ Needed capabilities:
 
 - owner identity/bootstrap
 - auth → owner linkage
-- source registration for user entry/system derivation
+- stable built-in source ids for user-entry/system-derived records
 - command identity/receipt storage
 - shared transactional outbox
 - stable reference/version conventions
+
+A persisted source-registry table is not required yet because Slice 1A has no configurable external sources.
 
 ### Direction core module
 
@@ -80,9 +82,9 @@ Minimum node kinds exercised:
 - `outcome`
 - `action`
 
-Other canonical ontology kinds remain supported conceptually but do not require UI/product implementation in Slice 1A.
+Other ontology kinds remain valid but do not require product implementation in Slice 1A.
 
-Minimum Direction relations exercised:
+Minimum Direction relation exercised:
 
 - `SUPPORTS`
 
@@ -100,7 +102,7 @@ Minimum behavior:
 - log spontaneous session with no Action
 - correct session through versioned supersession
 - resolve current and historical versions
-- read recent recorded sessions with coverage metadata
+- read recent recorded sessions
 
 ### Evidence core module
 
@@ -110,9 +112,10 @@ Canonical records:
 
 Minimum behavior:
 
-- link a PracticeSession version to an Action version with aspect `fulfillment`;
+- explicitly link a PracticeSession version to an Action version with aspect `fulfillment`;
 - preserve exact source/target versions;
-- exclude links whose source/target is no longer accepted/current from current Bearing unless explicitly re-evaluated;
+- retain historical links when source/target is superseded;
+- exclude stale links from current fulfillment/Bearing reads unless explicitly re-evaluated;
 - preserve old link history for explanation.
 
 ## Slice 1B — authored Reflection
@@ -169,20 +172,35 @@ Every command uses:
 
 ### Evidence reads
 
-- active EvidenceLinks for source/target
+- active/historical EvidenceLinks for source/target
 - resolve EvidenceLink record/version
 
 ### Composed reads
 
 #### Journey v0
 
-On-demand chronological composition of:
+On-demand chronological composition of user-meaningful canonical records such as:
 
 - PracticeSessions
-- relevant Direction changes where useful
-- Evidence linkage explanation where useful
+- authored Direction records/changes where useful
+- relevant Evidence linkage explanation where useful
+
+Journey does **not** display raw ModuleChanges, outbox rows, or command receipts. Infrastructure audit data is separate from lived/history experience.
 
 Journey is a read projection, not a second history table in Slice 1A.
+
+#### Action Fulfillment v0
+
+A small read projection evaluates current evidence around an Action without mutating DirectionNode.
+
+Initial states:
+
+- `EVIDENCE_PRESENT`
+- `NO_EVIDENCE_RECORDED`
+- `STALE_EVIDENCE_ONLY`
+- `DISPUTED`
+
+This projection does not claim metaphysical completion. It reports the current evidence state.
 
 #### Bearing v0
 
@@ -198,16 +216,16 @@ Possible result semantics:
 
 - `ALIGNED_EVIDENCE_PRESENT`
 - `NO_ALIGNED_EVIDENCE_RECORDED`
-- `INSUFFICIENT_COVERAGE`
+- `INSUFFICIENT_SOURCE_COVERAGE`
 
-The second state means no qualifying evidence is recorded in the declared scope. It does **not** mean the person did nothing aligned in lived reality.
+The second state means no qualifying evidence is recorded in the declared record scope. It does **not** mean the person did nothing aligned in lived reality.
 
 #### Helm v0
 
 Shows only:
 
 - one/few currently held Direction nodes;
-- current intended Action(s);
+- intended Action(s) and their evidence state;
 - recent recorded Practice sessions;
 - Bearing v0 explanation;
 - pending/partial shared-module state if Evidence work has not completed.
@@ -216,14 +234,18 @@ No Character screen is required yet.
 
 ## Workflow: planned practice
 
+A combined user gesture may mean “log this session for this Action,” but the orchestration must preserve two explicit command meanings.
+
 ```text
-1. Create Action in Direction
-2. Log PracticeSession in Practice
+1. User explicitly intends PracticeSession + Action link
+2. Practice command logs session
 3. Practice transaction commits
-4. Orchestrator attempts Evidence command
+4. Orchestrator issues Evidence command
 5. EvidenceLink commits if valid
 6. Helm/Journey recompute on demand
 ```
+
+UI context alone must not silently manufacture EvidenceLink semantics.
 
 If step 4/5 fails, the PracticeSession remains valid and visible. The UI may show evidence linkage as pending/unlinked rather than pretending the whole workflow failed or succeeded atomically.
 
@@ -246,21 +268,41 @@ When PracticeSession v1 is corrected to v2:
 - v2 becomes current;
 - Practice publishes ModuleChange;
 - EvidenceLinks pointing at v1 remain historical but are not silently treated as links to v2;
-- current Bearing re-evaluates and ignores stale v1 evidence until the link is explicitly/deterministically re-evaluated;
-- the UI may offer to re-link/reconfirm if appropriate.
+- Action Fulfillment/Bearing ignores stale v1 linkage as current evidence;
+- re-linking v2 is explicit or deterministically re-evaluated under a future transparent rule.
 
-Safety is preferred over silently carrying evidence across a potentially semantic correction.
+Safety is preferred over silently carrying Evidence across a potentially semantic correction.
+
+The same rule applies when the Evidence target version changes: evidence does not silently migrate across Direction revisions.
 
 ## Coverage wording law
 
-A complete query of the Wayfinder Practice database proves only the completeness of the declared stored/source scope.
+Coverage is epistemic/source coverage of the target phenomenon—not merely “the SQL query returned all rows.”
+
+Manual Wayfinder logging usually does **not** establish complete coverage of everything that happened in lived reality.
 
 Therefore:
 
-- allowed: **“No practice sessions are logged for this period.”**
+- allowed: **“No PracticeSessions are logged for this period.”**
+- allowed: **“No aligned evidence is recorded in the selected scope.”**
 - not allowed from database completeness alone: **“You did not practice this week.”**
+- not allowed from missing evidence alone: **“You were not aligned this week.”**
 
-The product must preserve the difference between complete storage coverage and complete knowledge of lived reality.
+Operational query success belongs to readiness/error handling. Epistemic Coverage answers a different question: how completely do the declared sources cover the phenomenon being inferred?
+
+## Delete/correction law
+
+Ordinary user correction/removal does not hard-delete referenced canonical records silently.
+
+Use supersession/retraction for normal semantic correction. Privacy deletion is a separate policy path that may intentionally resolve historical refs to explicit redaction/deletion tombstones.
+
+## Projection economy
+
+Slice 1A does not create persistent Journey, Bearing, or Action Fulfillment tables.
+
+They are computed on demand from authorized module reads.
+
+Persistent/cached projection infrastructure is added only when measured latency or scale justifies it.
 
 ## What Slice 1A deliberately does not build
 
@@ -286,17 +328,22 @@ Slice 1A is not complete unless tests prove at least:
 3. stale correction precondition is rejected;
 4. Action existence does not create occurrence evidence;
 5. PracticeSession can exist without Direction;
-6. evidence link uses exact source/target versions;
-7. corrected source version invalidates current use of old evidence;
-8. a missing record cannot become a zero/absence claim outside bounded Coverage;
-9. direct canonical table mutation is not an accepted application write path;
-10. Evidence module failure does not roll back a committed PracticeSession;
-11. AI availability is irrelevant to all 1A acceptance tests;
-12. one owner's reads/writes cannot access another owner's canonical records;
-13. deleting any cached Journey/Bearing output does not delete canonical Practice/Direction/Evidence history.
+6. EvidenceLink creation is explicit in command semantics, not inferred solely from UI context;
+7. evidence link uses exact source/target versions;
+8. corrected/superseded source version invalidates current use of old Evidence;
+9. Action Fulfillment is a projection, not a canonical Direction mutation;
+10. missing records do not become lived-reality absence claims;
+11. a successful database query is not mislabeled as complete lived-reality Coverage;
+12. direct canonical table mutation is not an accepted application write path;
+13. Evidence module failure does not roll back a committed PracticeSession;
+14. AI availability is irrelevant to all 1A acceptance tests;
+15. one owner's reads/writes cannot access another owner's canonical records;
+16. deleting any Journey/Bearing/Fulfillment read cache does not delete canonical Practice/Direction/Evidence history;
+17. Journey does not expose infrastructure audit records as lived history;
+18. ordinary correction does not silently hard-delete lineage-bearing records.
 
 ## Exit condition
 
-Wayfinder is “alive” when a real person can create Direction, intend an Action, log lived Practice, connect evidence, see a useful present/history view, and safely correct the record—while all architectural invariants still hold.
+Wayfinder is “alive” when a real person can create Direction, intend an Action, log lived Practice, explicitly connect Evidence, see a useful present/history view, and safely correct the record—while all architectural invariants still hold.
 
 At that point, the next evidence source is real implementation and use, not more abstract design.
