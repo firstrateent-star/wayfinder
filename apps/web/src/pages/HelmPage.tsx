@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Compass, LogOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuickDirectionCapture } from "@/features/direction/QuickDirectionCapture";
+import { EvidenceLinkCapture } from "@/features/evidence/EvidenceLinkCapture";
 import { HelmView } from "@/features/helm/HelmView";
+import { PracticeCorrection } from "@/features/practice/PracticeCorrection";
 import { QuickPracticeCapture } from "@/features/practice/QuickPracticeCapture";
 import { supabase } from "@/lib/supabase";
 import { getHelm } from "@/lib/wayfinder-rpc";
@@ -84,10 +86,17 @@ export function HelmPage() {
               <span>Scope: last 7 days · [start, end)</span>
               <span>Computed {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(helm.computed_at))}</span>
             </div>
+
             <HelmView helm={helm} />
+
             <div className="grid gap-5 xl:grid-cols-2">
               <QuickPracticeCapture helm={helm} onSaved={refreshAfterCapture} />
               <QuickDirectionCapture helm={helm} onSaved={refreshAfterCapture} />
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-2">
+              <EvidenceLinkCapture helm={helm} onSaved={refreshAfterCapture} />
+              <PracticeCorrection helm={helm} onSaved={refreshAfterCapture} />
             </div>
           </div>
         ) : null}
