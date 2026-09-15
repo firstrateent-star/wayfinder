@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "build": "npm run check:boundaries && tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
