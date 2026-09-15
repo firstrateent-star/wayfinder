@@ -3,15 +3,13 @@ import { Flag, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createDirectionEdge, createDirectionNode } from "@/lib/wayfinder-rpc";
+import { captureDirectionNode } from "@/lib/wayfinder-rpc";
 import type { HelmRead } from "@/lib/wayfinder-types";
 
 type Kind = "direction" | "outcome" | "quest" | "action";
 
 type PendingAttempt = {
-  nodeCommandId: string;
-  edgeCommandId: string;
-  nodeId?: string;
+  commandId: string;
 };
 
 export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSaved: () => Promise<void> }) {
@@ -28,45 +26,37 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
     [helm.direction.nodes]
   );
 
+  function materialChanged() {
+    attemptRef.current = null;
+    setMessage(null);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setMessage(null);
     if (!title.trim()) return;
 
-    const attempt = attemptRef.current ?? {
-      nodeCommandId: crypto.randomUUID(),
-      edgeCommandId: crypto.randomUUID()
-    };
+    const attempt = attemptRef.current ?? { commandId: crypto.randomUUID() };
     attemptRef.current = attempt;
     setSaving(true);
 
     try {
-      const created = await createDirectionNode({
+      const created = await captureDirectionNode({
         kind,
         title: title.trim(),
         description: description.trim() || undefined,
-        commandId: attempt.nodeCommandId
+        supportsTargetId: kind === "action" && supportsTargetId ? supportsTargetId : null,
+        commandId: attempt.commandId
       });
-      if (created.status === "REJECTED") throw new Error(created.error_code ?? "Direction record was rejected.");
-
-      const nodeId = attempt.nodeId ?? created.affected_refs.find((ref) => ref.namespace === "direction")?.id;
-      if (!nodeId) throw new Error("Direction record was created but its reference was not returned.");
-      attempt.nodeId = nodeId;
-
-      if (kind === "action" && supportsTargetId) {
-        const edge = await createDirectionEdge({
-          fromNodeId: nodeId,
-          toNodeId: supportsTargetId,
-          commandId: attempt.edgeCommandId
-        });
-        if (edge.status === "REJECTED") throw new Error(edge.error_code ?? "SUPPORTS relationship was rejected.");
+      if (created.status === "REJECTED") {
+        throw new Error(created.error_code ?? "Direction capture was rejected.");
       }
 
       attemptRef.current = null;
       setTitle("");
       setDescription("");
       setSupportsTargetId("");
-      setMessage("Direction record saved.");
+      setMessage(created.replayed ? "That capture was already applied; no duplicate was created." : "Direction record saved.");
       await onSaved();
     } catch (cause) {
       setMessage(`${cause instanceof Error ? cause.message : "Capture failed."} Retry will reuse the same command identity.`);
@@ -82,7 +72,9 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
           <Flag className="h-4 w-4" /> Direction capture
         </div>
         <CardTitle>Record what matters next</CardTitle>
-        <CardDescription>Intent stays separate from what actually happened.</CardDescription>
+        <CardDescription>
+          Intent stays separate from reality. A new Action and its optional SUPPORTS relationship are saved atomically.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
@@ -92,7 +84,12 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
               <select
                 id="direction-kind"
                 value={kind}
-                onChange={(event) => { setKind(event.target.value as Kind); attemptRef.current = null; }}
+                onChange={(event) => {
+                  const nextKind = event.target.value as Kind;
+                  setKind(nextKind);
+                  if (nextKind !== "action") setSupportsTargetId("");
+                  materialChanged();
+                }}
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-slate-100 outline-none focus:border-emerald-300/50"
               >
                 <option value="action">Action</option>
@@ -103,13 +100,29 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
             </div>
             <div className="space-y-2">
               <label htmlFor="direction-title" className="text-sm font-medium text-slate-300">Title</label>
-              <Input id="direction-title" placeholder="Practice synthesis, finish a track…" value={title} onChange={(event) => { setTitle(event.target.value); attemptRef.current = null; }} />
+              <Input
+                id="direction-title"
+                placeholder="Practice synthesis, finish a track…"
+                value={title}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  materialChanged();
+                }}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="direction-description" className="text-sm font-medium text-slate-300">Context <span className="text-slate-600">optional</span></label>
-            <Input id="direction-description" placeholder="Why this matters or what it means" value={description} onChange={(event) => { setDescription(event.target.value); attemptRef.current = null; }} />
+            <Input
+              id="direction-description"
+              placeholder="Why this matters or what it means"
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                materialChanged();
+              }}
+            />
           </div>
 
           {kind === "action" && possibleTargets.length > 0 ? (
@@ -118,7 +131,10 @@ export function QuickDirectionCapture({ helm, onSaved }: { helm: HelmRead; onSav
               <select
                 id="supports-target"
                 value={supportsTargetId}
-                onChange={(event) => { setSupportsTargetId(event.target.value); attemptRef.current = null; }}
+                onChange={(event) => {
+                  setSupportsTargetId(event.target.value);
+                  materialChanged();
+                }}
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-slate-100 outline-none focus:border-emerald-300/50"
               >
                 <option value="">No relationship yet</option>
