@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Compass } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { HelmPage } from "@/pages/HelmPage";
-import { JourneyPage } from "@/pages/JourneyPage";
 import { LoginPage } from "@/pages/LoginPage";
 
 function LoadingScreen() {
@@ -36,7 +35,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/helm" replace /> : <LoginPage />} />
       <Route path="/helm" element={session && owner ? <HelmPage /> : <Navigate to="/login" replace />} />
-      <Route path="/journey" element={session && owner ? <JourneyPage /> : <Navigate to="/login" replace />} />
+      <Route path="/journey" element={<Navigate to={session ? "/helm" : "/login"} replace />} />
       <Route path="*" element={<Navigate to={session ? "/helm" : "/login"} replace />} />
     </Routes>
   );
