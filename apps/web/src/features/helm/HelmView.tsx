@@ -1,11 +1,11 @@
-import { ArrowRight, CircleDot, Footprints, History, Route } from "lucide-react";
+import { ArrowRight, CircleDot, Footprints, Route } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvidenceState, HelmRead } from "@/lib/wayfinder-types";
 
 function evidenceLabel(state: EvidenceState) {
-  if (state === "CURRENT_EVIDENCE_PRESENT") return "Current recorded evidence";
-  if (state === "STALE_RECORDED_EVIDENCE_ONLY") return "Historical evidence; underlying record changed";
-  return "No recorded evidence yet";
+  if (state === "CURRENT_EVIDENCE_PRESENT") return "Movement recorded";
+  if (state === "STALE_RECORDED_EVIDENCE_ONLY") return "Needs reconnecting";
+  return "No activity linked";
 }
 
 function evidenceClass(state: EvidenceState) {
@@ -15,9 +15,9 @@ function evidenceClass(state: EvidenceState) {
 }
 
 function bearingCopy(state: HelmRead["bearing"]["state"]) {
-  if (state === "RECORDED_EVIDENCE_OF_MOVEMENT") return "Wayfinder has current recorded evidence of movement toward at least one active Action.";
-  if (state === "NO_ACTIVE_ACTIONS") return "No active Actions are currently recorded in Wayfinder.";
-  return "Wayfinder has active Actions, but no current recorded evidence of movement toward them yet.";
+  if (state === "RECORDED_EVIDENCE_OF_MOVEMENT") return "You have activity connected to something you're moving toward.";
+  if (state === "NO_ACTIVE_ACTIONS") return "Nothing is asking for your attention yet.";
+  return "You have something you're moving toward, but no activity has been connected to it yet.";
 }
 
 function formatMoment(value: string) {
@@ -40,15 +40,15 @@ export function HelmView({ helm }: { helm: HelmRead }) {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-300/80">
-              <Route className="h-4 w-4" /> Bearing
+              <Route className="h-4 w-4" /> Now
             </div>
-            <CardTitle className="text-xl">Where the record points right now</CardTitle>
+            <CardTitle className="text-xl">Where you're headed</CardTitle>
             <CardDescription>{bearingCopy(helm.bearing.state)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {helm.bearing.actions.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">
-                No active Action records to display.
+                Add a next action when something starts to matter.
               </div>
             ) : (
               helm.bearing.actions.map((action) => (
@@ -58,7 +58,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
                       <p className="font-medium text-slate-100">{action.title}</p>
                       {action.supports_targets.length > 0 ? (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                          <span>Supports</span>
+                          <span>Leads toward</span>
                           <ArrowRight className="h-3 w-3" />
                           {action.supports_targets.map((target) => (
                             <span key={target.id} className="rounded-full bg-white/5 px-2 py-1 text-slate-300">
@@ -75,22 +75,19 @@ export function HelmView({ helm }: { helm: HelmRead }) {
                 </div>
               ))
             )}
-            <p className="text-xs leading-5 text-slate-500">
-              Bearing is descriptive, not a progress score. Missing recorded evidence is not proof that no real movement occurred.
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-              <CircleDot className="h-4 w-4" /> Direction
+              <CircleDot className="h-4 w-4" /> What matters
             </div>
-            <CardTitle>What currently matters</CardTitle>
+            <CardTitle>Your bigger direction</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             {activeDirection.length === 0 ? (
-              <p className="text-sm text-slate-500">No active Direction, Outcome, or Quest records yet.</p>
+              <p className="text-sm text-slate-500">Nothing bigger has been added yet.</p>
             ) : (
               activeDirection.map((node) => (
                 <div key={node.id} className="rounded-xl border border-white/[0.08] bg-black/[0.15] p-4">
@@ -107,13 +104,13 @@ export function HelmView({ helm }: { helm: HelmRead }) {
       <Card className="h-fit">
         <CardHeader>
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-            <Footprints className="h-4 w-4" /> Recent Practice
+            <Footprints className="h-4 w-4" /> Recently
           </div>
-          <CardTitle>What Wayfinder has recorded</CardTitle>
+          <CardTitle>What you've been doing</CardTitle>
           <CardDescription>
             {helm.practice.sessions.length === 0
-              ? "No matching PracticeSession records are stored in this selected period."
-              : `${helm.practice.returned_count} session record${helm.practice.returned_count === 1 ? "" : "s"} shown.`}
+              ? "Nothing has been logged here yet."
+              : `${helm.practice.returned_count} recent activit${helm.practice.returned_count === 1 ? "y" : "ies"}.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -131,16 +128,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
               {session.focus ? <p className="mt-3 text-sm leading-6 text-slate-400">{session.focus}</p> : null}
             </div>
           ))}
-
-          <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4 text-xs leading-5 text-slate-500">
-            <div className="flex items-center gap-2 text-slate-400">
-              <History className="h-3.5 w-3.5" /> Coverage
-            </div>
-            <p className="mt-2">
-              Result coverage: {helm.practice.result_coverage.completeness.toLowerCase()} for stored records in this query.
-              Lived-reality coverage remains {helm.practice.epistemic_coverage.completeness.toLowerCase()}.
-            </p>
-          </div>
+          <p className="pt-1 text-xs leading-5 text-slate-600">Wayfinder only knows what you choose to record.</p>
         </CardContent>
       </Card>
     </div>
