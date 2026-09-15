@@ -70,12 +70,10 @@ export function JourneyPage() {
           </div>
         </header>
 
-        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-200">A reconstruction, not a diary invented by the system</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Journey arranges selected canonical records through time while preserving whether each timestamp means occurred or recorded.
-            </p>
+            <p className="text-sm font-medium text-slate-200">Your recent path</p>
+            <p className="mt-1 text-sm text-slate-500">A simple view of what you've recorded over time.</p>
           </div>
           <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-black/[0.18] p-1">
             {RANGE_OPTIONS.map((option) => (
@@ -87,30 +85,20 @@ export function JourneyPage() {
                   days === option ? "bg-white/[0.1] text-slate-100" : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                {option}d
+                {option === 7 ? "Week" : option === 30 ? "Month" : "3 months"}
               </button>
             ))}
           </div>
         </div>
 
-        {error ? (
-          <div className="mb-6 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200">{error}</div>
-        ) : null}
+        {error ? <div className="mb-6 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200">{error}</div> : null}
 
         {loading && !journey ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-sm text-slate-500">
-            Reconstructing the selected Journey…
-          </div>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-sm text-slate-500">Looking back…</div>
         ) : null}
 
         {journey ? (
           <div className={loading ? "opacity-70 transition-opacity" : "transition-opacity"}>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-              <span>Scope: last {days} days · [start, end)</span>
-              <span>
-                Computed {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(journey.computed_at))}
-              </span>
-            </div>
             <JourneyView journey={journey} />
           </div>
         ) : null}
