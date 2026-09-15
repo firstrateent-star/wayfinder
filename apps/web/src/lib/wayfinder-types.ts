@@ -190,6 +190,152 @@ export interface HelmRead {
   composition_note: string;
 }
 
+export type JourneyLayer = "REALITY" | "DIRECTION" | "EVIDENCE" | "CORRECTION";
+export type JourneyTimeBasis = "OCCURRED" | "RECORDED";
+export type JourneyVersionRef = RecordRef & { version: string };
+
+export interface JourneyPracticeSessionPayload {
+  primary_ref: JourneyVersionRef;
+  practice: {
+    id: string;
+    name: string;
+    lifecycle_status: "ACTIVE" | "RETRACTED";
+  };
+  focus: string | null;
+  duration_seconds: number | null;
+  occurrence: {
+    from: string;
+    to: string | null;
+    from_precision: string;
+    to_precision: string | null;
+    zone_id: string | null;
+    interval_semantics: "POINT" | "[start,end)";
+  };
+  recorded_at: string;
+}
+
+export interface JourneyDirectionPayload {
+  primary_ref: JourneyVersionRef;
+  node: {
+    id: string;
+    version: string;
+    kind: DirectionNodeRead["kind"];
+    title: string;
+    description: string | null;
+    intent_state_at_recording: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+    lifecycle_status_of_recorded_version: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+  };
+  current_state: {
+    version: string;
+    title: string;
+    intent_state: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+    lifecycle_status: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+  } | null;
+}
+
+export interface JourneyDirectionRelationPayload {
+  primary_ref: JourneyVersionRef;
+  relation: string;
+  lifecycle_status: "ACTIVE" | "RETRACTED";
+  from: {
+    namespace: "direction";
+    type: string;
+    id: string;
+    title: string;
+  };
+  to: {
+    namespace: "direction";
+    type: string;
+    id: string;
+    title: string;
+  };
+}
+
+export interface JourneyEvidencePayload {
+  primary_ref: JourneyVersionRef;
+  relation: string;
+  target_aspect: string | null;
+  reason: string | null;
+  lifecycle_status: "ACTIVE" | "RETRACTED";
+  source: {
+    ref: JourneyVersionRef;
+    practice: { id: string; name: string };
+    focus: string | null;
+    duration_seconds: number | null;
+    is_current: boolean;
+  };
+  target: {
+    ref: JourneyVersionRef;
+    title: string;
+    is_current: boolean;
+  };
+}
+
+export interface JourneyCorrectionPayload {
+  primary_ref: JourneyVersionRef;
+  previous_ref: JourneyVersionRef;
+  changed_fields: string[];
+  before: {
+    practice: { id: string; name: string };
+    focus: string | null;
+    duration_seconds: number | null;
+    occurred_from: string;
+    occurred_to: string | null;
+    version_no: number;
+  };
+  after: {
+    practice: { id: string; name: string };
+    focus: string | null;
+    duration_seconds: number | null;
+    occurred_from: string;
+    occurred_to: string | null;
+    version_no: number;
+  };
+}
+
+interface JourneyItemBase<K extends string, L extends JourneyLayer, T extends JourneyTimeBasis, P> {
+  item_key: string;
+  kind: K;
+  layer: L;
+  timeline_at: string;
+  time_basis: T;
+  payload: P;
+}
+
+export type JourneyItem =
+  | JourneyItemBase<"PRACTICE_SESSION", "REALITY", "OCCURRED", JourneyPracticeSessionPayload>
+  | JourneyItemBase<"DIRECTION_RECORDED", "DIRECTION", "RECORDED", JourneyDirectionPayload>
+  | JourneyItemBase<"DIRECTION_RELATION_RECORDED", "DIRECTION", "RECORDED", JourneyDirectionRelationPayload>
+  | JourneyItemBase<"EVIDENCE_RECORDED", "EVIDENCE", "RECORDED", JourneyEvidencePayload>
+  | JourneyItemBase<"PRACTICE_SESSION_CORRECTED", "CORRECTION", "RECORDED", JourneyCorrectionPayload>;
+
+export interface JourneyRead {
+  projection_type: "journey";
+  rule_version: string;
+  computed_at: string;
+  scope: {
+    from: string;
+    to: string;
+    interval_semantics: "[start,end)";
+    timeline_rule: string;
+  };
+  items: JourneyItem[];
+  returned_count: number;
+  matching_item_count: number;
+  result_coverage: {
+    completeness: "COMPLETE" | "PARTIAL";
+    reason: "RESULT_LIMIT" | null;
+  };
+  epistemic_coverage: {
+    phenomenon: "person_life_and_change_over_time";
+    source: string;
+    completeness: "UNKNOWN";
+    reason: string;
+  };
+  included_kinds: JourneyItem["kind"][];
+  does_not_assert: string[];
+}
+
 export interface OwnerBootstrap {
   owner_id: string;
   timezone: string;
