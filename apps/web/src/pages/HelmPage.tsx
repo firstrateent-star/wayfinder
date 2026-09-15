@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Compass, LogOut, RefreshCw, Route } from "lucide-react";
+import { Compass, LogOut, RefreshCw, Route, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QuickDirectionCapture } from "@/features/direction/QuickDirectionCapture";
@@ -30,7 +30,7 @@ export function HelmPage() {
       const next = await getHelm({ ...scope, sessionLimit: 20 });
       setHelm(next);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Helm could not be loaded.");
+      setError(cause instanceof Error ? cause.message : "Wayfinder could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -78,32 +78,39 @@ export function HelmPage() {
           </div>
         </header>
 
-        {error ? (
-          <div className="mb-6 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200">{error}</div>
-        ) : null}
+        {error ? <div className="mb-6 rounded-2xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200">{error}</div> : null}
 
         {loading && !helm ? (
-          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-8 text-sm text-slate-500">Reading the current Helm projection…</div>
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-8 text-sm text-slate-500">Finding your current position…</div>
         ) : null}
 
         {helm ? (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-              <span>Scope: last 7 days · [start, end)</span>
-              <span>Computed {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(helm.computed_at))}</span>
-            </div>
-
+          <div className="space-y-7">
             <HelmView helm={helm} />
 
-            <div className="grid gap-5 xl:grid-cols-2">
-              <QuickPracticeCapture helm={helm} onSaved={refreshAfterCapture} />
-              <QuickDirectionCapture helm={helm} onSaved={refreshAfterCapture} />
-            </div>
+            <section>
+              <div className="mb-4">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Add to Wayfinder</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-100">Keep the picture current</h2>
+              </div>
+              <div className="grid gap-5 xl:grid-cols-2">
+                <QuickPracticeCapture helm={helm} onSaved={refreshAfterCapture} />
+                <QuickDirectionCapture helm={helm} onSaved={refreshAfterCapture} />
+              </div>
+            </section>
 
-            <div className="grid gap-5 xl:grid-cols-2">
-              <EvidenceLinkCapture helm={helm} onSaved={refreshAfterCapture} />
-              <PracticeCorrection helm={helm} onSaved={refreshAfterCapture} />
-            </div>
+            <details className="group rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm text-slate-400 transition-colors hover:text-slate-200">
+                <span className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Advanced tools</span>
+                <span className="text-xs text-slate-600">Optional</span>
+              </summary>
+              <div className="border-t border-white/[0.06] p-5">
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <EvidenceLinkCapture helm={helm} onSaved={refreshAfterCapture} />
+                  <PracticeCorrection helm={helm} onSaved={refreshAfterCapture} />
+                </div>
+              </div>
+            </details>
           </div>
         ) : null}
       </div>
