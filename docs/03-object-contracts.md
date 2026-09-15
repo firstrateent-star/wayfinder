@@ -1,6 +1,6 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.8  
+**Version:** 0.9  
 **Status:** CANDIDATE-STABLE
 
 These are conceptual contracts. They are intentionally not yet production TypeScript or SQL. `CANDIDATE-STABLE` means they have survived repeated semantic and operational pressure well enough to let the next architecture layer depend on them provisionally.
@@ -96,7 +96,7 @@ interface LineageSpec {
 
 Lineage must identify the exact historical input set used by a derivation.
 
-For small derivations, `directRefs` is sufficient. For large derivations, `manifestRef` may point to an immutable versioned lineage manifest that preserves the exact input set without embedding hundreds of thousands of references in every projection.
+For small derivations, `directRefs` is sufficient. For large derivations, `manifestRef` may point to an immutable versioned lineage manifest that preserves the exact input set without embedding huge reference sets in every projection.
 
 A query description alone is not historical lineage because its results can change later.
 
@@ -185,9 +185,13 @@ interface TemporalScope {
 }
 ```
 
-`OPEN` means the record intentionally asserts no closed endpoint at present (for example, a currently ongoing State). `UNKNOWN` means Wayfinder does not know the endpoint. Those are not synonyms.
+`OPEN` means the record intentionally asserts no closed endpoint at present, such as a currently ongoing State. `UNKNOWN` means Wayfinder does not know the endpoint. Those are not synonyms.
 
-Approximate historical time should normally be represented as a bounded range rather than fabricated timestamp precision.
+Whenever a `TemporalRange` has two known boundaries, Wayfinder uses **half-open interval semantics `[start, end)`**: the start is included and the end is excluded. This prevents adjacent ranges from double-counting a shared boundary and gives one consistent rule for date/day/month normalization, overlap, aggregation, and filtering.
+
+Approximate historical time should normally be represented as a bounded range rather than fabricated timestamp precision. A coarse uncertainty window does not necessarily describe the actual duration of the event.
+
+Therefore a record may validly say, for example, “30 minutes sometime Saturday”: the occurrence range can cover the whole Saturday window while `durationSeconds = 1800`. Duration must only be required to equal `end - start` when the boundaries are explicitly representing the actual exact event interval.
 
 `Provenance.recordedAt` is system record/ingestion time and remains distinct from lived/intended time axes.
 
@@ -425,6 +429,8 @@ Same command id + materially different command content is a conflict and must be
 
 Commands request change. They are not facts. The owning module validates authorization, payload, preconditions, ownership scope, and module semantics.
 
+For transport-independent retry hashing, the material command content must be normalized with deterministic canonical serialization before hashing. Raw JSON text, object-key order, whitespace, or client-specific serialization must not change retry identity semantics.
+
 ## CommandReceipt
 
 ```ts
@@ -479,7 +485,7 @@ interface PracticeSession {
 
 Measurements and reflections remain separate records. Free-form notes are excluded to avoid mixing reflection, observation, and factual session data.
 
-If exact start/end timing and explicit duration are both present, the Practice module must validate consistency or explicitly mark one representation as estimated/derived.
+If exact start/end timing and explicit duration are all present and those bounds represent the actual event interval, the Practice module validates consistency. If the occurrence range is a coarse uncertainty window, a known duration may be shorter than the range and must not be rejected merely because it differs from range width.
 
 ## Contract design rules
 
@@ -489,17 +495,18 @@ If exact start/end timing and explicit duration are both present, the Practice m
 4. Historical explainability permits explicit redaction/deletion states; it does not require indefinite content retention.
 5. Ownership scope is explicit and distinct from record subject.
 6. Separate occurrence, validity, planned, and record time; open and unknown endpoints are distinct.
-7. Commands request; lived Events record occurrence; ModuleChanges notify canonical state change.
-8. `RecordRef` crosses boundaries; persistence ownership does not.
-9. `EntityRef` is reserved for continuing identity.
-10. Direction edges represent intentional structure; evidence represents epistemic bearing.
-11. Derivations preserve exact input ancestry using direct refs or an immutable lineage manifest.
-12. Correction lineage must be explainable without mandating full event sourcing.
-13. Zero/absence claims require direct evidence or matching bounded coverage.
-14. Derived descendants do not automatically create independent evidence mass.
-15. Request origin and execution authorization are separate, and authorization is revalidated at execution.
-16. Command id is the retry identity; semantic duplicate prevention remains module-specific.
-17. Direction intent state does not assert factual fulfillment.
-18. Stale or invalidated projection inputs must not leave silently current projections.
-19. Version preconditions protect non-commutative edits from silent lost updates.
-20. Shared operational contracts target **stateful modules**; a life domain is one module kind, not the universal module type.
+7. Known temporal ranges use half-open `[start, end)` semantics; coarse uncertainty ranges do not imply event duration.
+8. Commands request; lived Events record occurrence; ModuleChanges notify canonical state change.
+9. `RecordRef` crosses boundaries; persistence ownership does not.
+10. `EntityRef` is reserved for continuing identity.
+11. Direction edges represent intentional structure; evidence represents epistemic bearing.
+12. Derivations preserve exact input ancestry using direct refs or an immutable lineage manifest.
+13. Correction lineage must be explainable without mandating full event sourcing.
+14. Zero/absence claims require direct evidence or matching bounded coverage.
+15. Derived descendants do not automatically create independent evidence mass.
+16. Request origin and execution authorization are separate, and authorization is revalidated at execution.
+17. Command id is the retry identity; semantic duplicate prevention remains module-specific; request hashing uses deterministic canonical serialization.
+18. Direction intent state does not assert factual fulfillment.
+19. Stale or invalidated projection inputs must not leave silently current projections.
+20. Version preconditions protect non-commutative edits from silent lost updates.
+21. Shared operational contracts target **stateful modules**; a life domain is one module kind, not the universal module type.
