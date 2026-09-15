@@ -9,8 +9,8 @@ function evidenceLabel(state: EvidenceState) {
 }
 
 function evidenceClass(state: EvidenceState) {
-  if (state === "CURRENT_EVIDENCE_PRESENT") return "border-emerald-300/20 bg-emerald-300/8 text-emerald-200";
-  if (state === "STALE_RECORDED_EVIDENCE_ONLY") return "border-amber-300/20 bg-amber-300/8 text-amber-200";
+  if (state === "CURRENT_EVIDENCE_PRESENT") return "border-emerald-300/20 bg-emerald-300/[0.08] text-emerald-200";
+  if (state === "STALE_RECORDED_EVIDENCE_ONLY") return "border-amber-300/20 bg-amber-300/[0.08] text-amber-200";
   return "border-white/10 bg-white/5 text-slate-400";
 }
 
@@ -52,7 +52,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
               </div>
             ) : (
               helm.bearing.actions.map((action) => (
-                <div key={action.id} className="rounded-xl border border-white/8 bg-black/15 p-4">
+                <div key={action.id} className="rounded-xl border border-white/[0.08] bg-black/[0.15] p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-medium text-slate-100">{action.title}</p>
@@ -93,7 +93,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
               <p className="text-sm text-slate-500">No active Direction, Outcome, or Quest records yet.</p>
             ) : (
               activeDirection.map((node) => (
-                <div key={node.id} className="rounded-xl border border-white/8 bg-black/15 p-4">
+                <div key={node.id} className="rounded-xl border border-white/[0.08] bg-black/[0.15] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{node.kind}</p>
                   <p className="mt-2 font-medium text-slate-100">{node.title}</p>
                   {node.description ? <p className="mt-2 text-sm leading-6 text-slate-400">{node.description}</p> : null}
@@ -118,7 +118,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
         </CardHeader>
         <CardContent className="space-y-3">
           {helm.practice.sessions.map((session) => (
-            <div key={session.id} className="rounded-xl border border-white/8 bg-black/15 p-4">
+            <div key={session.id} className="rounded-xl border border-white/[0.08] bg-black/[0.15] p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="font-medium text-slate-100">{session.practice.name}</p>
@@ -132,7 +132,7 @@ export function HelmView({ helm }: { helm: HelmRead }) {
             </div>
           ))}
 
-          <div className="mt-4 rounded-xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-slate-500">
+          <div className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4 text-xs leading-5 text-slate-500">
             <div className="flex items-center gap-2 text-slate-400">
               <History className="h-3.5 w-3.5" /> Coverage
             </div>
