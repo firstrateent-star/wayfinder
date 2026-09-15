@@ -1,6 +1,6 @@
 # Wayfinder Object Contracts
 
-**Version:** 0.3  
+**Version:** 0.4  
 **Status:** CANDIDATE
 
 These are conceptual contracts. They are intentionally not yet production TypeScript or SQL.
@@ -18,6 +18,12 @@ interface RecordRef {
 Purpose: universal address for any Wayfinder-addressable record without implying universal storage or ownership.
 
 `namespace` and `type` are stable machine identifiers, not display labels.
+
+### Historical resolution rule
+
+Any `RecordRef` stored in evidence or provenance lineage must remain resolvable to the historical record/version actually consumed by that derivation.
+
+Implementation may achieve this with immutable corrected records, version-addressable revisions, audit storage, or another explicit mechanism. The contract does not require full event sourcing.
 
 ## EntityRef
 
@@ -125,6 +131,17 @@ interface DirectionNode {
 
 `status` remains intentionally unspecialized until each Direction kind's lifecycle is pressure-tested.
 
+## DirectionNodeRef
+
+```ts
+interface DirectionNodeRef extends RecordRef {
+  namespace: "direction";
+  type: DirectionKind;
+}
+```
+
+This conceptual narrowing prevents Reality/Epistemic records from entering the Direction graph as though they were Direction nodes.
+
 ## DirectionEdge
 
 ```ts
@@ -139,13 +156,15 @@ type DirectionRelation =
 
 interface DirectionEdge {
   id: string;
-  from: RecordRef;
-  to: RecordRef;
+  from: DirectionNodeRef;
+  to: DirectionNodeRef;
   relation: DirectionRelation;
   createdAt: string;
   provenance: Provenance;
 }
 ```
+
+Direction edges describe relationships *inside Direction*. Reality/Observation/Projection -> Direction support belongs in `EvidenceLink`, not `DirectionEdge`.
 
 Direction relation types may have different graph constraints. `PART_OF` and `DEPENDS_ON` should normally be acyclic.
 
@@ -314,7 +333,9 @@ This is intentionally small. Measurements and reflections may be separate record
 5. Commands request; domain events assert accepted occurrence.
 6. `RecordRef` crosses boundaries; persistence ownership does not.
 7. `EntityRef` is reserved for continuing identity.
-8. Correction lineage must be explainable without mandating full event sourcing.
-9. Graph relations may have relation-specific structural constraints.
-10. Zero/absence claims require direct evidence or bounded coverage.
-11. Derived descendants do not automatically create independent evidence mass.
+8. Direction edges connect Direction nodes; cross-layer support uses Evidence.
+9. Evidence/provenance references must remain historically resolvable.
+10. Correction lineage must be explainable without mandating full event sourcing.
+11. Graph relations may have relation-specific structural constraints.
+12. Zero/absence claims require direct evidence or bounded coverage.
+13. Derived descendants do not automatically create independent evidence mass.
