@@ -1,13 +1,13 @@
 # Wayfinder Physical Schema — First Slice
 
-**Version:** 0.3  
-**Status:** CANDIDATE-STABLE — DESIGN ONLY, NOT YET DEPLOYED
+**Version:** 0.4  
+**Status:** CANDIDATE-STABLE — FINAL CONVERGENCE CANDIDATE, NOT YET DEPLOYED
 
 ## Goal
 
 Map the stable ontology/contracts into the **smallest physical Postgres/Supabase schema** needed for Slice 1A without creating a universal life table, projection warehouse, future-domain scaffolding, or premature distributed infrastructure.
 
-`CANDIDATE-STABLE` means the design has survived repeated semantic/operational pressure and is ready for one final convergence pass before any Supabase migration is applied.
+This version incorporates the third recursive schema stress test: current-version integrity, monotonic lifecycle, same-record supersession, owner FK discipline, half-open time ranges, precision-aware duration validation, and canonical command request hashing.
 
 ## Physical topology
 
@@ -30,14 +30,14 @@ No microservices.
 
 For versioned canonical records:
 
-- stable `RecordRef.id` → `record_id uuid`
+- stable `RecordRef.id` → logical `record_id uuid`
 - exact `RecordVersionRef.version` → `version_id uuid`
 
-All Wayfinder-created canonical record ids use UUID in the first physical implementation even though the logical contract keeps ids transport-agnostic.
+All Wayfinder-created canonical ids use UUID in the first implementation even though the logical contract remains transport-agnostic.
 
 ### No universal canonical record table
 
-There is no `facts`, `entities`, or universal payload table.
+There is no universal `facts`, `entities`, or generic payload table.
 
 Each stateful module owns its canonical payload persistence. Generic cross-module references carry namespace/type/logical-id/version-id and resolve through module contracts.
 
@@ -48,7 +48,7 @@ Versioned in Slice 1A:
 - DirectionNode
 - PracticeSession
 
-Immutable semantic payload after creation, with lifecycle/retraction metadata allowed to change:
+Immutable semantic payload after creation, with only controlled lifecycle change:
 
 - DirectionEdge
 - EvidenceLink
@@ -60,8 +60,6 @@ Unversioned display Entity in Slice 1A:
 Practice name/description must not be used as durable evidence lineage until a future contract/versioning migration explicitly permits it.
 
 ### Stable row + version row
-
-Conceptually:
 
 ```text
 stable row
@@ -82,34 +80,48 @@ version row
 
 Correction inserts a new version and advances the stable pointer atomically. Historical semantic payload is not overwritten.
 
-Lifecycle-only metadata may later mark an old version SUPERSEDED/RETRACTED. Privacy deletion is a separate explicit policy path and is not ordinary correction.
+### Immutable payload protection and lifecycle
 
-### Immutable payload protection
+Version tables protect historical semantic payload against UPDATE after insertion.
 
-Version tables must protect historical semantic payload against accidental UPDATE after insertion.
-
-Allowed lifecycle updates may include only fields such as:
+Allowed lifecycle mutations are narrowly limited to lifecycle fields such as:
 
 - `lifecycle_status`
 - `superseded_by_version_id`
-- explicit retraction metadata if present
+- explicit retraction metadata
 
-A small database trigger is preferred if it can enforce this cleanly; otherwise the invariant must be enforced by privileges/functions and automated tests. No general UPDATE privilege is granted to application roles.
+First-slice lifecycle transitions are monotonic:
+
+- `ACTIVE → SUPERSEDED`
+- `ACTIVE → RETRACTED`
+- `SUPERSEDED` and `RETRACTED` do not silently return to `ACTIVE`
+
+DirectionEdge and EvidenceLink permit only `ACTIVE → RETRACTED` after creation.
+
+A database trigger/invariant function should enforce immutable payload and lifecycle transitions. Application roles receive no general UPDATE privilege on canonical tables.
 
 ## Owner-aware referential integrity
 
-Inside one module, database constraints should enforce owner consistency wherever practical.
+All owner-scoped system/canonical rows FK to `wf_system.owners(id)` using restrictive/guarded semantics. Owner purge is an explicit future privacy operation; auth deletion must not accidentally cascade through Wayfinder history.
+
+Inside one module, database constraints enforce owner consistency wherever practical.
 
 Pattern for versioned records:
 
 - stable table: `unique (id, owner_id)`;
 - version table FK `(record_id, owner_id)` → stable `(id, owner_id)`;
 - version table: `unique (id, record_id, owner_id)`;
-- stable current pointer protected by composite relation `(current_version_id, id, owner_id)` → version `(id, record_id, owner_id)` or an equivalent invariant trigger.
+- stable current pointer protected by composite relation `(current_version_id, id, owner_id)` → version `(id, record_id, owner_id)` or equivalent DEFERRABLE invariant;
+- `superseded_by_version_id` protected by same-record/owner composite relation `(superseded_by_version_id, record_id, owner_id)` → `(id, record_id, owner_id)`.
 
-Creation may insert the stable row with NULL current pointer, insert v1, then advance the pointer in the same transaction.
+At transaction end, a current-version invariant must also prove:
 
-Current-pointer constraints should be **DEFERRABLE** where practical so creation, correction, restore, and migration ordering remain tractable.
+1. `current_version_id` resolves to the same logical record/owner;
+2. it does not point to a `SUPERSEDED` version;
+3. when an accepted current representation exists it is `ACTIVE`;
+4. `RETRACTED` may remain the latest pointed version when the logical record intentionally has no active representation.
+
+Creation may insert stable row with NULL current pointer, insert v1, then advance pointer in the same transaction. Current-pointer constraints/invariant triggers should be DEFERRABLE where practical so create/correct/restore/migration ordering remains tractable.
 
 Same-owner constraints are mandatory for Direction edge endpoints and PracticeSession → Practice.
 
@@ -126,7 +138,7 @@ Minimum columns:
 - `timezone text not null default 'UTC'`
 - `created_at timestamptz not null default now()`
 
-The auth FK should **not** silently cascade-delete Wayfinder data. Prefer guarded/restrictive deletion semantics so owner/account deletion must pass through an explicit future privacy workflow.
+The auth FK must not silently cascade-delete Wayfinder data. Prefer `ON DELETE RESTRICT`/equivalent guarded behavior until an explicit privacy workflow exists.
 
 Owner EntityRef conceptually resolves as `identity / owner / owners.id`.
 
@@ -134,9 +146,7 @@ Owner EntityRef conceptually resolves as `identity / owner / owners.id`.
 
 Do not require an `auth.users` trigger for Slice 1A.
 
-After authentication, an idempotent bootstrap/ensure-owner command or RPC creates the Wayfinder owner mapping if missing. Normal canonical commands fail clearly when no owner mapping exists.
-
-This avoids coupling authentication signup success to application-schema trigger health.
+After authentication, an idempotent bootstrap/ensure-owner RPC creates the Wayfinder owner mapping if missing. Normal canonical commands fail clearly when no owner mapping exists.
 
 ### `wf_system.command_receipts`
 
@@ -145,7 +155,7 @@ Durable retry/idempotency identity, conflicting replay detection, and terminal c
 Minimum columns:
 
 - `command_id uuid primary key`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `module_id text not null`
 - `command_type text not null`
 - `request_hash text not null`
@@ -162,19 +172,15 @@ Terminal public states:
 - `REJECTED`
 - `NOOP`
 
-A transaction may temporarily claim the unique command id before terminalizing it. Same command id + different deterministic request hash is a conflict.
+Same command id + same canonical request hash returns the existing terminal result. Same command id + different canonical request hash is rejected as conflicting reuse.
 
-`affected_refs` is sufficient for Slice 1A retry responses; callers can re-resolve current records if they need full display payload.
+**Hashing rule:** material command content is deterministically normalized/canonically serialized before hashing. Raw client JSON text, object-key order, whitespace, or client-specific serializer behavior must not change retry semantics.
 
-Authenticated semantic rejection may persist a terminal `REJECTED` receipt without canonical mutation. It emits no ModuleChange.
+`affected_refs` is sufficient for Slice 1A retry responses; callers may re-resolve records for display payload.
 
-Unauthorized cross-owner requests need not persist a receipt that could reveal protected resource existence.
+Authenticated semantic rejection may persist a terminal `REJECTED` receipt without canonical mutation. It emits no ModuleChange. Unauthorized cross-owner requests need not persist a receipt that could reveal resource existence.
 
-### Command receipt retention
-
-Command idempotency identity is durable in Slice 1A. Do **not** prune `command_receipts` merely because the canonical write is old.
-
-A future compaction policy may replace detailed receipts with a smaller immutable idempotency registry/tombstone, but deleting command identity entirely requires an explicit finite retry-horizon decision and a new architecture review.
+Command idempotency identity is durable in Slice 1A. Do not prune it merely because the canonical write is old.
 
 ### `wf_system.module_change_outbox`
 
@@ -183,7 +189,7 @@ Transactionally durable ModuleChange publication record.
 Minimum columns:
 
 - `id uuid primary key`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `module_id text not null`
 - `change_type text not null`
 - `command_id uuid null`
@@ -196,9 +202,9 @@ Minimum columns:
 
 Create outbox rows only for committed canonical changes. `REJECTED` commands do not create them; a true `NOOP` normally does not either.
 
-`published_at` means the change was successfully handed to the configured dispatcher/transport. It does **not** mean every future consumer has processed the change.
+`published_at` means successful handoff to configured dispatcher/transport, not that every consumer processed the change. If Slice 1A has no async dispatcher, unpublished rows may accumulate; do not falsely mark them published.
 
-Published outbox rows may later be pruned under an explicit delivery-retention policy because ModuleChange is not canonical history. No consumer-state table exists until a real asynchronous consumer requires one.
+Published outbox rows may later be pruned under an explicit transport-retention policy because ModuleChange is not canonical history.
 
 ## Direction core module
 
@@ -209,7 +215,7 @@ Stable DirectionNode identity.
 Columns:
 
 - `id uuid primary key`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `kind text not null`
 - `current_version_id uuid null`
 - `created_at timestamptz not null default now()`
@@ -225,7 +231,7 @@ Columns:
 
 - `id uuid primary key` — exact version id
 - `node_id uuid not null`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `version_no bigint not null`
 - `schema_version smallint not null default 1`
 - `title text not null`
@@ -235,20 +241,23 @@ Columns:
 - `superseded_by_version_id uuid null`
 - `provenance_source_type text not null`
 - `provenance_source_id text null`
-- `actor_owner_id uuid null`
+- `actor_owner_id uuid null` FK → `wf_system.owners(id)`
 - `recorded_at timestamptz not null default now()`
 
-Constraints:
+Constraints/invariants:
 
 - unique `(node_id, version_no)`
 - unique `(id, node_id, owner_id)`
 - FK `(node_id, owner_id)` → nodes `(id, owner_id)`
+- same-record/owner composite supersession pointer
 - intent state ∈ `ACTIVE | PAUSED | WITHDRAWN`
 - lifecycle ∈ `ACTIVE | SUPERSEDED | RETRACTED`
+- immutable semantic payload after insertion
+- monotonic lifecycle transitions
 
-`nodes.current_version_id` can only point to a version of the same node/owner.
+`nodes.current_version_id` is DEFERRABLY validated against same node/owner and acceptable lifecycle state.
 
-`schema_version` describes stored payload contract version. Resolver code must understand the version or explicitly fail/degrade; it must not silently reinterpret an old payload using incompatible new semantics.
+`schema_version` describes stored payload contract version. Resolver code must understand it or explicitly fail/degrade; never silently reinterpret incompatible historical payload.
 
 ### `wf_direction.edges`
 
@@ -259,7 +268,7 @@ Columns:
 - `id uuid primary key`
 - `version_id uuid unique not null`
 - `schema_version smallint not null default 1`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `from_node_id uuid not null`
 - `to_node_id uuid not null`
 - `relation text not null`
@@ -267,13 +276,13 @@ Columns:
 - `retracted_at timestamptz null`
 - `provenance_source_type text not null`
 - `provenance_source_id text null`
-- `actor_owner_id uuid null`
+- `actor_owner_id uuid null` FK → `wf_system.owners(id)`
 - `recorded_at timestamptz not null default now()`
 - `unique (id, owner_id)`
 
 Same-owner composite FKs bind both endpoint ids to Direction nodes of the same owner.
 
-Slice 1A command surface permits only `SUPPORTS` even if later contracts permit more relations.
+Slice 1A command surface permits only `SUPPORTS`. Lifecycle allows only `ACTIVE → RETRACTED`; semantic payload is immutable.
 
 ## Practice life-domain module
 
@@ -284,7 +293,7 @@ Stable Practice Entity, deliberately unversioned in Slice 1A.
 Columns:
 
 - `id uuid primary key`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `name text not null`
 - `description text null`
 - `lifecycle_status text not null default 'ACTIVE'`
@@ -294,7 +303,7 @@ Columns:
 
 Lifecycle initially: `ACTIVE | RETRACTED`.
 
-Practice metadata is display metadata and cannot be a durable Evidence source/target in Slice 1A. Historical display labels may therefore change if a later metadata-update command is introduced. If exact historical naming becomes meaningful, Practice metadata must be promoted to versioned payload through a deliberate migration.
+Practice metadata is display metadata and cannot be a durable Evidence source/target in Slice 1A. If exact historical naming becomes meaningful, Practice metadata must be promoted to versioned payload through a deliberate migration.
 
 ### `wf_practice.sessions`
 
@@ -303,7 +312,7 @@ Stable PracticeSession identity.
 Columns:
 
 - `id uuid primary key`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `current_version_id uuid null`
 - `created_at timestamptz not null default now()`
 - `unique (id, owner_id)`
@@ -314,7 +323,7 @@ Columns:
 
 - `id uuid primary key` — exact version id
 - `session_id uuid not null`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `version_no bigint not null`
 - `schema_version smallint not null default 1`
 - `practice_id uuid not null`
@@ -329,24 +338,34 @@ Columns:
 - `superseded_by_version_id uuid null`
 - `provenance_source_type text not null`
 - `provenance_source_id text null`
-- `actor_owner_id uuid null`
+- `actor_owner_id uuid null` FK → `wf_system.owners(id)`
 - `recorded_at timestamptz not null default now()`
 
-Constraints:
+Constraints/invariants:
 
 - unique `(session_id, version_no)`
 - unique `(id, session_id, owner_id)`
 - FK `(session_id, owner_id)` → sessions `(id, owner_id)`
 - same-owner FK `(practice_id, owner_id)` → practices `(id, owner_id)`
+- same-record/owner composite supersession pointer
 - `occurred_to is null OR occurred_to >= occurred_from`
 - `duration_seconds is null OR duration_seconds > 0`
 - lifecycle ∈ `ACTIVE | SUPERSEDED | RETRACTED`
+- immutable semantic payload after insertion
+- monotonic lifecycle transitions
 
-`sessions.current_version_id` can only point to a version of the same session/owner.
+`sessions.current_version_id` is DEFERRABLY validated against same session/owner and acceptable lifecycle state.
 
-If exact start/end and duration are all present, command validation checks consistency.
+### Time representation
 
-For coarse local input such as “Saturday,” normalization uses that local date's true zone/DST bounds to persist a bounded UTC range plus declared precision and `occurred_zone_id`. Coarse input is never later displayed as if an exact instant were known.
+Known occurrence ranges use **half-open interval semantics `[occurred_from, occurred_to)`**. Start is inclusive; end is exclusive. Adjacent normalized day/month/year ranges therefore do not overlap at the shared boundary.
+
+For coarse local input such as “Saturday,” normalization uses that local date's real time-zone/DST bounds to persist a bounded UTC range plus declared precision and `occurred_zone_id`. Coarse input is never later displayed as if an exact instant were known.
+
+Duration validation is precision-aware:
+
+- if boundaries represent the actual exact event interval, explicit duration must be consistent with the interval;
+- if boundaries represent an uncertainty window such as “sometime Saturday,” a known 30-minute duration may be shorter than the range and is valid.
 
 Slice 1A requires at least a known occurrence start/bound. Fully unknown occurrence time is deferred.
 
@@ -361,7 +380,7 @@ Columns:
 - `id uuid primary key`
 - `version_id uuid unique not null`
 - `schema_version smallint not null default 1`
-- `owner_id uuid not null`
+- `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `source_namespace text not null`
 - `source_type text not null`
 - `source_record_id uuid not null`
@@ -377,7 +396,7 @@ Columns:
 - `retracted_at timestamptz null`
 - `provenance_source_type text not null`
 - `provenance_source_id text null`
-- `actor_owner_id uuid null`
+- `actor_owner_id uuid null` FK → `wf_system.owners(id)`
 - `recorded_at timestamptz not null default now()`
 - `unique (id, owner_id)`
 
@@ -392,13 +411,17 @@ Generic source/target refs intentionally do not use polymorphic database FKs. Ev
 
 Direct self-evidence is rejected.
 
-Slice 1A narrows the initial product capability to:
+Slice 1A narrows initial product capability to:
 
-- source = exact **current** PracticeSession version;
-- target = exact **current** Direction Action version;
+- source = exact current PracticeSession version;
+- target = exact current Direction Action version;
 - target aspect = `fulfillment`.
 
-Historical links remain resolvable after either side changes, but on-demand current Fulfillment/Bearing reads re-resolve source/target currentness and treat old links as stale rather than silently carrying them forward.
+Historical links remain resolvable after either side changes, but current Fulfillment/Bearing re-resolves source/target currentness and treats old links as stale rather than carrying them forward.
+
+Evidence currentness need not be globally locked across modules. A link may become stale immediately after validation due to a concurrent correction; because it stores exact versions, this remains safe and current reads simply do not count the stale version.
+
+Lifecycle allows only `ACTIVE → RETRACTED`; semantic payload is immutable.
 
 ## Resolver surfaces required before Evidence writes
 
@@ -419,15 +442,15 @@ Historical links remain resolvable after either side changes, but on-demand curr
 
 - resolve link by stable id/version
 
-Resolvers must distinguish current, superseded, retracted, missing, and unsupported schema-version states where relevant.
+Resolvers distinguish current, superseded, retracted, missing, and unsupported schema-version states where relevant.
 
 ## Generic Evidence integrity audit
 
-Because generic Evidence refs intentionally lack polymorphic DB FKs, the project must include an executable integrity audit/test that can identify Evidence rows whose source/target resolvers unexpectedly return `MISSING`.
+Because generic Evidence refs intentionally lack polymorphic DB FKs, an executable integrity audit/test must identify Evidence rows whose source/target resolvers unexpectedly return `MISSING`.
 
-Expected `SUPERSEDED` or `RETRACTED` refs are historical/stale, not corruption.
+Expected `SUPERSEDED` or `RETRACTED` refs are historical/stale, not corruption. `MISSING` is a diagnostic integrity failure and never negative evidence.
 
-Do not add a universal record registry solely to obtain polymorphic foreign keys before real evidence demands it.
+Do not add a universal record registry solely to obtain polymorphic FKs before real evidence demands it.
 
 ## Authentication, RLS, and application boundary
 
@@ -438,19 +461,19 @@ Preferred Slice 1A pattern:
 - private module schemas;
 - exposed command/read RPC wrappers or server endpoints;
 - RPCs derive owner from `auth.uid()` or trusted server context; client-supplied owner id is never authority;
-- `SECURITY DEFINER` functions use a fixed/hardened `search_path` and fully qualified private objects;
-- revoke direct table DML/SELECT from exposed client roles unless a specific safe read view is intentionally exported;
-- grant only the intended RPC execution/read privileges;
+- `SECURITY DEFINER` functions use fixed/hardened `search_path` and fully qualified private objects;
+- revoke direct canonical table DML/SELECT from exposed client roles unless a specific safe read view is intentionally exported;
+- grant only intended RPC execution/read privileges;
 - owner-aware constraints and RLS/policies remain defense in depth where useful.
 
-Service-role execution must supply/derive trusted actor/owner context through a server-only path; a null `auth.uid()` must not accidentally broaden access.
+Service-role execution must supply/derive trusted actor/owner context through a server-only path; null `auth.uid()` must never broaden access.
 
 ## Command transaction shape
 
 ```text
 BEGIN
   1. resolve authenticated/trusted owner
-  2. deterministically hash material Command request
+  2. canonicalize material Command request and compute deterministic request_hash
   3. claim command_id in wf_system.command_receipts
   4. if same id/same hash already terminal: return stored receipt/result refs
   5. if same id/different hash: reject conflict
@@ -463,7 +486,7 @@ COMMIT
 
 For authenticated semantic rejection that should be retry-stable, persist a terminal `REJECTED` receipt and commit without canonical mutation/outbox. Do not raise a transaction-aborting exception after writing that receipt.
 
-Two concurrent attempts with the same command id serialize on the unique command key. Same hash resolves to the same logical terminal result; different hash conflicts.
+Concurrent attempts with the same command id serialize on the unique command key. Same hash resolves to the same logical terminal result; different hash conflicts.
 
 ## Correction transaction shape
 
@@ -477,16 +500,15 @@ BEGIN
   verify current_version_id == expected_version_id
   validate correction
   insert v2 ACTIVE
-  mark v1 lifecycle SUPERSEDED + superseded_by=v2
+  mark v1 SUPERSEDED + superseded_by=v2
   update sessions.current_version_id=v2
+  verify deferred current/supersession/lifecycle invariants
   write APPLIED receipt
   write ModuleChange affected=[v1 SUPERSEDED, v2 CREATED]
 COMMIT
 ```
 
-Historical semantic payload on v1 remains unchanged.
-
-A stale correction returns deterministic rejection and leaves source truth unchanged.
+Historical semantic payload on v1 remains unchanged. A stale correction returns deterministic rejection and leaves source truth unchanged.
 
 ## Reads in Slice 1A
 
@@ -522,19 +544,19 @@ At minimum:
 
 Do not add speculative indexes for future domains.
 
-## Migration and historical compatibility
+## Migration, restore, and historical compatibility
 
 `schema_version` is meaningful.
 
 When module storage evolves:
 
-- resolvers retain adapters for historical supported schema versions; or
+- resolvers retain adapters for supported historical schema versions; or
 - a true semantic transformation creates new canonical record versions while preserving prior exact versions; or
-- unsupported historical versions resolve explicitly as unavailable/unsupported rather than being silently reinterpreted.
+- unsupported historical versions resolve explicitly as unavailable/unsupported rather than silently reinterpreted.
 
-Do not bulk rewrite immutable historical semantic payload just to make old rows resemble current code.
+Do not bulk rewrite immutable historical semantic payload merely to make old rows resemble current code.
 
-Migration/restore tests must prove DEFERRABLE current-pointer/version constraints can be restored consistently.
+Migration/backup/restore tests must prove DEFERRABLE current-pointer/supersession constraints and lifecycle invariants restore consistently.
 
 ## Retention and deletion boundaries
 
@@ -568,19 +590,21 @@ Do **not** create yet:
 
 ## Final schema convergence gate
 
-Before deployment, run one more adversarial pass against:
+Before deployment, run final adversarial passes against:
 
-- concurrent create/retry/reject behavior
-- current-pointer composite integrity
+- duplicate/concurrent command behavior and canonical hashing
+- current-pointer lifecycle integrity
+- same-record supersession integrity
 - immutable-version enforcement
-- owner bootstrap and auth deletion
-- cross-owner RPC attacks/service-role misuse
-- Evidence dangling/stale refs
+- owner FK/bootstrap/auth deletion behavior
+- cross-owner RPC/service-role misuse
+- Evidence dangling/stale refs and currentness race
 - outbox replay/pruning semantics
-- DST/coarse-time normalization
+- half-open temporal boundaries, DST, and coarse-time normalization
+- precision-aware duration validation
 - historical schema-version migration
 - backup/restore constraints
 - current read performance
 - minimum-table economy
 
-No Supabase migration should be applied until that pass is documented.
+No Supabase migration should be applied until that convergence pass is documented and the schema gate is explicitly marked passed.
