@@ -1,139 +1,159 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.1  
-**Status:** CANDIDATE
+**Version:** 0.2  
+**Status:** CANDIDATE — updated from live use
 
-The roadmap prioritizes a working vertical slice early, while preserving room for expansion.
+The roadmap prioritizes complete vertical slices and real evidence over feature count.
 
 ## Phase 0 — Foundation
 
-Status: in progress
+**Status: stable enough / recursive**
 
-Deliverables:
+Constitution, ontology, architecture, object contracts, domain protocol, validation loop, physical schema, ADR process, and recovery documentation exist and have survived multiple recursive passes.
 
-- Constitution
-- ontology
-- system architecture
-- object contracts
-- domain protocol
-- intelligence runtime draft
-- architectural invariants
-- ADRs
-
-Exit condition: foundational language is clear enough to implement one domain without guessing core semantics.
+Foundation is not considered eternally finished; later evidence may revise it.
 
 ## Phase 1 — Executable kernel
 
-Build only what the first vertical slice requires:
+**Status: passed for Slice 1A**
 
-- identity/profile
-- source/provenance model
-- EntityRef
-- command envelope
-- direction graph
-- evidence links
-- reflection/interpretation storage
-- domain registration seam
+Proven:
 
-Do not pre-build every future subsystem.
+- owner identity;
+- command envelope + idempotency;
+- private module boundaries;
+- Direction graph;
+- exact Evidence links;
+- versioned correction lineage;
+- read/projection seam;
+- result coverage vs epistemic coverage.
 
-## Phase 2 — Practice domain vertical slice
+## Phase 2 — Practice vertical slice
 
-Implement one small real domain:
+**Status: live backbone proven**
 
-- create a Practice identity
-- record a Practice Session
-- preserve occurrence time vs record time
-- optionally record a measurement
-- attach a reflection
-- connect session evidence to Direction
+Implemented:
 
-Exit condition: real lived activity can move through the architecture without violating invariants.
+- Practice identity;
+- atomic PracticeSession capture;
+- occurrence time vs record time;
+- PracticeSession correction;
+- exact Evidence to Action;
+- current/stale evidence behavior;
+- Practice catalog;
+- browser capture flows.
 
-## Phase 3 — First read projections
+Reflection remains intentionally unimplemented as a canonical slice.
 
-Add minimal reconstructable projections:
+## Phase 3 — First projections
 
-- recent activity
-- simple practice signal
-- basic Journey timeline
-- basic Bearing toward a selected Direction
+**Status: active / mostly built**
 
-No elaborate Character system yet.
+Implemented:
 
-## Phase 4 — First product surface
+- recent Practice;
+- Action Fulfillment v0;
+- Bearing v0;
+- Helm v0.2;
+- **Journey v0.1**.
 
-Build a minimal Helm:
+Journey is the first temporal experience projection. It reconstructs selected history without a canonical Journey table and preserves `OCCURRED` vs `RECORDED` time semantics.
 
-- current Direction
-- current Quest
-- today's intended Actions
-- recent evidence
-- one or two derived signals
-- Navigator entry point
+Current gate: browser-live Journey validation.
 
-Wayfinder should now be genuinely usable, even if narrow.
+## Phase 4 — First product surfaces
 
-## Phase 5 — Navigator read/propose loop
+**Status: active**
 
-Support:
+Live:
 
-- ask about current state
-- ask why a projection exists
-- propose an Action/Quest
-- propose logging a Practice Session
-- explicit authorization before canonical write
+```text
+/login
+/helm
+/journey
+```
 
-Prove read/propose/execute separation.
+Helm answers “Where am I?”
 
-## Phase 6 — Architecture stress test
+Journey begins to answer “How did the record arrive here?”
 
-Before adding many domains, deliberately test:
+The next product surface should be chosen from live evidence rather than roadmap inertia.
 
-- missing data
-- conflicting observations
-- stale context
-- corrections
-- duplicate commands
-- domain outage
-- projection rebuild
-- changed derivation rule
-- AI model replacement
-- one Action supporting multiple Directions
+## Phase 5 — Meaning / Reflection seam
 
-Use failures as architectural evidence.
+**Status: candidate, not authorized yet**
 
-## Phase 7 — Second and third domains
+Journey v0.1 is intentionally pre-interpretive. Live use may show that the next missing layer is a canonical/user-authored Reflection seam.
 
-Choose domains with different truth shapes, likely:
+Candidate capabilities:
 
-- Training or Body
-- Money/Finance or Relationships
+- attach a user-authored Reflection to exact records or a declared time scope;
+- keep Reflection distinct from Observation and Evidence;
+- preserve authorship and provenance;
+- allow later AI Interpretation to reference, but not overwrite, human meaning.
 
-The goal is not feature count. The goal is proving the domain protocol under asymmetry.
+Do not build until Journey use demonstrates the need.
+
+## Phase 6 — Character projection
+
+**Status: deferred / experimental**
+
+Character should initially be a projection over evidence-supported patterns, not a canonical XP ledger.
+
+Questions to prove first:
+
+- what change can Wayfinder actually support with evidence?
+- what is interpretation vs durable reality?
+- how do Fire/Earth/Water/Air represent without becoming fabricated truth?
+- when is a skill/mastery construct justified?
+
+## Phase 7 — Navigator read/propose loop
+
+**Status: deferred until current product surfaces stabilize**
+
+Future Navigator should:
+
+- read approved projections/context;
+- explain lineage;
+- propose Actions/Quests/records;
+- require explicit authorization before canonical mutation;
+- use the same command API as the UI.
+
+## Phase 8 — Architecture stress with asymmetric domains
+
+Before broad expansion, add domains with different truth shapes, likely one of:
+
+- Body / Training;
+- Money / Finance;
+- Relationships / People.
+
+The goal is to test the domain protocol under asymmetry, not accumulate modules.
 
 ## Deferred until architecture earns them
 
-- advanced Character trees
-- archetype engine
-- astrology engine
-- Atlas/world simulation
-- autonomous agents
-- universal skill taxonomy
-- inventory graph
-- broad health record modeling
-- complex scheduling engine
-- large connector ecosystem
+- canonical Character/XP persistence;
+- universal skill taxonomy;
+- archetype engine;
+- astrology engine;
+- Atlas/world simulation;
+- autonomous agents;
+- inventory graph;
+- broad health record modeling;
+- complex scheduling engine;
+- large connector ecosystem;
+- a universal Journey event table.
 
 ## Build discipline
 
-For every phase:
+For every expansion:
 
-1. define the smallest useful outcome
-2. identify which canonical concepts it exercises
-3. implement end-to-end
-4. test invariants
-5. observe real use
-6. promote, adapt, or reject assumptions
+1. define the smallest useful human question;
+2. identify existing canonical records that can answer it;
+3. avoid persistence if a reconstructable projection is sufficient;
+4. preserve time/provenance/epistemic distinctions;
+5. implement end-to-end;
+6. stress invariants and complements;
+7. observe real use;
+8. promote, adapt, or reject assumptions.
 
-The measure of progress is not lines of code or number of screens. It is how much real life Wayfinder can model correctly, explainably, and usefully.
+The measure of progress is how much real life Wayfinder can model and explain correctly — not lines of code, number of screens, or amount of gamification.
