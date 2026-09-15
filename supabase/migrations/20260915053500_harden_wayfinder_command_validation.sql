@@ -150,7 +150,7 @@ begin
      and v_from_precision = 'INSTANT'
      and v_to_precision = 'INSTANT'
      and p_duration_seconds is not null
-     and pg_catalog.extract(epoch from (p_occurred_to - p_occurred_from)) <> p_duration_seconds::numeric then
+     and extract(epoch from (p_occurred_to - p_occurred_from)) <> p_duration_seconds::numeric then
     perform wf_system.complete_command(v_owner,p_command_id,'REJECTED',null,'DURATION_INTERVAL_MISMATCH');
     return wf_system.command_response(v_owner,p_command_id,false);
   end if;
@@ -285,7 +285,7 @@ begin
      and v_from_precision = 'INSTANT'
      and v_to_precision = 'INSTANT'
      and p_duration_seconds is not null
-     and pg_catalog.extract(epoch from (p_occurred_to - p_occurred_from)) <> p_duration_seconds::numeric then
+     and extract(epoch from (p_occurred_to - p_occurred_from)) <> p_duration_seconds::numeric then
     perform wf_system.complete_command(v_owner,p_command_id,'REJECTED',null,'DURATION_INTERVAL_MISMATCH');
     return wf_system.command_response(v_owner,p_command_id,false);
   end if;
