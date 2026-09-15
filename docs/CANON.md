@@ -1,6 +1,6 @@
 # Wayfinder Canon
 
-**Foundation version:** 0.5  
+**Foundation version:** 0.6  
 **Status:** Active bootstrap canon  
 **Purpose:** Define what Wayfinder currently depends on being true.
 
@@ -31,6 +31,7 @@ The RPG is a representation layer. It is not the source of truth.
 | Recursive validation loop | CANDIDATE | `08-validation-loop.md` |
 | First executable vertical slice v0.2 | CANDIDATE-STABLE / GATE PASSED | `09-first-vertical-slice.md` |
 | Physical schema v0.5 | CANDIDATE-STABLE / PHYSICAL SCHEMA GATE PASSED | `10-physical-schema.md` |
+| Database bootstrap v0.1 | DEPLOYED — NAMESPACE ONLY | `11-database-bootstrap.md` |
 | Character system | EXPERIMENTAL | Lab until evidence supports promotion |
 | Archetypes | EXPERIMENTAL | Lab |
 | Skills/mastery model | EXPERIMENTAL | Lab |
@@ -101,7 +102,10 @@ Recursive contract/system pressure further established:
 - Wayfinder starts as a modular monolith on one Postgres/Supabase database;
 - canonical application mutation is command-only;
 - transactional outbox couples canonical writes to durable ModuleChange publication;
-- epistemic Coverage is source/phenomenon coverage, not mere query completeness.
+- epistemic Coverage is source/phenomenon coverage, not mere query completeness;
+- Wayfinder may share the existing `vlourish` Supabase physical host while preserving canonical isolation in dedicated `wf_*` schemas.
+
+See ADR-016 through ADR-024.
 
 ## Recursive validation evidence
 
@@ -142,41 +146,54 @@ Physical schema:
 - `lab/physical-schema-stress-test-v0.2.md`
 - `lab/physical-schema-stress-test-v0.3.md`
 - `lab/physical-schema-stress-test-v0.4.md`
-- `lab/physical-schema-stress-test-v0.5-confirmation.md`
+- `lab/physical-schema-stress-test-v0.5.md`
 
 The final physical-schema confirmation pass required no new table family, stateful module, root ontology primitive, or blocking topology change.
 
-## Supabase/project readiness gate
+## Supabase state
 
-### Status: **AUTHORIZED TO CREATE EMPTY WAYFINDER SUPABASE PROJECT**
+### Status: **WAYFINDER NAMESPACE BOOTSTRAPPED INSIDE `vlourish`**
 
-The Physical Schema Gate is passed.
+The user chose to colocate Wayfinder in the existing `vlourish` Supabase project instead of creating another project.
 
-Authorized now:
+Deployed top-level schemas:
 
-1. create a new empty Supabase project for Wayfinder;
-2. use a region/organization explicitly approved by the user;
-3. record project metadata in Canon after creation;
-4. design migration `0001` against `docs/10-physical-schema.md` v0.5.
+- `wf_system`
+- `wf_direction`
+- `wf_practice`
+- `wf_evidence`
 
-Not yet authorized:
+The bootstrap migration revoked schema privileges from `public`, `anon`, and `authenticated` and created no canonical tables.
 
-- applying migration `0001`;
-- creating speculative future tables;
-- building Character/XP/skills/calendar/AI infrastructure;
-- granting frontend direct canonical-table mutation.
+Migration source:
 
-Before the first migration is applied, the SQL itself must be recursively reviewed and tested for:
+`supabase/migrations/20260915044820_bootstrap_wayfinder_namespaces.sql`
 
-- FK/DEFERRABLE constraint validity;
-- immutable/lifecycle triggers;
-- auth/RLS/RPC boundary safety;
-- command idempotency/concurrency;
-- cross-owner isolation;
-- restore/migration behavior;
-- Evidence resolver/integrity behavior.
+See `11-database-bootstrap.md` and ADR-024.
 
-After migration application, run Supabase security/performance advisors and convert written invariants into executable database tests.
+Security/performance advisors were run after bootstrap. No advisor findings concern the empty `wf_*` namespaces; existing notices relate to pre-existing `vl_*` schemas/configuration.
+
+## Current database gate
+
+### Status: **AUTHORIZED TO DESIGN + REVIEW SLICE 1A TABLE MIGRATION — NOT YET AUTHORIZED TO APPLY IT**
+
+Next:
+
+1. write executable SQL for the ten-table first-slice model;
+2. recursively review the SQL itself;
+3. verify FK/DEFERRABLE constraints and lifecycle triggers;
+4. verify auth/RPC/security-definer boundaries and cross-owner isolation;
+5. verify command idempotency/concurrency and Evidence resolution;
+6. only then apply the first canonical Wayfinder table migration.
+
+Still not authorized:
+
+- speculative future tables;
+- Character/XP/skills/calendar/AI infrastructure;
+- frontend direct canonical-table mutation;
+- hidden dependencies on `vl_*` canonical tables.
+
+After the first table migration is applied, run Supabase security/performance advisors again and convert written invariants into executable database tests.
 
 ## Change control
 
