@@ -1,6 +1,6 @@
 # Wayfinder Architecture Invariants
 
-**Version:** 0.2
+**Version:** 0.3
 
 These begin as written constraints and should progressively become executable tests.
 
@@ -8,11 +8,14 @@ These begin as written constraints and should progressively become executable te
 
 - [ ] Unknown must never silently become zero.
 - [ ] Missing evidence must not silently become evidence of absence.
+- [ ] A zero/none/absence conclusion requires direct evidence or sufficiently complete bounded coverage.
 - [ ] A scheduled or planned record must not become factual solely because time passes.
 - [ ] An interpretation must not silently become an observation or fact.
 - [ ] A reflection must preserve authorship.
 - [ ] Conflicting observations may coexist without forced resolution.
-- [ ] Epistemic completeness, inference/basis, dispute, and confidence must not be collapsed into one certainty flag.
+- [ ] Epistemic completeness, derivation mode, dispute, and confidence must not be collapsed into one certainty flag.
+- [ ] Source/provenance and inference/derivation mode must remain distinct.
+- [ ] Canonical inside Wayfinder must not be presented as metaphysical certainty.
 - [ ] Corrections must not erase provenance without an explicit retention/privacy policy.
 
 ## Domain boundaries
@@ -26,6 +29,7 @@ These begin as written constraints and should progressively become executable te
 ## References and relations
 
 - [ ] `RecordRef` may address any Wayfinder record; `EntityRef` is reserved for continuing identity.
+- [ ] RecordRef namespace/type identifiers are stable machine keys, not display labels.
 - [ ] A dangling cross-domain reference must be detectable.
 - [ ] A factual Relation must not be silently treated as a Direction edge.
 - [ ] A created output may be an Entity without requiring a separate Artifact root primitive.
@@ -46,6 +50,8 @@ These begin as written constraints and should progressively become executable te
 - [ ] Confidence must not be presented as objective truth.
 - [ ] A record must not count as independent evidence for itself.
 - [ ] Derived evidence/lineage must not contain circular self-support.
+- [ ] Multiple descendants of the same underlying lineage must not be naively counted as independent evidence.
+- [ ] A Projection cannot create new evidentiary weight merely by summarizing its sources.
 - [ ] Superseding or retracting an evidence source must trigger re-evaluation of dependent derived state.
 
 ## Direction
@@ -69,6 +75,12 @@ These begin as written constraints and should progressively become executable te
 - [ ] A corrected record may cease to be current without silently disappearing from required lineage.
 - [ ] Full event sourcing is not required as long as correction/supersession lineage is preserved.
 - [ ] Privacy/deletion policy may override retention only through an explicit rule.
+
+## Projections
+
+- [ ] Projection is the canonical derived abstraction; Growth, Momentum, Bearing, Mastery, Character, and similar systems are projection families rather than root truth.
+- [ ] Deleting a projection cache must not destroy canonical lived history.
+- [ ] Projection outputs should carry rule version and source lineage sufficient for reconstruction/explanation.
 
 ## System humility
 
