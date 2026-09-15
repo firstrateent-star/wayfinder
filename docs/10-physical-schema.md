@@ -1,13 +1,13 @@
 # Wayfinder Physical Schema — First Slice
 
-**Version:** 0.4  
-**Status:** CANDIDATE-STABLE — FINAL CONVERGENCE CANDIDATE, NOT YET DEPLOYED
+**Version:** 0.5  
+**Status:** CANDIDATE-STABLE — CONFIRMATION PASS PENDING, NOT YET DEPLOYED
 
 ## Goal
 
 Map the stable ontology/contracts into the **smallest physical Postgres/Supabase schema** needed for Slice 1A without creating a universal life table, projection warehouse, future-domain scaffolding, or premature distributed infrastructure.
 
-This version incorporates the third recursive schema stress test: current-version integrity, monotonic lifecycle, same-record supersession, owner FK discipline, half-open time ranges, precision-aware duration validation, and canonical command request hashing.
+This version incorporates four rounds of recursive schema pressure: current-version integrity, monotonic lifecycle, same-record supersession, owner FK discipline, half-open time ranges, precision-aware duration validation, canonical command request hashing, non-empty bounded intervals, bootstrap concurrency, and durable command/outbox integrity.
 
 ## Physical topology
 
@@ -96,7 +96,7 @@ First-slice lifecycle transitions are monotonic:
 - `ACTIVE → RETRACTED`
 - `SUPERSEDED` and `RETRACTED` do not silently return to `ACTIVE`
 
-DirectionEdge and EvidenceLink permit only `ACTIVE → RETRACTED` after creation.
+DirectionEdge, EvidenceLink, and the unversioned Practice lifecycle permit only `ACTIVE → RETRACTED` after creation.
 
 A database trigger/invariant function should enforce immutable payload and lifecycle transitions. Application roles receive no general UPDATE privilege on canonical tables.
 
@@ -146,7 +146,11 @@ Owner EntityRef conceptually resolves as `identity / owner / owners.id`.
 
 Do not require an `auth.users` trigger for Slice 1A.
 
-After authentication, an idempotent bootstrap/ensure-owner RPC creates the Wayfinder owner mapping if missing. Normal canonical commands fail clearly when no owner mapping exists.
+After authentication, an idempotent bootstrap/ensure-owner RPC creates the Wayfinder owner mapping if missing. It is concurrency-safe by relying on unique `auth_user_id` plus insert/upsert/re-read semantics, so two simultaneous first-login calls converge on one owner.
+
+This bootstrap does not use the ordinary command receipt contract because that contract requires the owner identity it is creating. This is a narrow bootstrap exception, not a second canonical mutation architecture.
+
+Normal canonical commands fail clearly when no owner mapping exists.
 
 ### `wf_system.command_receipts`
 
@@ -166,11 +170,14 @@ Minimum columns:
 - `processed_at timestamptz null`
 - `created_at timestamptz not null default now()`
 
-Terminal public states:
+Physical allowed states:
 
+- `PROCESSING` — internal in-transaction claim state
 - `APPLIED`
 - `REJECTED`
 - `NOOP`
+
+The public `CommandReceipt` contract remains terminal-only (`APPLIED | REJECTED | NOOP`). Because claim and terminalization occur in one DB transaction, a transaction abort rolls back the PROCESSING claim rather than leaving a durable stuck receipt.
 
 Same command id + same canonical request hash returns the existing terminal result. Same command id + different canonical request hash is rejected as conflicting reuse.
 
@@ -192,7 +199,7 @@ Minimum columns:
 - `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `module_id text not null`
 - `change_type text not null`
-- `command_id uuid null`
+- `command_id uuid null` FK → `wf_system.command_receipts(command_id)` when populated
 - `affected jsonb not null`
 - `correlation_id uuid null`
 - `committed_at timestamptz not null default now()`
@@ -203,6 +210,8 @@ Minimum columns:
 Create outbox rows only for committed canonical changes. `REJECTED` commands do not create them; a true `NOOP` normally does not either.
 
 `published_at` means successful handoff to configured dispatcher/transport, not that every consumer processed the change. If Slice 1A has no async dispatcher, unpublished rows may accumulate; do not falsely mark them published.
+
+`command_id` remains nullable for future trusted/system-internal canonical changes that may legitimately not originate from an external Command.
 
 Published outbox rows may later be pruned under an explicit transport-retention policy because ModuleChange is not canonical history.
 
@@ -232,8 +241,8 @@ Columns:
 - `id uuid primary key` — exact version id
 - `node_id uuid not null`
 - `owner_id uuid not null` FK → `wf_system.owners(id)`
-- `version_no bigint not null`
-- `schema_version smallint not null default 1`
+- `version_no bigint not null check (version_no > 0)`
+- `schema_version smallint not null default 1 check (schema_version > 0)`
 - `title text not null`
 - `description text null`
 - `intent_state text not null`
@@ -267,7 +276,7 @@ Columns:
 
 - `id uuid primary key`
 - `version_id uuid unique not null`
-- `schema_version smallint not null default 1`
+- `schema_version smallint not null default 1 check (schema_version > 0)`
 - `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `from_node_id uuid not null`
 - `to_node_id uuid not null`
@@ -301,7 +310,7 @@ Columns:
 - `updated_at timestamptz not null default now()`
 - `unique (id, owner_id)`
 
-Lifecycle initially: `ACTIVE | RETRACTED`.
+Lifecycle initially: `ACTIVE | RETRACTED`, with monotonic `ACTIVE → RETRACTED` only.
 
 Practice metadata is display metadata and cannot be a durable Evidence source/target in Slice 1A. If exact historical naming becomes meaningful, Practice metadata must be promoted to versioned payload through a deliberate migration.
 
@@ -324,8 +333,8 @@ Columns:
 - `id uuid primary key` — exact version id
 - `session_id uuid not null`
 - `owner_id uuid not null` FK → `wf_system.owners(id)`
-- `version_no bigint not null`
-- `schema_version smallint not null default 1`
+- `version_no bigint not null check (version_no > 0)`
+- `schema_version smallint not null default 1 check (schema_version > 0)`
 - `practice_id uuid not null`
 - `occurred_from timestamptz not null`
 - `occurred_to timestamptz null`
@@ -348,7 +357,7 @@ Constraints/invariants:
 - FK `(session_id, owner_id)` → sessions `(id, owner_id)`
 - same-owner FK `(practice_id, owner_id)` → practices `(id, owner_id)`
 - same-record/owner composite supersession pointer
-- `occurred_to is null OR occurred_to >= occurred_from`
+- `occurred_to is null OR occurred_to > occurred_from`
 - `duration_seconds is null OR duration_seconds > 0`
 - lifecycle ∈ `ACTIVE | SUPERSEDED | RETRACTED`
 - immutable semantic payload after insertion
@@ -359,6 +368,8 @@ Constraints/invariants:
 ### Time representation
 
 Known occurrence ranges use **half-open interval semantics `[occurred_from, occurred_to)`**. Start is inclusive; end is exclusive. Adjacent normalized day/month/year ranges therefore do not overlap at the shared boundary.
+
+If `occurred_to` is present, it must be strictly later than `occurred_from`; an instant/point-like occurrence uses a single known start with no artificial zero-width end.
 
 For coarse local input such as “Saturday,” normalization uses that local date's real time-zone/DST bounds to persist a bounded UTC range plus declared precision and `occurred_zone_id`. Coarse input is never later displayed as if an exact instant were known.
 
@@ -379,7 +390,7 @@ Columns:
 
 - `id uuid primary key`
 - `version_id uuid unique not null`
-- `schema_version smallint not null default 1`
+- `schema_version smallint not null default 1 check (schema_version > 0)`
 - `owner_id uuid not null` FK → `wf_system.owners(id)`
 - `source_namespace text not null`
 - `source_type text not null`
@@ -474,12 +485,12 @@ Service-role execution must supply/derive trusted actor/owner context through a 
 BEGIN
   1. resolve authenticated/trusted owner
   2. canonicalize material Command request and compute deterministic request_hash
-  3. claim command_id in wf_system.command_receipts
+  3. claim command_id as PROCESSING in wf_system.command_receipts
   4. if same id/same hash already terminal: return stored receipt/result refs
   5. if same id/different hash: reject conflict
   6. validate authorization, owner, refs, payload, schema versions, preconditions
   7. mutate only owning module canonical tables
-  8. persist terminal APPLIED/NOOP receipt
+  8. terminalize receipt as APPLIED/NOOP (or persist REJECTED without mutation)
   9. if canonical state changed, insert ModuleChange into outbox
 COMMIT
 ```
@@ -588,23 +599,14 @@ Do **not** create yet:
 - universal tombstone registry
 - Evidence invalidation table
 
-## Final schema convergence gate
+## Confirmation gate
 
-Before deployment, run final adversarial passes against:
+Run one more adversarial pass after v0.5. The gate passes only if that pass finds no material schema/topology change and no unresolved first-slice semantic contradiction.
 
-- duplicate/concurrent command behavior and canonical hashing
-- current-pointer lifecycle integrity
-- same-record supersession integrity
-- immutable-version enforcement
-- owner FK/bootstrap/auth deletion behavior
-- cross-owner RPC/service-role misuse
-- Evidence dangling/stale refs and currentness race
-- outbox replay/pruning semantics
-- half-open temporal boundaries, DST, and coarse-time normalization
-- precision-aware duration validation
-- historical schema-version migration
-- backup/restore constraints
-- current read performance
-- minimum-table economy
+When it passes, authorization is granted to:
 
-No Supabase migration should be applied until that convergence pass is documented and the schema gate is explicitly marked passed.
+1. create the empty Wayfinder Supabase project;
+2. record its project/region metadata in Canon;
+3. design the first migration against this schema.
+
+Project creation does **not** itself authorize applying the migration. Migration SQL receives its own executable review before database mutation.
