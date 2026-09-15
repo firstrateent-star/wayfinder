@@ -64,9 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
 
     async function bootstrap(nextSession: Session | null) {
       if (cancelled) return;
+
       setSession(nextSession);
       setOwner(null);
       setError(null);
@@ -90,32 +92,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function initialize() {
       try {
+        // Resolve the initial callback/session first. Subscribing before this point can
+        // race INITIAL_SESSION against a magic-link SIGNED_IN event and overwrite the
+        // freshly recovered session with null.
         const callbackSession = await recoverSessionFromUrl();
+
         if (callbackSession) {
           await bootstrap(callbackSession);
-          return;
+        } else {
+          const { data, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) throw sessionError;
+          await bootstrap(data.session);
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        await bootstrap(data.session);
+        if (cancelled) return;
+
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          // Keep Supabase work outside the auth callback itself. The callback may run
+          // while the auth client is holding its internal lock.
+          window.setTimeout(() => {
+            void bootstrap(nextSession);
+          }, 0);
+        });
+
+        unsubscribe = () => listener.subscription.unsubscribe();
       } catch (cause) {
         if (!cancelled) {
+          setSession(null);
+          setOwner(null);
           setError(cause instanceof Error ? cause.message : "Authentication failed.");
           setLoading(false);
         }
       }
     }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void bootstrap(nextSession);
-    });
-
     void initialize();
 
     return () => {
       cancelled = true;
-      listener.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
