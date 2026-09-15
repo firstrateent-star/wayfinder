@@ -1,6 +1,6 @@
 # Wayfinder Glossary
 
-**Version:** 0.2  
+**Version:** 0.3  
 **Status:** CANONICAL
 
 This glossary is intentionally short. It exists to prevent the same word from drifting across different meanings.
@@ -9,13 +9,16 @@ This glossary is intentionally short. It exists to prevent the same word from dr
 A concrete intended act. An Action is not proof of occurrence.
 
 ## Bearing
-A reconstructable projection describing how recent activity relates to authored Direction and recognized Commitments.
+A reconstructable projection family describing how recent activity relates to authored Direction and recognized Commitments.
 
 ## Canon
 The current set of architectural ideas Wayfinder is allowed to depend on.
 
+## Canonical
+Authoritative inside Wayfinder's current model. Canonical does not mean metaphysically certain or immune to correction.
+
 ## Character
-The RPG-facing projection of accumulated evidence, growth, identity expression, and other derived state. Character is not canonical reality.
+The RPG-facing projection family of accumulated evidence, development, identity expression, and other derived state. Character is not canonical reality.
 
 ## Command
 A structured request to change canonical state through an owning domain.
@@ -30,7 +33,7 @@ An authored orientation describing where the person intends to move.
 A bounded area of lived reality with its own persistence, validation, commands, reads, and factual semantics.
 
 ## Domain Event
-A record that the owning domain has accepted something as having occurred.
+A record that the owning domain has accepted something as having occurred. Acceptance does not imply absolute certainty.
 
 ## Entity
 Something with continuing identity. Created outputs such as songs, videos, documents, and websites may be Entity types.
@@ -39,19 +42,19 @@ Something with continuing identity. Created outputs such as songs, videos, docum
 A reference specifically to an Entity with continuing identity.
 
 ## EpistemicState
-A multidimensional description of what is known about a record, including completeness, basis, dispute, and optional confidence. It is not a truth score.
+A multidimensional description of what is known about a record, including completeness, derivation mode, dispute, and optional confidence. Source/channel belongs in Provenance. EpistemicState is not a truth score.
 
 ## Evidence
 A typed relationship describing how one record bears on another claim, direction, interpretation, or projection.
 
 ## Event
-Something that occurred.
+A canonical factual record that something occurred.
 
 ## Flower
 The recursive reasoning runtime spanning Center, Boundary, Context, Unknown, Direction, Practice, Evidence, Reflection, and Expansion.
 
 ## Growth
-Evidence-backed accumulated development. Growth is not the same as recent Momentum.
+An evidence-backed development projection family. Growth is not the same as recent Momentum and is not a root ontology primitive.
 
 ## Helm
 The primary present-oriented experience showing what matters now.
@@ -66,7 +69,7 @@ A reading of evidence that assigns meaning or explanation beyond the underlying 
 A temporal projection of lived history and related authored meaning.
 
 ## Momentum
-A recent continuity/movement projection that does not erase permanent growth and should not punish rest.
+A recent continuity/movement projection family that does not erase permanent Growth and should not punish rest.
 
 ## Observation
 Something measured, noticed, reported, or captured about reality.
@@ -78,10 +81,10 @@ A desired future condition that can be evaluated.
 An organized approach for pursuing direction, an outcome, or a commitment.
 
 ## Projection
-A reconstructable representation computed from deeper records.
+A reconstructable representation computed from deeper records. A Projection may be cached but is not irreplaceable lived history.
 
 ## Provenance
-The trace of where a record or claim came from and how it was transformed.
+The trace of where a record or claim came from and how it was transformed. Provenance is distinct from whether a conclusion was direct, derived, or inferred.
 
 ## Quest
 A bounded intentional challenge, intervention, or experiment in service of Direction.
