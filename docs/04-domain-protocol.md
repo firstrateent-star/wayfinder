@@ -1,57 +1,229 @@
 # Wayfinder Domain Protocol
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Status:** CANDIDATE
 
 A Wayfinder domain is an independently understandable area of lived reality with its own facts, rules, commands, and reads.
+
+The protocol exists so new domains can join Wayfinder without weakening truth boundaries or requiring scattered core edits.
 
 ## A domain owns
 
 - its persistence schema
 - validation rules
 - canonical factual records
+- record/version lifecycle semantics
 - command handlers
-- domain events
+- semantic duplicate prevention
 - domain-specific measurements
 - domain-specific derived signals where appropriate
 - read models or read adapters
+- reference resolution for its own records
+
+A domain does **not** automatically own cross-domain Evidence, Direction, Character, or other shared/core records merely because its facts contribute to them.
 
 ## A domain exposes
 
 At minimum:
 
-1. **identity** — stable domain name and version
-2. **commands** — allowed requests for canonical change
-3. **validation** — rules that decide whether commands are acceptable
-4. **references** — stable EntityRefs for records that other systems may point to
-5. **reads** — bounded query surfaces
-6. **events** — accepted factual changes worth publishing
-7. **health/readiness** — whether required dependencies are available
+1. **identity** — stable domain id and implementation version
+2. **public identifiers** — stable machine ids for record types, command types, read types, and change types
+3. **commands** — allowed requests for canonical mutation
+4. **validation** — payload, authority, ownership, lifecycle, and precondition rules
+5. **references** — stable `RecordRef` / `EntityRef` resolution surfaces
+6. **version resolution** — `RecordVersionRef` resolution, including explicit redacted/deleted/missing states
+7. **reads** — bounded authorized query surfaces
+8. **changes** — durable `DomainChange` publication after canonical mutation
+9. **capability readiness** — dependency-scoped readiness rather than one global healthy flag
 
 Optional extensions:
 
 - observations
 - metrics
 - signals
-- evidence suggestions
-- progression/growth derivations
-- Journey projections
-- Today/Helm contributions
-- criteria/evaluation contracts
+- evidence candidates/suggestions
+- projection contributions
+- Journey/Helm read contributions
+- criteria/evaluation helpers
+- sync/import capabilities
 
-## A domain must not
+## Public contract stability
 
-- write another domain's factual tables
-- award global Character state directly
-- treat missing data as zero
-- convert scheduled intent into completed reality
-- let AI bypass command validation
-- require unrelated domains to be healthy before its own facts are usable
-- manufacture symmetry merely to resemble another domain
+Internal tables and code may evolve without preserving implementation details.
+
+But externally visible machine identifiers must not silently drift:
+
+- domain id
+- record namespace/type ids
+- command type ids
+- read type ids
+- change type ids
+
+A display rename is not a machine-identifier migration.
+
+Breaking public-contract changes require explicit versioning/migration rather than silent replacement.
+
+## Command execution
+
+A domain command handler must:
+
+1. resolve owner scope;
+2. validate current authorization at execution time;
+3. validate payload/domain rules;
+4. validate version preconditions when required;
+5. apply semantic duplicate protections appropriate to the domain;
+6. commit canonical mutation atomically;
+7. durably append the corresponding `DomainChange` in the same commit boundary or an equivalent mechanism;
+8. return a `CommandReceipt`.
+
+A command may affect multiple records inside one owning domain transaction.
+
+A single command does not directly mutate multiple domains.
+
+## Reliable change publication
+
+Canonical state and change notification must not be allowed to silently diverge.
+
+Preferred first implementation: **transactional outbox** in the same database transaction as canonical mutation.
+
+Logical guarantees:
+
+- a committed canonical change eventually has a durable DomainChange;
+- delivery may be **at least once**;
+- consumers must be idempotent;
+- duplicate DomainChanges must not duplicate projection/evidence effects;
+- publishing failure after commit must be recoverable by the durable outbox.
+
+Exact transport (database polling, queue, event bus, etc.) is an implementation detail.
+
+## Reads
+
+Reads are authorized domain-owned views of canonical facts and domain derivations.
+
+When a result can imply absence, zero, completeness, or “nothing happened,” it must provide bounded Coverage appropriate to the claim.
+
+Conceptually:
+
+```ts
+interface DomainReadResult<T> {
+  data: T;
+  evaluatedAt: string;
+  coverage?: Coverage[];
+  readiness?: CapabilityReadiness;
+}
+```
+
+A read must not quietly convert missing dependencies into empty factual results.
+
+## Reference resolution
+
+Other domains and core services do not query a domain's factual tables directly.
+
+A domain provides authorized resolution for:
+
+- stable current `RecordRef`
+- exact historical `RecordVersionRef`
+
+Historical resolution may return resolved content, redacted/deleted tombstone, temporary unavailable state, or unexpected missing/corrupt state according to the Object Contracts.
+
+Anything used in durable evidence or provenance lineage must be version-addressable.
+
+## Capability readiness
+
+Domain readiness is not one boolean.
+
+Conceptually:
+
+```ts
+type CapabilityStatus = "READY" | "DEGRADED" | "UNAVAILABLE";
+
+interface CapabilityReadiness {
+  capability: string;
+  status: CapabilityStatus;
+  dependencies?: Array<{
+    id: string;
+    status: CapabilityStatus;
+    reason?: string;
+  }>;
+}
+```
+
+Examples:
+
+- persisted Finance reads may be READY while bank sync is UNAVAILABLE;
+- Practice writes may be READY while AI interpretation is UNAVAILABLE;
+- reference resolution may remain READY even when an external connector is offline.
+
+A failed optional capability must not invalidate unrelated truth.
+
+## Cross-domain relationships
+
+Cross-domain composition occurs through explicit seams:
+
+- `RecordRef` / `RecordVersionRef` / `EntityRef`
+- EvidenceLinks owned by the evidence/shared capability
+- DomainChanges
+- explicit authorized reads
+- authorized commands
+
+Never through hidden foreign writes.
+
+A life domain may **suggest** or request cross-domain evidence/meaning; it does not silently write shared truth owned elsewhere.
+
+## Multi-domain workflows
+
+One real-world workflow may touch several domains.
+
+Wayfinder handles that through orchestration, not by giving one domain write authority over all others.
+
+Conceptually:
+
+`Orchestrator → Command A → Domain A`
+
+`             → Command B → Domain B`
+
+`             → Command C → Domain C`
+
+Cross-domain completion may be eventual. Do not require distributed transactions for the first architecture.
+
+If partial completion matters, the orchestrator must expose it rather than pretending the whole workflow was atomic.
+
+## Semantic duplicate prevention
+
+Command retry safety and domain semantic duplicate prevention are different.
+
+Examples of domain semantic dedupe:
+
+- same bank transaction external id
+- same imported calendar event
+- same sensor sample id
+
+The owning domain defines those natural/external uniqueness rules.
+
+## Corrections
+
+A domain must support correction/supersession without silently destroying lineage required by downstream evidence and projections.
+
+When a version becomes superseded/retracted:
+
+- publish a DomainChange;
+- make current resolution point to the new accepted state;
+- keep historical version resolution or an explicit tombstone according to privacy policy;
+- allow downstream consumers to invalidate/recompute dependent projections.
+
+Full event sourcing is not required.
+
+## Authorization and privacy propagation
+
+Reads, reference resolution, commands, and derivations must respect owner/permission scope.
+
+A derived read/projection must not silently expose information more broadly than its source lineage permits unless an explicit policy authorizes a safe aggregate/transformation.
+
+Exact permission inheritance remains Candidate, but accidental privilege widening is prohibited.
 
 ## Registration model
 
-The core should discover domains through registration rather than hard-coded branching.
+The core discovers domains through registration rather than hard-coded branching.
 
 Conceptually:
 
@@ -60,31 +232,25 @@ interface DomainModule {
   id: string;
   version: string;
   lifecycle: "experimental" | "active" | "disabled";
-  commands: unknown[];
-  reads: unknown[];
-  readiness(): DomainReadiness;
+  publicIds: {
+    records: string[];
+    commands: string[];
+    reads: string[];
+    changes: string[];
+  };
+  readiness(): CapabilityReadiness[];
 }
 ```
 
-The concrete contract will expand only after the first vertical slice proves what is truly shared.
+Concrete handler types should be added only when the first vertical slice proves the common shape.
 
 ## Fault isolation
 
 Failure in one domain must not erase or invalidate truth in another.
 
-If Finance is unavailable, Practice history should still load. If an interpretation service fails, factual domain records remain intact.
+If Finance is unavailable, Practice history still loads. If an interpretation service fails, factual domain records remain intact.
 
-## Cross-domain relationships
-
-Cross-domain composition occurs through:
-
-- `EntityRef`
-- evidence links
-- domain events
-- explicit query contracts
-- authorized commands
-
-Never through hidden foreign writes.
+Readiness and failure are scoped to the capability/dependency actually affected.
 
 ## Domain admission test
 
@@ -94,22 +260,23 @@ Before creating a new domain, answer:
 2. Does it require its own validation or persistence rules?
 3. Would forcing it into an existing domain weaken truth or clarity?
 4. Can it expose a bounded contract to the rest of Wayfinder?
+5. Can it fail independently without corrupting unrelated truth?
 
-If not, it may be a feature or projection rather than a domain.
+If not, it may be a feature, projection, or shared core capability rather than a domain.
 
 ## Pilot domain
 
-The first proving domain is **Practice** because it is small enough to implement early but rich enough to test:
+The first proving domain remains **Practice** because it is small enough to implement early but rich enough to test:
 
 - real events
 - time
+- corrections
 - measurements
-- direction links
+- direction relationships
 - evidence
 - reflection
-- growth
-- Journey
-- Helm
+- projections
+- Journey/Helm reads
 - Navigator reasoning
 
-Practice is not privileged in the architecture. It is the first stress test of the protocol.
+Practice is not privileged in the architecture. It is the first executable pressure test of the protocol.
