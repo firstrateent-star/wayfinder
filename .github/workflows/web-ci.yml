@@ -32,5 +32,6 @@ jobs:
       - name: TypeScript and Vite build
         run: npm run build
         env:
+          # Build validation only; production receives the actual publishable key through deployment environment configuration.
           VITE_SUPABASE_URL: https://ngakauhlcmvwnmimtsca.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.WAYFINDER_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-publishable-placeholder
