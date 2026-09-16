@@ -11,11 +11,11 @@ import type {
 
 const PRIORITY_WEIGHT: Record<NeedPriorityClass, number> = {
   P0_BLOCKING: 100,
-  P1_HIGH_IMACT: 80,
+  P1_HIGH_IMPACT: 80,
   P2_HIGH_LEVERAGE: 60,
   P3_CALIBRATION: 40,
   P4_OPTIONAL: 10
-} as unknown as Record<NeedPriorityClass, number>;
+};
 
 const ANSWERABILITY_WEIGHT: Record<InformationAnswerability, number> = {
   HIGH: 8,
