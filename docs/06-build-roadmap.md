@@ -1,7 +1,7 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.4  
-**Status:** CANDIDATE — realigned after mature Life RPG + temporal guidance Flower
+**Version:** 0.5  
+**Status:** CANDIDATE — Person/Temporal/Body live; Character Creation orchestration next
 
 The roadmap prioritizes architectural leverage, complete vertical slices, real evidence, and low player burden over feature count or screen count.
 
@@ -68,11 +68,11 @@ No manual Practice/Direction/Evidence/correction inputs are part of normal playe
 
 ## Phase 5 — Mature Life RPG architectural freeze
 
-**Status: active / design consolidated**
+**Status: CANDIDATE-STABLE target / recursively active**
 
 Reference: `docs/18-mature-life-rpg-architecture-v0.2.md`.
 
-Freeze these high-leverage laws before new physical domains:
+Current high-leverage laws:
 
 - canonical reality remains small and domain-owned;
 - four epistemic layers remain explicit;
@@ -85,51 +85,86 @@ Freeze these high-leverage laws before new physical domains:
 - Discovery routes candidate facts through owning modules;
 - Navigator questions are information-need driven;
 - astrology = canonical birth facts + deterministic calculation + symbolic interpretation;
+- Owner, Person, Body, and Character are distinct concepts;
 - no universal life/facts table.
 
-ADR-030 and ADR-031 capture the strongest durable decisions.
+ADR-030 through ADR-032 capture the strongest durable decisions.
 
 ## Phase 6 — Person + shared temporal contracts
 
-**Status: next executable candidate**
+**Status: ✅ LIVE / DATABASE GATE PASSED**
 
-Build the smallest canonical Person module and formalize shared temporal types needed by future domains.
+Deployed:
 
-Candidate Person facts:
-- preferred/display name;
-- birth date;
-- birth time optional;
-- birth place optional.
+```text
+wf_person.persons
+wf_person.person_versions
+wf_system.local_day_bounds(local_date, zone_id)
+```
 
-Do not store Role, XP, Level, Skill, current weight, current location, finances, or goals on Person.
+Public Person RPCs:
 
-Temporal contracts should support semantic distinctions among occurred, recorded, planned, scheduled, due, valid, recurrence, local day/week scopes, timezone, and precision.
+```text
+wf_person_create
+wf_person_update_profile
+wf_person_current_v0
+```
+
+Person owns only preferred identity and stable/correctable birth/origin facts.
+
+The temporal kernel now proves local-day scope across DST instead of assuming every day is 24 elapsed hours.
+
+Live rollback testing proved retry safety, semantic NOOP, exact correction lineage, stale-version rejection, private-schema denial, and deferred-head integrity.
+
+Reference: `docs/19-person-temporal-body-v0.1.md`.
 
 ## Phase 7 — Body asymmetric slice
 
-**Status: candidate**
+**Status: ✅ LIVE / DATABASE GATE PASSED**
 
-Use Body as the first new asymmetric time-varying observation domain.
-
-Prove:
+Deployed:
 
 ```text
-height / weight observation
- -> provenance
- -> temporal semantics
- -> correction
- -> current read
- -> historical read
- -> coverage
+wf_body.measurements
+wf_body.measurement_versions
 ```
 
-This becomes the first substrate for Character Creation beyond Person.
+Admitted metrics:
 
-## Phase 8 — Character Creation experience
+```text
+height
+weight
+```
 
-**Status: candidate after Person + Body**
+Public RPCs:
 
-Create one simple player-facing flow that routes facts to their proper owners:
+```text
+wf_body_record_measurement
+wf_body_correct_measurement
+wf_body_current_v0
+```
+
+Proven:
+
+```text
+measurement
+ -> source quantity/unit
+ -> observed time
+ -> exact version/correction lineage
+ -> deterministic unit normalization
+ -> latest-recorded Body read
+ -> explicit epistemic limits
+```
+
+Height/weight are temporal Body facts, not Person columns.
+
+Reference: `lab/person-temporal-body-live-test-v0.1.md`.
+
+## Phase 8 — Character Creation orchestration
+
+**Status: ← CURRENT DESIGN / BUILD TARGET**
+
+The player should experience Character Creation as a simple RPG-like beginning while the backend preserves distinct owners:
 
 ```text
 Name / birth facts -> Person
@@ -139,16 +174,35 @@ Home Base          -> World only after World exists; otherwise defer
 
 No Role, XP, Level, Skill, Path, or stat inputs.
 
-The frontend may feel like one RPG character-creation experience while the backend preserves separate truth owners.
+### Gate before UI exposure
+
+The next Flower must resolve transaction truth.
+
+If the player experiences initial creation as one indivisible save, then a Person write plus required initial Body measurements cannot be several unrelated client commits that may leave a misleading half-created Character.
+
+Choose and prove one of two semantics:
+
+```text
+A. ATOMIC INITIAL CAPTURE
+   one authoritative orchestration boundary commits the required cross-module state together
+
+B. EXPLICITLY RESUMABLE CAPTURE
+   partial completion is first-class, visible, safe to retry, and never presented as complete
+```
+
+Do not let frontend convenience choose this implicitly.
+
+Only after this boundary passes stress testing should the player-facing Character Creation screen be exposed.
 
 ## Phase 9 — Deterministic natal calculation
 
-**Status: candidate**
+**Status: candidate after Character Creation contract**
 
 Once birth facts exist, prove:
 
 ```text
 birth date/time/place
+ -> resolved geographic coordinates/timezone where required
  -> ephemeris/version
  -> planetary positions
  -> houses/aspects where inputs allow
@@ -156,6 +210,8 @@ birth date/time/place
 ```
 
 No symbolic interpretation is required to pass this phase.
+
+The calculator must expose missing-input limitations rather than fabricating Ascendant/houses when birth time or location resolution is insufficient.
 
 ## Phase 10 — Schedule slice
 
@@ -355,9 +411,10 @@ For every expansion:
 8. define Schedule/Requirement semantics if relevant;
 9. define base vs effective capability effects;
 10. define what Navigator may say/ask/propose;
-11. implement one end-to-end slice;
-12. stress invariants and complements;
-13. observe real use;
-14. promote, adapt, or reject assumptions.
+11. define atomic vs resumable semantics for any multi-module user intent;
+12. implement one end-to-end slice;
+13. stress invariants and complements;
+14. observe real use;
+15. promote, adapt, or reject assumptions.
 
 The measure of progress is how much real life Wayfinder can correctly model, discover, evaluate, explain, and guide while asking less of the player — not the number of screens, tables, integrations, or RPG mechanics.
