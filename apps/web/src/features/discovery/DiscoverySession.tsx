@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarDays, Check, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createScheduleAllocation } from "@/lib/schedule-rpc";
+import { captureDirectionNode } from "@/lib/wayfinder-rpc";
 import type { PositionQuestionOpportunity, PositionScheduleScope } from "@/lib/position-api";
 
 type Step = "ASK" | "LABEL" | "TIME" | "DONE";
@@ -29,14 +30,18 @@ function instantAtLocalTime(scopeFrom: string, time: string) {
 export function DiscoverySession({ question, knownScheduleCount, scope, onSaved, onClose }: Props) {
   const [step, setStep] = useState<Step>("ASK");
   const [label, setLabel] = useState("");
+  const [focusText, setFocusText] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedLabel, setSavedLabel] = useState<string | null>(null);
+  const [savedDirection, setSavedDirection] = useState<string | null>(null);
   const [declined, setDeclined] = useState(false);
 
   const dayLabel = useMemo(() => formatDay(scope.from), [scope.from]);
+  const concept = question?.informationNeed.concept ?? null;
+  const directionQuestion = concept === "direction.current_focus";
 
   if (!question) {
     return (
@@ -103,6 +108,35 @@ export function DiscoverySession({ question, knownScheduleCount, scope, onSaved,
     }
   }
 
+  async function saveDirection() {
+    setError(null);
+    const title = focusText.trim();
+    if (!title) {
+      setError("Give Wayfinder one current direction in your own words.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await captureDirectionNode({
+        kind: "direction",
+        title
+      });
+
+      if (result.status !== "APPLIED" && result.status !== "NOOP") {
+        throw new Error(result.error_code ?? "Wayfinder rejected the Direction record.");
+      }
+
+      setSavedDirection(title);
+      setStep("DONE");
+      await onSaved();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Wayfinder could not record that current direction.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="rounded-3xl border border-emerald-300/10 bg-emerald-300/[0.025] p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
@@ -111,14 +145,36 @@ export function DiscoverySession({ question, knownScheduleCount, scope, onSaved,
             <Sparkles className="h-4 w-4 text-emerald-300" />
             Navigator · Discovery
           </div>
-          <p className="mt-1 text-xs text-slate-500">One question at a time. Only when the answer has somewhere useful to go.</p>
+          <p className="mt-1 text-xs text-slate-500">One question at a time. Each answer should change what Wayfinder can understand or do next.</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close discovery">
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      {step === "ASK" ? (
+      {step === "ASK" && directionQuestion ? (
+        <div className="mt-6">
+          <p className="text-base leading-7 text-slate-200">What is the one thing you are most actively trying to move forward right now?</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{question.whyThisMatters}</p>
+          <Input
+            className="mt-5"
+            value={focusText}
+            onChange={(event) => setFocusText(event.target.value)}
+            placeholder="Build Wayfinder into something genuinely useful…"
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && focusText.trim() && !saving) void saveDirection();
+            }}
+          />
+          {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+          <Button className="mt-4" disabled={saving || !focusText.trim()} onClick={() => void saveDirection()}>
+            {saving ? "Connecting…" : "Use this as my current direction"}
+          </Button>
+          <p className="mt-3 text-xs leading-5 text-slate-600">This records an explicit current Direction. It does not assign a permanent Role, class, personality, or identity.</p>
+        </div>
+      ) : null}
+
+      {step === "ASK" && !directionQuestion ? (
         <div className="mt-6">
           <p className="text-base leading-7 text-slate-200">
             {knownScheduleCount === 0
@@ -199,16 +255,20 @@ export function DiscoverySession({ question, knownScheduleCount, scope, onSaved,
             <Check className="h-5 w-5 text-emerald-300" />
           </div>
           <p className="mt-4 text-base leading-7 text-slate-200">
-            {savedLabel
-              ? `Got it. ${savedLabel} is now part of your planned time for ${dayLabel}.`
-              : declined
-                ? "Got it. I will not assume the day is completely free — only that you did not add another fixed commitment through this question."
-                : "That discovery step is complete."}
+            {savedDirection
+              ? `Now I can organize discovery around “${savedDirection}” instead of collecting unrelated facts.`
+              : savedLabel
+                ? `Got it. ${savedLabel} is now part of your planned time for ${dayLabel}.`
+                : declined
+                  ? "Got it. I will not assume the day is completely free — only that you did not add another fixed commitment through this question."
+                  : "That discovery step is complete."}
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            {savedLabel
-              ? "This gives Navigator one real constraint to reason around. Whether it actually occurs remains a separate question for Reality."
-              : "Unknown stays unknown. Wayfinder can ask something else later when another answer has enough value to justify the interruption."}
+            {savedDirection
+              ? "Position will now combine that Direction with the time constraints you have already recorded. As more domains come online, the same loop can connect training, nutrition, money, gear, recovery, and evidence without turning them into one generic profile."
+              : savedLabel
+                ? "Position now recomputes the relationships between recorded commitments — including occupied time, overlaps, and between-commitment windows — rather than only storing the label you entered."
+                : "Unknown stays unknown. Wayfinder can ask something else later when another answer has enough value to justify the interruption."}
           </p>
           <Button variant="secondary" className="mt-5" onClick={onClose}>Return to Helm</Button>
         </div>
