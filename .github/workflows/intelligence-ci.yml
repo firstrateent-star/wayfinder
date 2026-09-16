@@ -8,6 +8,7 @@ on:
       - "supabase/functions/natal-geometry/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
       - "lab/natal-geometry-v0.1.test.ts"
+      - "lab/requirements-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "supabase/functions/natal-geometry/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
       - "lab/natal-geometry-v0.1.test.ts"
+      - "lab/requirements-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -32,7 +34,11 @@ jobs:
         run: deno check supabase/functions/birth-context/index.ts
       - name: Type-check natal geometry Edge Function
         run: deno check supabase/functions/natal-geometry/index.ts
+      - name: Type-check requirement evaluator
+        run: deno check supabase/functions/_shared/intelligence/requirements.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
         run: deno test lab/natal-geometry-v0.1.test.ts
+      - name: Run requirement contract tests
+        run: deno test lab/requirements-v0.1.test.ts
