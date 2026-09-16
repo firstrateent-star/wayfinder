@@ -116,7 +116,7 @@ export function HelmPage() {
             <div className="mx-auto max-w-md rounded-2xl border border-rose-400/20 bg-rose-400/5 p-6 text-center">
               <p className="text-sm font-medium text-rose-200">Wayfinder could not assemble your position.</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">{error}</p>
-              <Button variant="outline" className="mt-5" onClick={() => void refreshPosition()}>
+              <Button variant="secondary" className="mt-5" onClick={() => void refreshPosition()}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Retry
               </Button>
             </div>
