@@ -3,3 +3,6 @@ export * from "./knowledge-registry.ts";
 export * from "./knowledge-router.ts";
 export * from "./question-planner.ts";
 export * from "./acquisition-router.ts";
+export * from "./geo-open-meteo.ts";
+export * from "./local-time-resolver.ts";
+export * from "./birth-context-service.ts";
