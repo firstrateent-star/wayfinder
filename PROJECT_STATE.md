@@ -1,14 +1,16 @@
 # Wayfinder — Project State / Chat Recovery
 
 **Repository:** `firstrateent-star/wayfinder`  
-**Current milestone:** Knowledge/Inquiry spine + birth-context proving slice live  
-**Current phase:** deterministic natal geometry next; player shell remains quiet/relevance-driven  
-**Current roadmap:** `docs/06-build-roadmap.md` v0.7  
+**Current milestone:** deterministic natal foundation + Character Creation + Schedule + Requirement contract proven  
+**Current phase:** first real Training + Nutrition requirement proving slice  
+**Current roadmap:** `docs/06-build-roadmap.md` v0.8  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Home:** `docs/20-knowledge-and-home-surface-v0.1.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
-**Birth-context slice:** `docs/22-birth-context-knowledge-slice-v0.1.md`  
-**Latest ADR:** `decisions/ADR-036-birth-context-is-derived-through-knowledge-resolution.md`
+**Birth context:** `docs/22-birth-context-knowledge-slice-v0.1.md`  
+**Natal geometry:** `docs/23-natal-geometry-v0.1.md`  
+**Character/Schedule/Requirements:** `docs/24-character-schedule-requirements-v0.1.md`  
+**Latest ADR:** `decisions/ADR-038-schedule-owns-planned-time-requirements-remain-domain-owned-contracts.md`
 
 ## Non-negotiable direction
 
@@ -30,11 +32,14 @@ Core laws:
 - complex underneath, quiet on the player surface;
 - the player should not have to manually model their life;
 - RPG mechanics are projections by default;
+- Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
 - Navigator asks questions only when missing information materially matters;
-- astrology is symbolic guidance over deterministic chart calculation, not canonical empirical truth;
+- astrology/tarot are symbolic guidance/reflection, not canonical empirical truth;
 - Schedule owns planned temporal allocation, not occurrence;
 - Requirement/Standard is distinct from Goal and Schedule;
+- Requirement evaluation is coverage-aware;
+- Requirement metrics remain owned by the domain that understands them;
 - Owner/auth identity, Person identity, Body observations, and Character projection are distinct;
 - Reference Knowledge is separate from Player Reality;
 - the language model is a reasoner/interface, not the authoritative encyclopedia;
@@ -48,7 +53,7 @@ Core laws:
 TIME
  |
  +--> CANONICAL PLAYER PLANE
- |      System / Person / Body / Direction / Practice / ...
+ |      System / Person / Body / Direction / Practice / Schedule / ...
  |
  +--> KNOWLEDGE PLANE
  |      deterministic / reference / guidance / live external
@@ -57,7 +62,7 @@ TIME
  |      InformationNeed / resolver routing / QuestionPlanner
  |
  +--> INTELLIGENCE + GUIDANCE
- |      Discovery / Position / Schedule / Requirements / Growth
+ |      Discovery / Position / Requirements / Growth / Planning
  |
  +--> GAME / PROJECTION
  |      Character / Skills / Role / XP / Stats / Stamina / ...
@@ -94,7 +99,7 @@ A lower-authority layer must never masquerade as a higher-authority layer.
 
 Supabase project ref: `ngakauhlcmvwnmimtsca`.
 
-Private schemas:
+Private Wayfinder schemas:
 
 ```text
 wf_system
@@ -103,6 +108,7 @@ wf_direction
 wf_practice
 wf_evidence
 wf_body
+wf_schedule
 ```
 
 Canonical tables:
@@ -133,6 +139,10 @@ wf_evidence
 wf_body
 ├── measurements
 └── measurement_versions
+
+wf_schedule
+├── allocations
+└── allocation_versions
 ```
 
 Authenticated clients use narrow public typed RPCs; private canonical schemas remain inaccessible directly to `anon` / `authenticated`.
@@ -148,7 +158,7 @@ Still valid:
 - correction/supersession with stale-write rejection;
 - transactional ModuleChange outbox;
 - result coverage vs epistemic coverage;
-- occurred vs recorded time;
+- occurred vs recorded vs planned time separation;
 - public read/projection seam;
 - frontend private-table guard;
 - deferred version-head integrity.
@@ -159,7 +169,7 @@ Direction / Practice / Evidence / Helm / Journey remain proof infrastructure eve
 
 Person is distinct from owner/auth scope.
 
-Canonical Person currently owns:
+Canonical Person owns:
 
 ```text
 display/preferred name
@@ -214,9 +224,9 @@ wf_body_current_v0
 
 Unit normalization is deterministic derivation; latest recorded observation != perfect current physical truth.
 
-## Atomic Character Initialization — ✅ LIVE
+## Character Creation — ✅ BACKEND + PLAYER FLOW
 
-Public orchestration RPC:
+Atomic backend:
 
 ```text
 wf_character_initialize_v0
@@ -232,6 +242,17 @@ weight             -> Body optional
 
 All required child writes commit or roll back together. Character is still not a canonical table.
 
+Frontend now gates authenticated players by canonical Person existence:
+
+```text
+Person missing -> /create-character
+Person exists  -> /helm
+```
+
+Character Creation collects only grounded starting facts. Birth time/place and Body observations may remain unknown/optional. No Role, Skill, XP, Level, Path or attribute self-rating is collected.
+
+Web CI passed the Character Creation and Schedule-client changes.
+
 ## Knowledge + Inquiry Acquisition Spine — ✅ EXECUTABLE / CI PASSED
 
 Shared runtime:
@@ -245,10 +266,13 @@ supabase/functions/_shared/intelligence/
 ├── question-planner.ts
 ├── geo-open-meteo.ts
 ├── local-time-resolver.ts
-└── birth-context-service.ts
+├── birth-context-service.ts
+├── natal-geometry.ts
+├── natal-geometry-service.ts
+└── requirements.ts
 ```
 
-Core resolution order:
+Resolution order:
 
 ```text
 canonical state
@@ -273,21 +297,16 @@ P3_CALIBRATION
 P4_OPTIONAL
 ```
 
-Ranking can consider uncertainty reduction, current relevance, decision impact, cross-domain leverage, future reuse, freshness, conflict resolution, deadline/requirement impact, answerability, user burden, sensitivity, interruption cost, redundancy and repetition.
-
 Normal mode has a low question budget. Discovery Session may ask broader/high-leverage questions adaptively.
 
 Do not persist a universal question backlog merely because the runtime can create Information Needs.
 
-## Birth Context Knowledge slice — ✅ LIVE / CI PASSED
+## Birth Context — ✅ LIVE / CI PASSED
 
-Live Supabase Edge Function:
+Live JWT-protected Edge Function:
 
 ```text
 birth-context
-version: 1
-verify_jwt: true
-status: ACTIVE
 ```
 
 Path:
@@ -296,103 +315,185 @@ Path:
 Person birth facts
  -> geo.resolve_place
  -> RESOLVED | AMBIGUOUS | UNAVAILABLE
- -> Question Planner when player clarification is appropriate
+ -> Question Planner when clarification is appropriate
  -> geo.resolve_timezone
  -> time.resolve_local_instant
  -> natal readiness
 ```
 
-Current capabilities:
+Current place provider is Open-Meteo behind replaceable capability `geo.resolve_place`.
+
+Current local-time provider uses runtime `Intl` timezone rules and preserves DST gaps/folds instead of guessing.
+
+Known limitation: pin/version a timezone-rule dataset before treating persisted natal snapshots as perfectly replayable solely from original wall-clock input.
+
+## Deterministic natal geometry — ✅ LIVE / CI PASSED
+
+Live JWT-protected Edge Function:
 
 ```text
-geo.resolve_place
-geo.resolve_timezone
-time.resolve_local_instant
+natal-geometry
 ```
 
-Current place provider:
+Pinned provider:
 
 ```text
-geo.open_meteo
+Astronomy Engine 2.1.19
 ```
 
-This provider is provisional/replaceable behind the capability contract. Open-Meteo geocoding provides WGS84 coordinates and IANA timezone reference data where available.
-
-Current local-time provider:
+Current deterministic output includes:
 
 ```text
-time.intl_local_instant
+Sun through Pluto
+geocentric tropical true-ecliptic-of-date longitude/latitude
+zodiac sign + degree
+approximate DIRECT / RETROGRADE / STATIONARY motion
+Ascendant / MC / Descendant / IC
+Equal houses
+Whole Sign houses
+pairwise angular separations
+nearest major aspect angle + geometric orb
 ```
 
-It preserves DST gaps/folds rather than guessing.
+Natal geometry does NOT decide whether an aspect is symbolically active and does not store interpretation as fact.
 
-Natal readiness states:
+Independent fixture validation compares bounded output against Swiss Ephemeris reference values while the runtime remains Astronomy Engine based.
+
+## Schedule v0.1 — ✅ LIVE / DATABASE GATE PASSED
+
+Private canonical tables:
 
 ```text
-NO_PERSON
-MISSING_BIRTH_DATE
-MISSING_BIRTH_PLACE
-AMBIGUOUS_BIRTH_PLACE
-PLACE_RESOLUTION_UNAVAILABLE
-TIMEZONE_RESOLUTION_UNAVAILABLE
-READY_FOR_TIME_INDEPENDENT_CHART_ONLY
-AMBIGUOUS_BIRTH_INSTANT
-BIRTH_INSTANT_UNRESOLVABLE
-READY
+wf_schedule.allocations
+wf_schedule.allocation_versions
 ```
 
-Important limitation:
-
-v0.1 local-time conversion uses runtime `Intl` timezone rules. Pin/version a timezone-rule dataset before treating persisted natal geometry as perfectly reproducible across runtimes.
-
-The birth-context Edge Function is read-only. A selected birthplace candidate may resolve the current request but does not silently rewrite Person.
-
-Persisting clarified birthplace remains an authorized Person update/correction.
-
-## Automated intelligence validation — ✅
-
-Workflow:
+Kinds:
 
 ```text
-.github/workflows/intelligence-ci.yml
+HARD
+SOFT
+WINDOWED
+FLOATING
 ```
 
-Test:
+State:
 
 ```text
-lab/birth-context-vertical-slice-v0.1.test.ts
+PLANNED
+CANCELLED
 ```
 
-Passing CI proves:
-
-- qualified Key West resolution;
-- historical local birth time -> UTC conversion;
-- ambiguous Springfield remains ambiguous;
-- ambiguity becomes a prioritized player question;
-- missing birth time does not nag in ordinary task-driven readiness;
-- Discovery Session may ask for birth time;
-- DST fold produces two candidate instants rather than a guess;
-- provider outage remains unavailable and does not fabricate a place.
-
-Supabase deployment compilation also succeeded and the Edge Function is ACTIVE.
-
-## Knowledge / Player Reality law
-
-Examples:
+Public RPCs:
 
 ```text
-Workout performed                    -> Player Training reality
-Exercise muscle definition           -> Reference Knowledge
-Gym hours tonight                    -> Live external context
-Training-balance interpretation      -> Intelligent inference
-
-Birth place label                    -> Person truth
-Coordinates / timezone               -> Reference Knowledge
-UTC birth instant                    -> deterministic derivation
-Natal symbolism                      -> symbolic interpretation
+wf_schedule_create_allocation
+wf_schedule_revise_allocation
+wf_schedule_current_v0
 ```
 
-Do not mix reference/global knowledge into canonical player schemas merely because it is relevant.
+Schedule may reference an object in Direction or another module, but it only owns the planned time allocation.
+
+A passed Schedule interval never proves an activity occurred.
+
+Live rollback test proved:
+
+```text
+create -> APPLIED
+revise/reschedule -> APPLIED
+current bounded read -> one current head
+authenticated direct wf_schedule usage -> denied
+transaction -> rolled back
+```
+
+See `lab/schedule-live-test-v0.1.md`.
+
+Frontend client seam exists in:
+
+```text
+apps/web/src/lib/schedule-types.ts
+apps/web/src/lib/schedule-rpc.ts
+```
+
+No permanent Calendar widget has been added to Helm.
+
+## Requirement contract v0.1 — ✅ EXECUTABLE / CI PASSED
+
+There is intentionally no universal `wf_requirements` canonical table.
+
+Shared evaluator:
+
+```text
+supabase/functions/_shared/intelligence/requirements.ts
+```
+
+Rules:
+
+```text
+AT_LEAST
+AT_MOST
+BETWEEN
+EXACT
+```
+
+Coverage:
+
+```text
+COMPLETE
+PARTIAL
+UNKNOWN
+```
+
+Evaluation states:
+
+```text
+SATISFIED
+IN_PROGRESS
+CLOSED_BELOW_TARGET
+BREACHED
+UNKNOWN
+```
+
+Coverage law example for `protein >= 150g / local day`:
+
+```text
+110g, day open, partial     -> IN_PROGRESS
+155g, day open, partial     -> SATISFIED (monotonic minimum already proven)
+110g, day closed, partial   -> UNKNOWN
+110g, day closed, complete  -> CLOSED_BELOW_TARGET
+```
+
+The evaluator does not decide whether the requirement itself is appropriate. Nutrition/Training/etc. must own metric semantics and provide observations/coverage.
+
+Tests:
+
+```text
+lab/requirements-v0.1.test.ts
+```
+
+Intelligence CI passed.
+
+## Database health after Schedule
+
+A performance-advisor pass found unindexed composite foreign keys across newer Person, Body and Schedule schemas. They were covered in:
+
+```text
+20260916030500_index_wayfinder_person_body_schedule_foreign_keys.sql
+```
+
+A second performance-advisor pass no longer reports `unindexed_foreign_keys` for these modules. The newly created indexes can appear as unused until traffic exercises them; do not delete them based solely on immediate zero-use counters.
+
+Security advisor context remains intentional:
+
+```text
+authenticated browser
+ -> public owner-scoped SECURITY DEFINER RPC
+ -> private canonical schema
+```
+
+The advisor therefore warns that authenticated users can execute these RPCs. This is the designed API boundary and remains a review point, not an accidental exposure. Direct schema access has been tested denied.
+
+`Leaked Password Protection Disabled` remains a production-hardening item. Supabase remediation: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 
 ## Helm / Home law
 
@@ -410,7 +511,7 @@ Any section may be absent. Silence is valid.
 
 No domain receives permanent Home real estate merely because it exists.
 
-A surfaced item should be able to answer:
+A surfaced item should answer:
 
 ```text
 Why now?
@@ -429,83 +530,63 @@ Body      -> temporal physical observations
 Character -> composed projection
 ```
 
-Future Character composes:
-
-```text
-Identity          <- Person
-Origin            <- birth facts + deterministic natal geometry
-Body              <- Body
-Skills            <- evidence-backed inference
-Roles             <- skill/activity clusters
-Attributes        <- broad evidence-backed patterns
-Inventory/Gear    <- Inventory
-Effective State   <- base + gear + context + conditions + access + allies
-Archetypes        <- symbolic interpretation
-Path              <- long-horizon becoming
-Achievements      <- evidence-backed milestones
-```
+Future Character composes Identity, Origin, Body, Skills, Roles, Attributes, Inventory/Gear, Effective State, Archetypes, Path and Achievements from their true owners and projections.
 
 No canonical Character aggregate solely for UI convenience.
 
-## Inventory / capability law
+## Time / Schedule / Requirement relationship
 
 ```text
-BASE CAPABILITY
-= demonstrated skill + enduring evidence-backed attributes + mastery
+DIRECTION
+why it matters
 
-EFFECTIVE CAPABILITY
-= Base Capability
-+ Equipment
-+ Environment
-+ Current Condition
-+ Available Access
-+ Relevant Allies
+REQUIREMENT
+what bounded condition should be satisfied
+
+SCHEDULE
+when time is allocated
+
+REALITY
+what actually happened
 ```
 
-Modifier semantics may include BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, SYNERGY.
+These may reference one another but remain distinct claims.
 
-Ownership alone does not permanently increase Skill/Mastery.
+## Training / Nutrition next law
 
-## Time / Schedule / Requirements
+Training and Nutrition are now the strongest next bounded-domain proving slice because Schedule and Requirement grammar need real domain-owned observations.
 
-Time is cross-cutting:
+Training should eventually own factual workout semantics such as:
 
 ```text
-occurred
-recorded
-planned
-scheduled
-due
-valid
-recurring
-deadline
-window
-duration
-timezone
-precision
+workout/session
+exercise
+sets/reps/load
+training exposure
 ```
 
-Schedule owns planned allocation, not occurrence.
-
-Requirement/Standard remains distinct from Goal and Schedule.
-
-Requirement evaluation must be coverage-aware; incomplete nutrition/activity logging never implies zero unrecorded reality.
-
-## Training / Nutrition future law
-
-Training and Nutrition will be distinct factual domains when their semantics are needed.
-
-Both reuse Knowledge rather than relying on unstructured model memory:
+Nutrition should own factual intake semantics such as:
 
 ```text
-Training Knowledge
-exercise / movement / muscles / variants / equipment / guidance
-
-Nutrition Knowledge
-food / serving / calories / macros / micros / source quality / guidance
+meal/intake
+food resolution
+measured vs estimated nutrients
+protein / calories / macros
+coverage
 ```
 
-Strength/growth is cross-domain:
+Reference Knowledge supplies reusable exercise/food facts rather than relying on unstructured LLM memory.
+
+First real requirements to prove:
+
+```text
+strength sessions >= N / local week
+protein >= target grams / local day
+```
+
+Incomplete logs must remain incomplete; unrecorded intake/activity is not zero.
+
+Strength/growth later becomes cross-domain:
 
 ```text
 Training
@@ -517,9 +598,9 @@ Training
  -> Growth analysis
 ```
 
-## Astrology architecture
+## Symbolic guidance later
 
-Keep these layers separate:
+Astrology architecture:
 
 ```text
 Birth facts                 -> canonical Person
@@ -529,51 +610,53 @@ Astrology meanings          -> symbolic Knowledge
 Personal interpretation     -> symbolic/reflective guidance
 ```
 
-Do not fabricate birth time, houses, Ascendant, or geographic resolution.
+Tarot fits the same broad symbolic/reflection family later:
+
+```text
+recorded draw
++ deck/card/spread reference knowledge
+ -> contextual symbolic interpretation
+ -> player reflection
+```
+
+Tarot cards do not directly establish canonical player facts or stat growth.
 
 ## Current Player UI
 
-`/helm` remains intentionally sparse/read-only.
+Character Creation is now the deliberate input exception.
 
-Do not replace it with a hodge-podge dashboard as domains arrive.
+`/helm` remains quiet/read-side once a Person exists.
 
-Character Creation backend exists, but player-facing Character Creation UI remains deferred until deterministic natal geometry/readiness presentation is stable enough.
-
-## Security context
-
-Private canonical schemas remain protected primarily by schema/table privilege denial plus owner-scoped public `SECURITY DEFINER` RPCs with fixed search paths.
-
-Supabase advisor warnings about authenticated execution of these public SECURITY DEFINER functions are expected for the chosen narrow RPC boundary and must continue to be reviewed carefully.
-
-`Leaked Password Protection Disabled` remains a production-hardening item.
-
-The new `birth-context` Edge Function has JWT verification enabled and performs no canonical writes.
+Do not add permanent Schedule, macro, workout, money, astrology, inventory or XP cards merely because those subsystems exist.
 
 ## Next build
 
-**Deterministic natal geometry.**
+**Training + Nutrition requirement proving slice.**
 
-Build a versioned ephemeris capability over the now-resolved birth context:
+Build the smallest correct factual models needed to make Schedule/Requirement guidance real rather than synthetic:
 
 ```text
-UTC birth instant
-+ WGS84 coordinates
-+ ephemeris implementation/data version
- -> planetary positions
- -> Ascendant / houses when timed inputs support them
- -> aspects
+Training reality
+ -> weekly strength-exposure metric
+ -> requirement evaluation
+
+Nutrition reality
+ -> protein aggregation + coverage
+ -> daily protein requirement evaluation
 ```
 
-Before symbolic astrology interpretation:
+Flower before schema admission:
 
-- choose/pin the ephemeris implementation/data;
-- preserve algorithm/data version in lineage;
-- decide house-system handling explicitly;
-- preserve approximate-birth-time uncertainty;
-- do not persist duplicate Character truth merely to display the chart.
+- determine the minimum Training entities that preserve workout/exercise/set semantics without overbuilding;
+- determine the minimum Nutrition entities that preserve food/intake/nutrient estimate provenance;
+- separate measured nutrient data from AI-estimated food resolution;
+- define exercise/food Knowledge capability seams;
+- derive local-day/local-week scopes from the Temporal Kernel;
+- keep domain requirements outside a universal requirement table;
+- ensure future Navigator can explain exactly why a requirement signal is known, incomplete, or unknown.
 
-After that, expose the simple Character Creation UI, then continue Schedule -> Requirements -> generalized Discovery -> Navigator -> Position -> Inventory -> Skills/Role -> Training/Nutrition.
+After one real Training and Nutrition requirement each survives tests, build the first temporal Navigator/Position composition using Direction + Schedule + Requirements + Information Need.
 
 ## Recovery prompt
 
-> Open `PROJECT_STATE.md`, then read `docs/06-build-roadmap.md`, `docs/22-birth-context-knowledge-slice-v0.1.md`, `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, `docs/20-knowledge-and-home-surface-v0.1.md`, `docs/18-mature-life-rpg-architecture-v0.2.md`, ADR-036 through ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person + Temporal Kernel + Body + atomic Character Initialization are live. The Knowledge/Inquiry runtime is executable and CI-tested. The JWT-protected `birth-context` Edge Function is live and resolves place -> timezone -> UTC birth instant with ambiguity/question handling. Keep Helm quiet. Next build deterministic, versioned natal geometry before symbolic astrology or broad domain UI.
+> Open `PROJECT_STATE.md`, then read `docs/06-build-roadmap.md`, `docs/24-character-schedule-requirements-v0.1.md`, `docs/23-natal-geometry-v0.1.md`, `docs/22-birth-context-knowledge-slice-v0.1.md`, `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, `docs/20-knowledge-and-home-surface-v0.1.md`, `docs/18-mature-life-rpg-architecture-v0.2.md`, ADR-038 back through ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person/Body/Character Creation are live; deterministic birth context and natal geometry are live; Schedule v0.1 is live; the coverage-aware Requirement contract is executable and CI-tested. Helm must stay quiet. Next build the minimum Training + Nutrition reality/Knowledge seams required to prove weekly strength and daily protein requirements, then compose Navigator/Position from those grounded signals.
