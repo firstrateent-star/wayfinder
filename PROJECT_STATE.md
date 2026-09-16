@@ -1,16 +1,17 @@
 # Wayfinder — Project State / Chat Recovery
 
 **Repository:** `firstrateent-star/wayfinder`  
-**Current milestone:** deterministic natal foundation + Character Creation + Schedule + Requirement contract proven  
-**Current phase:** first real Training + Nutrition requirement proving slice  
-**Current roadmap:** `docs/06-build-roadmap.md` v0.8  
+**Current milestone:** Initial Position + first governed Discovery Session live  
+**Current phase:** observe the new Helm/Discovery seam; next broad domain target is minimum Training + Nutrition requirement proof  
+**Current roadmap:** `docs/06-build-roadmap.md` v0.9  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Home:** `docs/20-knowledge-and-home-surface-v0.1.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
 **Birth context:** `docs/22-birth-context-knowledge-slice-v0.1.md`  
 **Natal geometry:** `docs/23-natal-geometry-v0.1.md`  
 **Character/Schedule/Requirements:** `docs/24-character-schedule-requirements-v0.1.md`  
-**Latest ADR:** `decisions/ADR-038-schedule-owns-planned-time-requirements-remain-domain-owned-contracts.md`
+**Initial Position/Discovery:** `docs/25-initial-position-discovery-v0.1.md`  
+**Latest ADR:** `decisions/ADR-039-initial-position-is-derived-discovery-writes-through-domain-commands.md`
 
 ## Non-negotiable direction
 
@@ -45,6 +46,10 @@ Core laws:
 - the language model is a reasoner/interface, not the authoritative encyclopedia;
 - available information does not automatically deserve Home visibility;
 - information gaps resolve through typed resolvers before asking the player;
+- Initial Position is derived rather than a canonical aggregate;
+- Discovery questions originate from typed Information Needs;
+- Discovery writes only through explicit owning-domain commands;
+- a player declining to add information does not automatically establish canonical absence;
 - no model-improvised fallback when a resolver cannot establish an answer.
 
 ## Mature architecture
@@ -163,7 +168,7 @@ Still valid:
 - frontend private-table guard;
 - deferred version-head integrity.
 
-Direction / Practice / Evidence / Helm / Journey remain proof infrastructure even though normal Player Mode is intentionally sparse.
+Direction / Practice / Evidence / prior Helm / Journey remain proof infrastructure.
 
 ## Person + Temporal Kernel — ✅ LIVE
 
@@ -242,7 +247,7 @@ weight             -> Body optional
 
 All required child writes commit or roll back together. Character is still not a canonical table.
 
-Frontend now gates authenticated players by canonical Person existence:
+Frontend gate:
 
 ```text
 Person missing -> /create-character
@@ -250,8 +255,6 @@ Person exists  -> /helm
 ```
 
 Character Creation collects only grounded starting facts. Birth time/place and Body observations may remain unknown/optional. No Role, Skill, XP, Level, Path or attribute self-rating is collected.
-
-Web CI passed the Character Creation and Schedule-client changes.
 
 ## Knowledge + Inquiry Acquisition Spine — ✅ EXECUTABLE / CI PASSED
 
@@ -269,7 +272,8 @@ supabase/functions/_shared/intelligence/
 ├── birth-context-service.ts
 ├── natal-geometry.ts
 ├── natal-geometry-service.ts
-└── requirements.ts
+├── requirements.ts
+└── initial-position-service.ts
 ```
 
 Resolution order:
@@ -308,8 +312,6 @@ Live JWT-protected Edge Function:
 ```text
 birth-context
 ```
-
-Path:
 
 ```text
 Person birth facts
@@ -357,8 +359,6 @@ nearest major aspect angle + geometric orb
 
 Natal geometry does NOT decide whether an aspect is symbolically active and does not store interpretation as fact.
 
-Independent fixture validation compares bounded output against Swiss Ephemeris reference values while the runtime remains Astronomy Engine based.
-
 ## Schedule v0.1 — ✅ LIVE / DATABASE GATE PASSED
 
 Private canonical tables:
@@ -392,30 +392,14 @@ wf_schedule_revise_allocation
 wf_schedule_current_v0
 ```
 
-Schedule may reference an object in Direction or another module, but it only owns the planned time allocation.
+Schedule may reference another module's object, but it owns only the planned time allocation. A passed Schedule interval never proves activity occurred.
 
-A passed Schedule interval never proves an activity occurred.
-
-Live rollback test proved:
-
-```text
-create -> APPLIED
-revise/reschedule -> APPLIED
-current bounded read -> one current head
-authenticated direct wf_schedule usage -> denied
-transaction -> rolled back
-```
-
-See `lab/schedule-live-test-v0.1.md`.
-
-Frontend client seam exists in:
+Frontend client seam:
 
 ```text
 apps/web/src/lib/schedule-types.ts
 apps/web/src/lib/schedule-rpc.ts
 ```
-
-No permanent Calendar widget has been added to Helm.
 
 ## Requirement contract v0.1 — ✅ EXECUTABLE / CI PASSED
 
@@ -458,22 +442,100 @@ Coverage law example for `protein >= 150g / local day`:
 
 ```text
 110g, day open, partial     -> IN_PROGRESS
-155g, day open, partial     -> SATISFIED (monotonic minimum already proven)
+155g, day open, partial     -> SATISFIED
 110g, day closed, partial   -> UNKNOWN
 110g, day closed, complete  -> CLOSED_BELOW_TARGET
 ```
 
-The evaluator does not decide whether the requirement itself is appropriate. Nutrition/Training/etc. must own metric semantics and provide observations/coverage.
+The evaluator does not decide whether the requirement itself is appropriate. Nutrition/Training/etc. own metric semantics and provide observations/coverage.
 
-Tests:
+## Initial Position + Discovery v0.1 — ✅ LIVE / CI PASSED
+
+Reference: `docs/25-initial-position-discovery-v0.1.md`, ADR-039.
+
+Live JWT-protected Edge Function:
 
 ```text
-lab/requirements-v0.1.test.ts
+initial-position
+version: 1
+verify_jwt: true
+status: ACTIVE
 ```
 
-Intelligence CI passed.
+Initial Position is reconstructable, not canonical. Current composition:
 
-## Database health after Schedule
+```text
+Person
++ Body baseline presence
++ bounded Schedule
++ Question Planner
+ -> initial_position_v0.1
+```
+
+The projection explicitly does **not** assert:
+
+```text
+unscheduled time is free
+planned allocation occurred
+all real commitments are known
+missing Body observations are zero/absent
+```
+
+Helm now greets the player by name and surfaces only:
+
+```text
+starting character foundation
+Body baseline state
+next local day's known planned-time state
+Navigator discovery entry point
+```
+
+It remains intentionally sparse and is not a domain dashboard.
+
+First Discovery Information Need:
+
+```text
+schedule.next_day.coverage
+```
+
+Behavior:
+
+```text
+TASK_DRIVEN
+ -> no proactive P2 schedule question
+
+DISCOVERY_SESSION
+ -> one bounded question
+ -> asks whether anything fixed exists next local day
+```
+
+If player says yes:
+
+```text
+label + start/end
+ -> explicit authorization
+ -> wf_schedule_create_allocation(kind=HARD)
+ -> refresh Initial Position
+```
+
+If player says nothing to add:
+
+```text
+no canonical absence record
+unknown remains unknown
+```
+
+The first Discovery experience is deliberately structured. General LLM extraction is deferred until generalized Discovery proves candidate/provenance/reconciliation/authorization across more domains.
+
+Automated test:
+
+```text
+lab/initial-position-discovery-v0.1.test.ts
+```
+
+Intelligence CI passed. Web CI caught unsupported Button variants during implementation; those were corrected and the final Web CI passed. Vercel reports successful deployment for the corrected frontend build.
+
+## Database health
 
 A performance-advisor pass found unindexed composite foreign keys across newer Person, Body and Schedule schemas. They were covered in:
 
@@ -481,7 +543,7 @@ A performance-advisor pass found unindexed composite foreign keys across newer P
 20260916030500_index_wayfinder_person_body_schedule_foreign_keys.sql
 ```
 
-A second performance-advisor pass no longer reports `unindexed_foreign_keys` for these modules. The newly created indexes can appear as unused until traffic exercises them; do not delete them based solely on immediate zero-use counters.
+A second performance-advisor pass no longer reports `unindexed_foreign_keys` for these modules. Newly created indexes may appear unused until traffic exercises them.
 
 Security advisor context remains intentional:
 
@@ -491,9 +553,9 @@ authenticated browser
  -> private canonical schema
 ```
 
-The advisor therefore warns that authenticated users can execute these RPCs. This is the designed API boundary and remains a review point, not an accidental exposure. Direct schema access has been tested denied.
+The advisor warns that authenticated users can execute those RPCs because this is the designed API boundary. Direct private-schema access has been tested denied.
 
-`Leaked Password Protection Disabled` remains a production-hardening item. Supabase remediation: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+`Leaked Password Protection Disabled` remains a production-hardening item.
 
 ## Helm / Home law
 
@@ -552,9 +614,9 @@ what actually happened
 
 These may reference one another but remain distinct claims.
 
-## Training / Nutrition next law
+## Training / Nutrition next broad-domain law
 
-Training and Nutrition are now the strongest next bounded-domain proving slice because Schedule and Requirement grammar need real domain-owned observations.
+Training and Nutrition remain the strongest next bounded-domain proving slice because Schedule and Requirement grammar now need real domain-owned observations.
 
 Training should eventually own factual workout semantics such as:
 
@@ -584,7 +646,7 @@ strength sessions >= N / local week
 protein >= target grams / local day
 ```
 
-Incomplete logs must remain incomplete; unrecorded intake/activity is not zero.
+Incomplete logs remain incomplete; unrecorded intake/activity is not zero.
 
 Strength/growth later becomes cross-domain:
 
@@ -600,7 +662,7 @@ Training
 
 ## Symbolic guidance later
 
-Astrology architecture:
+Astrology:
 
 ```text
 Birth facts                 -> canonical Person
@@ -623,17 +685,19 @@ Tarot cards do not directly establish canonical player facts or stat growth.
 
 ## Current Player UI
 
-Character Creation is now the deliberate input exception.
+Character Creation is the deliberate initial input exception.
 
-`/helm` remains quiet/read-side once a Person exists.
+`/helm` now hosts Initial Position + the opt-in first Discovery Session.
 
 Do not add permanent Schedule, macro, workout, money, astrology, inventory or XP cards merely because those subsystems exist.
 
+The user is actively evaluating the real Helm experience. Prefer iterating from observed use rather than prematurely expanding Home.
+
 ## Next build
 
-**Training + Nutrition requirement proving slice.**
+Immediate product step: **have the player refresh/use the new Helm + Discovery Session and observe the experience.**
 
-Build the smallest correct factual models needed to make Schedule/Requirement guidance real rather than synthetic:
+Next broad architectural slice after that remains **minimum Training + Nutrition requirement proof**:
 
 ```text
 Training reality
@@ -647,16 +711,16 @@ Nutrition reality
 
 Flower before schema admission:
 
-- determine the minimum Training entities that preserve workout/exercise/set semantics without overbuilding;
-- determine the minimum Nutrition entities that preserve food/intake/nutrient estimate provenance;
+- determine minimum Training entities that preserve workout/exercise/set semantics without overbuilding;
+- determine minimum Nutrition entities that preserve food/intake/nutrient estimate provenance;
 - separate measured nutrient data from AI-estimated food resolution;
 - define exercise/food Knowledge capability seams;
-- derive local-day/local-week scopes from the Temporal Kernel;
+- derive local-day/local-week scopes from Temporal Kernel;
 - keep domain requirements outside a universal requirement table;
-- ensure future Navigator can explain exactly why a requirement signal is known, incomplete, or unknown.
+- ensure Navigator can explain exactly why a requirement signal is known, incomplete, or unknown.
 
-After one real Training and Nutrition requirement each survives tests, build the first temporal Navigator/Position composition using Direction + Schedule + Requirements + Information Need.
+After real Training/Nutrition requirements survive tests, grow Position from the current seed using Direction + Schedule + Requirements + Information Need rather than turning Helm into a dashboard.
 
 ## Recovery prompt
 
-> Open `PROJECT_STATE.md`, then read `docs/06-build-roadmap.md`, `docs/24-character-schedule-requirements-v0.1.md`, `docs/23-natal-geometry-v0.1.md`, `docs/22-birth-context-knowledge-slice-v0.1.md`, `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, `docs/20-knowledge-and-home-surface-v0.1.md`, `docs/18-mature-life-rpg-architecture-v0.2.md`, ADR-038 back through ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person/Body/Character Creation are live; deterministic birth context and natal geometry are live; Schedule v0.1 is live; the coverage-aware Requirement contract is executable and CI-tested. Helm must stay quiet. Next build the minimum Training + Nutrition reality/Knowledge seams required to prove weekly strength and daily protein requirements, then compose Navigator/Position from those grounded signals.
+> Open `PROJECT_STATE.md`, then read `docs/06-build-roadmap.md`, `docs/25-initial-position-discovery-v0.1.md`, `docs/24-character-schedule-requirements-v0.1.md`, `docs/23-natal-geometry-v0.1.md`, `docs/22-birth-context-knowledge-slice-v0.1.md`, `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, `docs/20-knowledge-and-home-surface-v0.1.md`, `docs/18-mature-life-rpg-architecture-v0.2.md`, ADR-039 back through ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person/Body/Character Creation are live; birth context and deterministic natal geometry are live; Schedule v0.1 and the Requirement evaluator are live; Initial Position + the first governed Discovery Session are live through the JWT-protected `initial-position` Edge Function. Helm stays relevance-driven. First observe the new player flow, then build the minimum Training + Nutrition reality/Knowledge seams needed to prove weekly strength and daily protein requirements.
