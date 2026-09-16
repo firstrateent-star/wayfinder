@@ -265,14 +265,16 @@ function parseClockTime(text: string) {
 
 async function resolveClock(localDate: string, localTime: string, zoneId: string) {
   const provider = createIntlLocalInstantProvider();
+  const now = new Date().toISOString();
   const result = await provider.resolve(
     {
-      id: crypto.randomUUID(),
+      requestId: crypto.randomUUID(),
       capability: "time.resolve_local_instant",
       input: { localDate, localTime, timeZone: zoneId },
-      requestedAt: new Date().toISOString()
+      asOf: now,
+      purpose: "Resolve player-reported workout wall time to an occurrence instant."
     },
-    { now: new Date().toISOString() }
+    { now }
   );
   if (result.status !== "RESOLVED" || !result.value) return null;
   return result.value as ResolvedLocalInstant;
