@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { AdmissionRegistry, runSemanticAdmission, type SourceEnvelope } from "../_shared/intelligence/semantic-admission.ts";
 import { recognizeTraining, trainingAdmissionContract, type TrainingSessionCandidatePayload } from "../_shared/intelligence/training-semantic.ts";
-import { createIntlLocalInstantProvider } from "../_shared/intelligence/local-time-resolver.ts";
+import { createIntlLocalInstantProvider, type ResolvedLocalInstant } from "../_shared/intelligence/local-time-resolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,28 +11,27 @@ const corsHeaders = {
 
 type Stage = "TRAINING_SCOPE" | "TRAINING_MODE" | "TRAINING_DETAILS" | "TRAINING_TIME" | "TRAINING_CONFIRM";
 type Focus = "LEGS" | "PUSH" | "PULL" | "FULL_BODY" | "OTHER";
-type OccurrencePrecision = "DAY" | "INSTANT";
 
-interface DraftSet {
+type DraftSet = {
   exerciseKey: string;
   exerciseLabel: string;
   reps?: number;
   loadValue?: number;
   loadUnit?: "LB" | "KG";
   rpe?: number;
-}
+};
 
-interface TrainingDraft {
+type TrainingDraft = {
   label: string;
   sets: DraftSet[];
-  occurrencePrecision: OccurrencePrecision;
+  occurrencePrecision: "DAY" | "INSTANT";
   occurredLocalDate: string;
   occurredAt?: string;
   provenanceSourceId: string;
   partial: boolean;
-}
+};
 
-interface NavigatorEpisode {
+type NavigatorEpisode = {
   id: string;
   kind: "TRAINING_CAPTURE";
   stage: Stage;
@@ -41,42 +40,40 @@ interface NavigatorEpisode {
   occurredLocalDate: string;
   lastWorkout?: TrainingDraft;
   draft?: TrainingDraft;
-}
+};
 
-interface NavigatorSuggestion {
+type Suggestion = {
   id: string;
   label: string;
   tone?: "primary" | "secondary" | "quiet";
-}
+};
 
-interface RequestBody {
+type RequestBody = {
   text?: string;
   action?: string;
   episode?: NavigatorEpisode | null;
   zoneId?: string;
   sourceId?: string;
-}
+};
 
-interface TrainingRecentSet {
+type TrainingRecentSet = {
   exercise_key: string;
   exercise_label: string;
   reps: number | null;
   load_value: number | null;
   load_unit: "LB" | "KG" | null;
   rpe: number | null;
-}
+};
 
-interface TrainingRecentSession {
+type TrainingRecentSession = {
   id: string;
   label: string | null;
   kind: string;
   occurrence: { from: string; to: string; precision: string; zone_id: string };
   sets: TrainingRecentSet[];
-}
+};
 
-interface TrainingRecentRead {
-  sessions?: TrainingRecentSession[];
-}
+type TrainingRecentRead = { sessions?: TrainingRecentSession[] };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -96,8 +93,8 @@ async function rpc<T>(authHeader: string, name: string, args: Record<string, unk
     body: JSON.stringify(args)
   });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${name.toUpperCase()}_FAILED:${response.status}:${text.slice(0, 500)}`);
+    const detail = await response.text();
+    throw new Error(`${name.toUpperCase()}_FAILED:${response.status}:${detail.slice(0, 500)}`);
   }
   return (await response.json()) as T;
 }
@@ -109,8 +106,8 @@ function localDateInZone(instant: string, zoneId: string) {
     month: "2-digit",
     day: "2-digit"
   }).formatToParts(new Date(instant));
-  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${value.year}-${value.month}-${value.day}`;
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function focusFromText(text: string): Focus | null {
@@ -126,10 +123,30 @@ function looksLikeWorkout(text: string) {
   return /\b(worked out|workout|work out|gym|lifted|lifting|trained|training|benched|bench press|leg day)\b/i.test(text);
 }
 
-function lowerBodySession(session: TrainingRecentSession) {
+function genericDraft(focus: Focus, localDate: string, sourceId: string): TrainingDraft {
+  const label = focus === "LEGS"
+    ? "Lower-body strength training"
+    : focus === "PUSH"
+      ? "Push strength training"
+      : focus === "PULL"
+        ? "Pull strength training"
+        : focus === "FULL_BODY"
+          ? "Full-body strength training"
+          : "Strength training";
+  return {
+    label,
+    sets: [],
+    occurrencePrecision: "DAY",
+    occurredLocalDate: localDate,
+    provenanceSourceId: sourceId,
+    partial: true
+  };
+}
+
+function isLowerBody(session: TrainingRecentSession) {
   if (/lower|leg/i.test(session.label ?? "")) return true;
-  const lowerKeys = ["squat", "leg", "lunge", "deadlift", "romanian", "rdl", "hamstring", "calf", "hip_thrust", "bulgarian"];
-  return session.sets.some((set) => lowerKeys.some((term) => set.exercise_key.toLowerCase().includes(term)));
+  const words = ["squat", "leg", "lunge", "deadlift", "romanian", "rdl", "hamstring", "calf", "hip_thrust", "bulgarian"];
+  return session.sets.some((set) => words.some((word) => set.exercise_key.toLowerCase().includes(word)));
 }
 
 function toDraft(session: TrainingRecentSession, localDate: string, sourceId: string): TrainingDraft {
@@ -150,29 +167,25 @@ function toDraft(session: TrainingRecentSession, localDate: string, sourceId: st
   };
 }
 
-function genericDraft(focus: Focus, localDate: string, sourceId: string): TrainingDraft {
-  const label = focus === "LEGS" ? "Lower-body strength training" : focus === "PUSH" ? "Push strength training" : focus === "PULL" ? "Pull strength training" : focus === "FULL_BODY" ? "Full-body strength training" : "Strength training";
-  return {
-    label,
-    sets: [],
-    occurrencePrecision: "DAY",
-    occurredLocalDate: localDate,
-    provenanceSourceId: sourceId,
-    partial: true
-  };
+async function findLastLegWorkout(authHeader: string, localDate: string, sourceId: string) {
+  const from = new Date(Date.now() - 120 * 86400000).toISOString();
+  const to = new Date(Date.now() + 86400000).toISOString();
+  const read = await rpc<TrainingRecentRead>(authHeader, "wf_training_recent_v0", { p_from: from, p_to: to, p_limit: 50 });
+  const match = read.sessions?.find(isLowerBody);
+  return match ? toDraft(match, localDate, sourceId) : undefined;
 }
 
 function summarizeDraft(draft: TrainingDraft) {
   if (draft.sets.length === 0) return `${draft.label}. Exercise details are unknown.`;
-  const lines = draft.sets.map((set, index) => {
+  const rows = draft.sets.map((set, index) => {
     const load = set.loadValue != null ? `${set.loadValue}${set.loadUnit === "KG" ? " kg" : " lb"}` : "load unknown";
     const reps = set.reps != null ? `${set.reps} reps` : "reps unknown";
     return `${index + 1}. ${set.exerciseLabel} — ${load}, ${reps}`;
   });
-  return `${draft.label}\n${lines.join("\n")}`;
+  return `${draft.label}\n${rows.join("\n")}`;
 }
 
-function suggestionsForMode(hasLast: boolean): NavigatorSuggestion[] {
+function modeSuggestions(hasLast: boolean): Suggestion[] {
   return [
     ...(hasLast ? [{ id: "USE_LAST", label: "Use last leg workout", tone: "primary" as const }] : []),
     { id: "NEW_WORKOUT", label: "Tell you about a new workout", tone: hasLast ? "secondary" : "primary" },
@@ -181,15 +194,7 @@ function suggestionsForMode(hasLast: boolean): NavigatorSuggestion[] {
   ];
 }
 
-async function recentLowerBody(authHeader: string, localDate: string, sourceId: string) {
-  const to = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const from = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString();
-  const recent = await rpc<TrainingRecentRead>(authHeader, "wf_training_recent_v0", { p_from: from, p_to: to, p_limit: 50 });
-  const session = recent.sessions?.find(lowerBodySession);
-  return session ? toDraft(session, localDate, sourceId) : undefined;
-}
-
-function withResponse(message: string, episode: NavigatorEpisode | null, suggestions: NavigatorSuggestion[] = [], extra: Record<string, unknown> = {}) {
+function respond(message: string, episode: NavigatorEpisode | null, suggestions: Suggestion[] = [], extra: Record<string, unknown> = {}) {
   return {
     contract: "navigator-chat.v0.1",
     message,
@@ -204,7 +209,7 @@ function withResponse(message: string, episode: NavigatorEpisode | null, suggest
   };
 }
 
-async function understandTrainingDetails(text: string, episode: NavigatorEpisode, zoneId: string, sourceId: string) {
+async function understandWorkout(text: string, episode: NavigatorEpisode, zoneId: string, sourceId: string) {
   const source: SourceEnvelope = {
     sourceId,
     sourceType: "PLAYER_TEXT",
@@ -216,16 +221,16 @@ async function understandTrainingDetails(text: string, episode: NavigatorEpisode
   };
   const graph = recognizeTraining(source);
   const registry = new AdmissionRegistry().register(trainingAdmissionContract);
-  const result = await runSemanticAdmission(graph, registry, { now: source.receivedAt, source });
-  const decision = result.decisions[0];
+  const admitted = await runSemanticAdmission(graph, registry, { now: source.receivedAt, source });
+  const decision = admitted.decisions[0];
   if (!decision) return { kind: "UNKNOWN" as const };
   if (decision.disposition === "NEEDS_CLARIFICATION") {
-    return { kind: "CLARIFY" as const, message: decision.informationNeed?.questionIntent ?? "I need one more detail before I can structure that workout safely." };
+    return { kind: "CLARIFY" as const, message: decision.informationNeed?.questionIntent ?? "I need one more detail." };
   }
   const normalized = decision.normalized as TrainingSessionCandidatePayload | undefined;
   if (!normalized) return { kind: "UNKNOWN" as const };
-  const sets = normalized.sets
-    .filter((set) => set.exerciseKey && set.exerciseLabel)
+  const sets: DraftSet[] = normalized.sets
+    .filter((set) => Boolean(set.exerciseKey && set.exerciseLabel))
     .map((set) => ({
       exerciseKey: set.exerciseKey!,
       exerciseLabel: set.exerciseLabel!,
@@ -234,21 +239,19 @@ async function understandTrainingDetails(text: string, episode: NavigatorEpisode
       loadUnit: set.loadUnit,
       rpe: set.rpe
     }));
-  return {
-    kind: "UNDERSTOOD" as const,
-    draft: {
-      label: normalized.label ?? (episode.focus === "LEGS" ? "Lower-body strength training" : "Strength training"),
-      sets,
-      occurrencePrecision: "DAY" as const,
-      occurredLocalDate: episode.occurredLocalDate,
-      provenanceSourceId: sourceId,
-      partial: normalized.genericStrengthSession === true || sets.length === 0
-    }
+  const draft: TrainingDraft = {
+    label: normalized.label ?? (episode.focus === "LEGS" ? "Lower-body strength training" : "Strength training"),
+    sets,
+    occurrencePrecision: "DAY",
+    occurredLocalDate: episode.occurredLocalDate,
+    provenanceSourceId: sourceId,
+    partial: normalized.genericStrengthSession === true || sets.length === 0
   };
+  return { kind: "UNDERSTOOD" as const, draft };
 }
 
-function parseTime(text: string) {
-  const lower = text.trim().toLowerCase().replace(/\./g, "");
+function parseClockTime(text: string) {
+  const lower = text.toLowerCase().replace(/\./g, "").trim();
   const match = lower.match(/\b(?:around\s+|at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
   if (!match) return null;
   let hour = Number(match[1]);
@@ -257,24 +260,28 @@ function parseTime(text: string) {
   if (hour > 23 || minute > 59) return null;
   if (meridiem === "pm" && hour < 12) hour += 12;
   if (meridiem === "am" && hour === 12) hour = 0;
-  if (!meridiem && hour <= 7 && /evening|night|tonight/.test(lower)) hour += 12;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
 }
 
-function resolveLocalInstant(localDate: string, localTime: string, zoneId: string) {
+async function resolveClock(localDate: string, localTime: string, zoneId: string) {
   const provider = createIntlLocalInstantProvider();
-  return provider.resolve({
-    id: crypto.randomUUID(),
-    capability: "time.resolve_local_instant",
-    input: { localDate, localTime, timeZone: zoneId },
-    requestedAt: new Date().toISOString()
-  });
+  const result = await provider.resolve(
+    {
+      id: crypto.randomUUID(),
+      capability: "time.resolve_local_instant",
+      input: { localDate, localTime, timeZone: zoneId },
+      requestedAt: new Date().toISOString()
+    },
+    { now: new Date().toISOString() }
+  );
+  if (result.status !== "RESOLVED" || !result.value) return null;
+  return result.value as ResolvedLocalInstant;
 }
 
-async function confirmTraining(authHeader: string, episode: NavigatorEpisode, zoneId: string) {
-  if (!episode.draft) throw new Error("TRAINING_DRAFT_REQUIRED");
+async function persistTraining(authHeader: string, episode: NavigatorEpisode, zoneId: string) {
   const draft = episode.draft;
-  const result = await rpc<unknown>(authHeader, "wf_training_capture_strength_session", {
+  if (!draft) throw new Error("TRAINING_DRAFT_REQUIRED");
+  return await rpc<unknown>(authHeader, "wf_training_capture_strength_session", {
     p_command_id: crypto.randomUUID(),
     p_occurrence_precision: draft.occurrencePrecision,
     p_zone_id: zoneId,
@@ -291,7 +298,6 @@ async function confirmTraining(authHeader: string, episode: NavigatorEpisode, zo
     })),
     p_provenance_source_id: draft.provenanceSourceId
   });
-  return result;
 }
 
 Deno.serve(async (req: Request) => {
@@ -310,35 +316,37 @@ Deno.serve(async (req: Request) => {
 
   const now = new Date().toISOString();
   const zoneId = body.zoneId?.trim() || "UTC";
+  const sourceId = body.sourceId?.trim() || crypto.randomUUID();
   const text = body.text?.trim() ?? "";
   const action = body.action?.trim().toUpperCase() ?? "";
-  const sourceId = body.sourceId?.trim() || crypto.randomUUID();
   const today = localDateInZone(now, zoneId);
   let episode = body.episode ?? null;
 
   try {
     if (!episode) {
-      if (!text) {
-        return json(withResponse("What’s going on? Tell me naturally — I’ll only keep what I can place safely in Wayfinder.", null));
-      }
-      if (!looksLikeWorkout(text)) {
-        return json(withResponse("I understand that you’re telling me something, but none of the live domains can safely own it yet. I’m not going to file it as a miscellaneous fact. You can keep talking; Training is the first conversational domain that is live.", null, [
-          { id: "START_TRAINING", label: "Tell you about a workout", tone: "secondary" }
-        ], { disposition: "DROP", reason: "NO_LIVE_DOMAIN_CLAIM" }));
+      const effectiveText = action === "START_TRAINING" && !text ? "I want to log a workout" : text;
+      if (!effectiveText) return json(respond("What’s going on? Tell me naturally — I’ll only keep what I can place safely in Wayfinder.", null));
+      if (!looksLikeWorkout(effectiveText)) {
+        return json(respond(
+          "I understand that you’re telling me something, but none of the live domains can safely own it yet. I’m not going to file it as a miscellaneous fact. Training is the first conversational domain that is live.",
+          null,
+          [{ id: "START_TRAINING", label: "Tell you about a workout", tone: "secondary" }],
+          { disposition: "DROP", reason: "NO_LIVE_DOMAIN_CLAIM" }
+        ));
       }
 
-      const focus = focusFromText(text);
+      const focus = focusFromText(effectiveText);
       episode = {
         id: crypto.randomUUID(),
         kind: "TRAINING_CAPTURE",
         stage: focus ? "TRAINING_MODE" : "TRAINING_SCOPE",
         startedAt: now,
         focus: focus ?? undefined,
-        occurredLocalDate: /\byesterday\b/i.test(text) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today
+        occurredLocalDate: /\byesterday\b/i.test(effectiveText) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today
       };
 
       if (!focus) {
-        return json(withResponse("Got it — you worked out. What did you train?", episode, [
+        return json(respond("Got it — you worked out. What did you train?", episode, [
           { id: "FOCUS_LEGS", label: "Legs", tone: "primary" },
           { id: "FOCUS_PUSH", label: "Push", tone: "secondary" },
           { id: "FOCUS_PULL", label: "Pull", tone: "secondary" },
@@ -347,38 +355,42 @@ Deno.serve(async (req: Request) => {
         ]));
       }
 
-      if (focus === "LEGS") {
-        episode.lastWorkout = await recentLowerBody(authHeader, episode.occurredLocalDate, sourceId);
-        return json(withResponse(
-          episode.lastWorkout
-            ? `Got it — legs. I found your last lower-body workout. Do you want me to use that as today’s starting structure, or tell me about a new workout?`
-            : "Got it — legs. I don’t have a structured lower-body workout to reuse yet. Tell me about the new workout, or I can simply record that leg training happened.",
-          episode,
-          suggestionsForMode(Boolean(episode.lastWorkout))
-        ));
-      }
-
-      return json(withResponse(`Got it — ${focus === "PUSH" ? "push" : focus === "PULL" ? "pull" : "full body"}. Tell me what you did, or I can record only that the session happened.`, episode, [
-        { id: "NEW_WORKOUT", label: "Tell you the workout", tone: "primary" },
-        { id: "GENERIC_WORKOUT", label: "Just log the session", tone: "secondary" },
-        { id: "SKIP", label: "Skip", tone: "quiet" }
-      ]));
+      if (focus === "LEGS") episode.lastWorkout = await findLastLegWorkout(authHeader, episode.occurredLocalDate, sourceId);
+      return json(respond(
+        focus === "LEGS" && episode.lastWorkout
+          ? "Got it — legs. I found your last lower-body workout. Reuse it, tell me about today’s workout, or just record that leg day happened?"
+          : `Got it — ${focus === "LEGS" ? "legs" : focus === "PUSH" ? "push" : focus === "PULL" ? "pull" : "full body"}. Tell me the workout, or keep it broad.`,
+        episode,
+        focus === "LEGS" ? modeSuggestions(Boolean(episode.lastWorkout)) : [
+          { id: "NEW_WORKOUT", label: "Tell you the workout", tone: "primary" },
+          { id: "GENERIC_WORKOUT", label: "Just log the session", tone: "secondary" },
+          { id: "SKIP", label: "Skip", tone: "quiet" }
+        ]
+      ));
     }
 
     if (episode.kind !== "TRAINING_CAPTURE") return json({ error: "UNSUPPORTED_EPISODE" }, 400);
 
     if (episode.stage === "TRAINING_SCOPE") {
-      if (action === "SKIP") return json(withResponse("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
-      const focus = action === "FOCUS_LEGS" ? "LEGS" : action === "FOCUS_PUSH" ? "PUSH" : action === "FOCUS_PULL" ? "PULL" : action === "FOCUS_FULL_BODY" ? "FULL_BODY" : focusFromText(text);
-      if (!focus) return json(withResponse("What did you train? You can say something like legs, push, pull, or full body.", episode));
+      if (action === "SKIP") return json(respond("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
+      const focus = action === "FOCUS_LEGS"
+        ? "LEGS"
+        : action === "FOCUS_PUSH"
+          ? "PUSH"
+          : action === "FOCUS_PULL"
+            ? "PULL"
+            : action === "FOCUS_FULL_BODY"
+              ? "FULL_BODY"
+              : focusFromText(text);
+      if (!focus) return json(respond("What did you train? You can say legs, push, pull, or full body.", episode));
       episode = { ...episode, focus, stage: "TRAINING_MODE" };
-      if (focus === "LEGS") episode.lastWorkout = await recentLowerBody(authHeader, episode.occurredLocalDate, sourceId);
-      return json(withResponse(
+      if (focus === "LEGS") episode.lastWorkout = await findLastLegWorkout(authHeader, episode.occurredLocalDate, sourceId);
+      return json(respond(
         focus === "LEGS" && episode.lastWorkout
           ? "I found your last lower-body workout. Reuse it, tell me about today’s workout, or just record that leg day happened?"
           : `Okay — ${focus === "LEGS" ? "legs" : focus === "PUSH" ? "push" : focus === "PULL" ? "pull" : "full body"}. Tell me the workout, or keep it broad.`,
         episode,
-        focus === "LEGS" ? suggestionsForMode(Boolean(episode.lastWorkout)) : [
+        focus === "LEGS" ? modeSuggestions(Boolean(episode.lastWorkout)) : [
           { id: "NEW_WORKOUT", label: "Tell you the workout", tone: "primary" },
           { id: "GENERIC_WORKOUT", label: "Just log the session", tone: "secondary" },
           { id: "SKIP", label: "Skip", tone: "quiet" }
@@ -387,19 +399,22 @@ Deno.serve(async (req: Request) => {
     }
 
     if (episode.stage === "TRAINING_MODE") {
-      if (action === "SKIP") return json(withResponse("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
+      if (action === "SKIP") return json(respond("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
       if (action === "USE_LAST") {
-        if (!episode.lastWorkout) return json(withResponse("I don’t have a previous lower-body workout I can safely reuse.", episode, suggestionsForMode(false)));
-        episode = { ...episode, draft: { ...episode.lastWorkout, provenanceSourceId: sourceId }, stage: "TRAINING_TIME" };
-        return json(withResponse(`I’ll use the last workout as the structure:\n\n${summarizeDraft(episode.draft)}\n\nWhen did you do it?`, episode, [
+        const reused = episode.lastWorkout;
+        if (!reused) return json(respond("I don’t have a previous lower-body workout I can safely reuse.", episode, modeSuggestions(false)));
+        const draft: TrainingDraft = { ...reused, provenanceSourceId: sourceId };
+        episode = { ...episode, draft, stage: "TRAINING_TIME" };
+        return json(respond(`I’ll use the last workout as the structure:\n\n${summarizeDraft(draft)}\n\nWhen did you do it?`, episode, [
           { id: "TIME_NOW", label: "Just now", tone: "primary" },
-          { id: "TIME_SKIP", label: "Time doesn’t matter", tone: "secondary" },
+          { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" },
           { id: "SKIP", label: "Cancel", tone: "quiet" }
         ]));
       }
       if (action === "GENERIC_WORKOUT") {
-        episode = { ...episode, draft: genericDraft(episode.focus ?? "OTHER", episode.occurredLocalDate, sourceId), stage: "TRAINING_TIME" };
-        return json(withResponse("Okay. I’ll keep the details unknown and only record that the strength session happened. When did you do it?", episode, [
+        const draft = genericDraft(episode.focus ?? "OTHER", episode.occurredLocalDate, sourceId);
+        episode = { ...episode, draft, stage: "TRAINING_TIME" };
+        return json(respond("Okay. I’ll keep the details unknown and only record that the strength session happened. When did you do it?", episode, [
           { id: "TIME_NOW", label: "Just now", tone: "primary" },
           { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" },
           { id: "SKIP", label: "Cancel", tone: "quiet" }
@@ -407,7 +422,7 @@ Deno.serve(async (req: Request) => {
       }
       if (action === "NEW_WORKOUT" || text) {
         episode = { ...episode, stage: "TRAINING_DETAILS" };
-        if (!text) return json(withResponse("Tell me what you did however you remember it. I’ll structure only the details I can support. For example: “bench 185 for 8 reps for 3 sets.”", episode, [
+        if (!text) return json(respond("Tell me what you did however you remember it. I’ll structure only the details I can support. Example: “bench 185 for 8 reps for 3 sets.”", episode, [
           { id: "GENERIC_WORKOUT", label: "Just keep it broad", tone: "secondary" },
           { id: "SKIP", label: "Skip", tone: "quiet" }
         ]));
@@ -415,30 +430,32 @@ Deno.serve(async (req: Request) => {
     }
 
     if (episode.stage === "TRAINING_DETAILS") {
-      if (action === "SKIP") return json(withResponse("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
+      if (action === "SKIP") return json(respond("No problem. I didn’t save anything.", null, [], { disposition: "DROP" }));
       if (action === "GENERIC_WORKOUT") {
-        episode = { ...episode, draft: genericDraft(episode.focus ?? "OTHER", episode.occurredLocalDate, sourceId), stage: "TRAINING_TIME" };
-        return json(withResponse("I’ll keep the exercise details unknown. When did you do the workout?", episode, [
+        const draft = genericDraft(episode.focus ?? "OTHER", episode.occurredLocalDate, sourceId);
+        episode = { ...episode, draft, stage: "TRAINING_TIME" };
+        return json(respond("I’ll keep the exercise details unknown. When did you do the workout?", episode, [
           { id: "TIME_NOW", label: "Just now", tone: "primary" },
           { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" }
         ]));
       }
-      if (!text) return json(withResponse("Tell me the workout details, or choose to keep the session broad.", episode));
-      const understood = await understandTrainingDetails(text, episode, zoneId, sourceId);
+      if (!text) return json(respond("Tell me the workout details, or choose to keep the session broad.", episode));
+      const understood = await understandWorkout(text, episode, zoneId, sourceId);
       if (understood.kind === "CLARIFY") {
-        return json(withResponse(`${understood.message} If it’s easier, restate the set as exercise + weight + reps + number of sets.`, episode, [
+        return json(respond(`${understood.message} If it’s easier, restate it as exercise + weight + reps + number of sets.`, episode, [
           { id: "GENERIC_WORKOUT", label: "Just keep it broad", tone: "secondary" },
           { id: "SKIP", label: "Skip", tone: "quiet" }
         ]));
       }
       if (understood.kind === "UNKNOWN") {
-        return json(withResponse("I can tell you’re describing training, but I can’t structure those details safely yet. I won’t invent them. You can rephrase the exercise/load/reps/sets, or I can record only that the session happened.", episode, [
+        return json(respond("I can tell you’re describing training, but I can’t structure those details safely yet. I won’t invent them. Rephrase the exercise/load/reps/sets, or let me keep only the broad session.", episode, [
           { id: "GENERIC_WORKOUT", label: "Just log the session", tone: "secondary" },
           { id: "SKIP", label: "Skip", tone: "quiet" }
         ], { disposition: "UNRESOLVED" }));
       }
-      episode = { ...episode, draft: understood.draft, stage: "TRAINING_TIME" };
-      return json(withResponse(`I understood this as:\n\n${summarizeDraft(understood.draft)}\n\nWhen did you do it?`, episode, [
+      const draft = understood.draft;
+      episode = { ...episode, draft, stage: "TRAINING_TIME" };
+      return json(respond(`I understood this as:\n\n${summarizeDraft(draft)}\n\nWhen did you do it?`, episode, [
         { id: "TIME_NOW", label: "Just now", tone: "primary" },
         { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" },
         { id: "SKIP", label: "Cancel", tone: "quiet" }
@@ -446,59 +463,68 @@ Deno.serve(async (req: Request) => {
     }
 
     if (episode.stage === "TRAINING_TIME") {
-      if (!episode.draft) return json({ error: "TRAINING_DRAFT_REQUIRED" }, 400);
-      if (action === "SKIP") return json(withResponse("Cancelled. I didn’t save the workout.", null, [], { disposition: "DROP" }));
-      let draft = { ...episode.draft };
+      const existing = episode.draft;
+      if (!existing) return json({ error: "TRAINING_DRAFT_REQUIRED" }, 400);
+      if (action === "SKIP") return json(respond("Cancelled. I didn’t save the workout.", null, [], { disposition: "DROP" }));
+      let draft: TrainingDraft = { ...existing };
       if (action === "TIME_NOW") {
         draft = { ...draft, occurrencePrecision: "INSTANT", occurredAt: now };
       } else if (action === "TIME_SKIP") {
         draft = { ...draft, occurrencePrecision: "DAY", occurredAt: undefined };
       } else if (text) {
-        const localTime = parseTime(text);
-        if (!localTime) return json(withResponse("I couldn’t place that time safely. Say something like “7 PM”, choose Just now, or skip the exact time.", episode, [
+        const localTime = parseClockTime(text);
+        if (!localTime) return json(respond("I couldn’t place that time safely. Say something like “7 PM”, choose Just now, or skip the exact time.", episode, [
           { id: "TIME_NOW", label: "Just now", tone: "primary" },
           { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" }
         ]));
-        const resolution = await resolveLocalInstant(episode.occurredLocalDate, localTime, zoneId);
-        if (resolution.status !== "RESOLVED" || !resolution.value) {
-          return json(withResponse("That local time is ambiguous or invalid in your timezone. I won’t guess. You can choose Just now or skip the exact time.", episode, [
-            { id: "TIME_NOW", label: "Just now", tone: "primary" },
-            { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" }
-          ]));
-        }
-        draft = { ...draft, occurrencePrecision: "INSTANT", occurredAt: resolution.value.utcInstant };
+        const resolved = await resolveClock(episode.occurredLocalDate, localTime, zoneId);
+        if (!resolved) return json(respond("That local time is ambiguous or invalid in your timezone. I won’t guess. Choose Just now or skip the exact time.", episode, [
+          { id: "TIME_NOW", label: "Just now", tone: "primary" },
+          { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" }
+        ]));
+        draft = { ...draft, occurrencePrecision: "INSTANT", occurredAt: resolved.utcInstant };
       } else {
-        return json(withResponse("When did you do it?", episode, [
+        return json(respond("When did you do it?", episode, [
           { id: "TIME_NOW", label: "Just now", tone: "primary" },
           { id: "TIME_SKIP", label: "Skip exact time", tone: "secondary" }
         ]));
       }
       episode = { ...episode, draft, stage: "TRAINING_CONFIRM" };
-      return json(withResponse(`Here’s what I’m ready to put into Training:\n\n${summarizeDraft(draft)}\n\n${draft.occurrencePrecision === "INSTANT" ? `Time: ${new Date(draft.occurredAt!).toLocaleString()}` : `Day: ${draft.occurredLocalDate}; exact time unknown.`}\n\nConfirm it?`, episode, [
-        { id: "CONFIRM", label: "Confirm & log", tone: "primary" },
-        { id: "CHANGE", label: "Change something", tone: "secondary" },
-        { id: "SKIP", label: "Don’t save", tone: "quiet" }
-      ], { proposal: { domain: "training", disposition: draft.partial ? "ACCEPT_PARTIAL" : "ACCEPT" } }));
+      return json(respond(
+        `Here’s what I’m ready to put into Training:\n\n${summarizeDraft(draft)}\n\n${draft.occurrencePrecision === "INSTANT" ? `Time: ${draft.occurredAt}` : `Day: ${draft.occurredLocalDate}; exact time unknown.`}\n\nConfirm it?`,
+        episode,
+        [
+          { id: "CONFIRM", label: "Confirm & log", tone: "primary" },
+          { id: "CHANGE", label: "Change something", tone: "secondary" },
+          { id: "SKIP", label: "Don’t save", tone: "quiet" }
+        ],
+        { proposal: { domain: "training", disposition: draft.partial ? "ACCEPT_PARTIAL" : "ACCEPT" } }
+      ));
     }
 
     if (episode.stage === "TRAINING_CONFIRM") {
-      if (action === "SKIP") return json(withResponse("Okay — I didn’t save it.", null, [], { disposition: "DROP" }));
+      if (action === "SKIP") return json(respond("Okay — I didn’t save it.", null, [], { disposition: "DROP" }));
       if (action === "CHANGE") {
         episode = { ...episode, stage: "TRAINING_DETAILS" };
-        return json(withResponse("Tell me what you want to change. For this first version, the safest path is to restate the workout details; I’ll rebuild the proposal before anything is saved.", episode, [
+        return json(respond("Tell me what you want to change. For this first version, restate the workout details and I’ll rebuild the proposal before anything is saved.", episode, [
           { id: "GENERIC_WORKOUT", label: "Keep only the broad session", tone: "secondary" },
           { id: "SKIP", label: "Cancel", tone: "quiet" }
         ]));
       }
-      if (action !== "CONFIRM") return json(withResponse("Nothing is saved until you confirm the proposed Training record.", episode, [
-        { id: "CONFIRM", label: "Confirm & log", tone: "primary" },
-        { id: "CHANGE", label: "Change something", tone: "secondary" },
-        { id: "SKIP", label: "Don’t save", tone: "quiet" }
-      ]));
-      const commandResult = await confirmTraining(authHeader, episode, zoneId);
-      return json(withResponse("Logged to Training. That confirmation is now canonical history — rewinding the chat won’t erase it. If something is wrong, we’ll correct the Training record instead of pretending it never happened.", null, [
-        { id: "START_TRAINING", label: "Log another workout", tone: "secondary" }
-      ], { confirmed: true, command_result: commandResult }));
+      if (action !== "CONFIRM") {
+        return json(respond("Nothing is saved until you confirm the proposed Training record.", episode, [
+          { id: "CONFIRM", label: "Confirm & log", tone: "primary" },
+          { id: "CHANGE", label: "Change something", tone: "secondary" },
+          { id: "SKIP", label: "Don’t save", tone: "quiet" }
+        ]));
+      }
+      const commandResult = await persistTraining(authHeader, episode, zoneId);
+      return json(respond(
+        "Logged to Training. That confirmation is now canonical history — rewinding the chat won’t erase it. If something is wrong, we’ll correct the Training record instead of pretending it never happened.",
+        null,
+        [{ id: "START_TRAINING", label: "Log another workout", tone: "secondary" }],
+        { confirmed: true, command_result: commandResult }
+      ));
     }
 
     return json({ error: "UNHANDLED_NAVIGATOR_STATE" }, 500);
