@@ -1,7 +1,7 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.9  
-**Status:** CANDIDATE-STABLE — Initial Position + first governed Discovery Session live
+**Version:** 1.0  
+**Status:** CANDIDATE-STABLE — Semantic Admission v0.1 + first real Training domain live
 
 Wayfinder grows through complete vertical slices. Progress is measured by how much real life the system can model, resolve, explain, and guide without weakening truth boundaries or burdening the player with unnecessary input.
 
@@ -229,139 +229,190 @@ BREACHED
 UNKNOWN
 ```
 
-## Phase 15 — Initial Position + Discovery Session v0.1
+## Phase 15 — Initial Position + Discovery Session
 
-**Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / WEB + INTELLIGENCE CI PASSED
+**Status:** ✅ LIVE / RECURSIVE SEED
 
 Reference: `docs/25-initial-position-discovery-v0.1.md`, ADR-039.
 
-Helm now composes a sparse player-specific Initial Position from:
+Helm composes sparse player-specific Position from grounded reads and Question Planner. Initial Discovery proved question -> explicit answer -> owning-domain Schedule write -> refreshed Position, but real use exposed the next requirement:
+
+> Discovery must change understanding, not merely increase a record count.
+
+That observation directly motivated Semantic Admission.
+
+## Phase 16 — Semantic Admission v0.1
+
+**Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / CI PASSED
+
+Reference: `docs/26-semantic-admission-training-v0.1.md`, ADR-040.
+
+Core laws:
 
 ```text
-Person
-+ Body baseline presence
-+ bounded Schedule read
-+ Question Planner
+Input is not player state
+Understanding precedes persistence
+No owner, no persistence
+One canonical owner per claim
+Domain admission is an epistemic firewall
+Confidence alone never authorizes persistence
+Conversational disclosure != write authorization
+Candidates are transient by default
 ```
 
-Live Edge Function:
+Executable spine:
 
 ```text
-initial-position
-verify_jwt = true
+SourceEnvelope
+ -> semantic recognition
+ -> CandidateGraph
+ -> AdmissionRegistry
+ -> owning AdmissionContract
+ -> ACCEPT | ACCEPT_PARTIAL | CLARIFY | AUTHORIZATION | DROP
+ -> typed domain command when justified
 ```
 
-Discovery v0 proves:
+Current live JWT-protected Edge Function:
 
 ```text
-structured Information Need
- -> opt-in one-question Discovery Session
- -> explicit player answer
- -> authorized owning-domain command when persistence is justified
- -> refreshed Position
+semantic-admission
 ```
 
-First need:
+Raw text/voice input is not archived by the admission layer.
+
+## Phase 17 — Training v0.1 first real Semantic Admission domain
+
+**Status:** ✅ LIVE / DATABASE GATE + CI + ROLLBACK TEST PASSED
+
+Private module:
 
 ```text
-schedule.next_day.coverage
+wf_training
+├── sessions
+├── session_versions
+└── exercise_sets
 ```
 
-If the player supplies a fixed commitment, it is written as a HARD Schedule allocation. If the player says there is nothing to add, Wayfinder does **not** create canonical proof that the day is empty.
-
-Helm explicitly preserves:
+Public typed boundary:
 
 ```text
-empty schedule != free time
-planned != happened
-record completeness != life completeness
+wf_training_capture_strength_session
+wf_training_recent_v0
 ```
 
-The corrected frontend build passed Web CI and Vercel deployment.
-
-## Phase 16 — Training + Nutrition requirement proving slice
-
-**Status:** ← NEXT BROAD DOMAIN TARGET
-
-Build the smallest factual Training and Nutrition foundations necessary to feed real observations into the Requirement contract.
-
-Training v0 target:
+Current proving semantics:
 
 ```text
-strength session reality
-exercise/set/load structure only as needed
-weekly strength exposure metric
+"I benched 185 lbs for 8 reps for 3 sets today"
+ -> resolved Barbell Bench Press
+ -> three canonical sets when explicitly authorized
+
+"I benched 185 for 8 three times today"
+ -> NEEDS_CLARIFICATION
+ -> no write
+
+"I crushed legs today"
+ -> ACCEPT_PARTIAL
+ -> generic strength session
+ -> no invented exercises/reps/load
+
+irrelevant unowned input
+ -> no persistence
 ```
 
-Nutrition v0 target:
+`wf_training_recent_v0` separates result completeness from lived-reality coverage. Direct authenticated access to private Training tables is denied.
+
+After the first advisor pass, all new composite Training foreign keys received covering indexes; the second advisor pass no longer reports Training `unindexed_foreign_keys`.
+
+## Phase 18 — Nutrition v0.1 second Semantic Admission proof
+
+**Status:** ← NEXT STRONGEST DOMAIN TARGET
+
+Build a semantically different domain without changing the central admission spine.
+
+Minimum target:
 
 ```text
-intake/meal reality
-measured vs estimated nutrients
+meal/intake reality
+food identity/reference resolution
+quantity certainty
+measured vs estimated vs unknown nutrient values
 protein aggregation
 intake coverage
 ```
 
-Reference Knowledge should provide exercise/food interpretation rather than relying on unstructured model memory.
-
-First end-to-end requirements:
+First proving statements should include:
 
 ```text
-strength sessions >= N / local week
+"I had three eggs and toast"
+```
+
+The system should be able to establish what is actually known while preserving uncertainty around bread type/quantity or other missing detail. It must not fabricate macro precision.
+
+Then connect domain-owned protein observations to the existing Requirement evaluator:
+
+```text
 protein >= target grams / local day
 ```
 
-The point is not to build giant fitness trackers. It is to prove that domain-owned reality + Knowledge + temporal Requirements can generate trustworthy signals for Navigator.
+Incomplete intake coverage must remain incomplete rather than becoming zero intake.
 
-## Phase 17 — Generalized Discovery
+## Phase 19 — General semantic recognition + multi-domain decomposition
 
-**Status:** candidate after first real domain observations
+**Status:** candidate after Training + Nutrition prove the contract
 
-Generalize beyond the structured Schedule question:
+Replace/augment bounded deterministic proving recognizers with model-assisted semantic recognition that still outputs transient candidates and never bypasses domain admission.
+
+Prove one utterance can create independent candidates for different owners:
 
 ```text
-source
- -> candidate
- -> provenance
- -> reconciliation
- -> authorization
- -> owning domain command
+Training
+Nutrition
+Direction
+Schedule
+Finance later
 ```
 
-Prefer transient candidates until durable queues/conflict workflows earn persistence.
+Each candidate may independently accept, clarify, require authorization, or drop.
 
-## Phase 18 — Navigator temporal active-learning loop
+Atomicity follows user intent, not sentence boundaries.
+
+## Phase 20 — Navigator domain-driven active-learning loop
 
 **Status:** candidate
 
-Combine bounded context from Direction + Schedule + real Requirement evaluations and classify:
+Domains should generate Information Needs from real gaps in their own understanding. Question Planner arbitrates across domains rather than relying on a global questionnaire.
 
 ```text
-KNOWN
-INFERRED
-CONFLICTING
-UNKNOWN
-MISSING-BUT-IMPORTANT
+Domain read/projection
+ -> coverage + uncertainty
+ -> Information Need
+ -> Question Planner
+ -> Navigator
+ -> answer
+ -> Semantic Admission
+ -> domain state changes
+ -> needs reprioritized
 ```
 
-Navigator should answer the supported portion first, then ask the smallest high-value question when needed.
+Navigator should answer the supported portion first and ask only the smallest high-value question when needed.
 
-## Phase 19 — Position + relevance-driven Helm
+## Phase 21 — Richer Position + relevance-driven Helm
 
 **Status:** v0 seed live; richer composition candidate
 
-Initial Position is now live. Grow it only as grounded signals earn relevance, for example:
+Grow Position only as grounded signals earn relevance, for example:
 
 ```text
 next hard commitment
-meaningful open window
-one weekly training exposure remaining
+meaningful recorded window
+one weekly strength exposure remaining
 recorded protein below target but coverage incomplete
 ```
 
 Home remains a relevance projection, not a dashboard.
 
-## Phase 20 — Inventory + Effective Capability
+## Phase 22 — Inventory + Effective Capability
 
 **Status:** candidate
 
@@ -381,13 +432,13 @@ Support BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, SYNERGY.
 
 Gear does not permanently manufacture mastery.
 
-## Phase 21 — Skill + Role projections
+## Phase 23 — Skill + Role projections
 
 **Status:** candidate
 
-Infer one narrow Skill from evidence and one higher-order Role pattern. Preserve lineage, uncertainty, recency, and base-vs-effective capability separation.
+Infer one narrow Skill from admitted canonical evidence and one higher-order Role pattern. Raw natural-language candidates may not award mastery directly.
 
-## Phase 22 — Cross-domain strength / growth analysis
+## Phase 24 — Cross-domain strength / growth analysis
 
 **Status:** candidate after Training + Nutrition baseline
 
@@ -403,7 +454,7 @@ Training
 
 Avoid unjustified causal certainty.
 
-## Phase 23 — Daily / Weekly Review
+## Phase 25 — Daily / Weekly Review
 
 **Status:** candidate
 
@@ -411,7 +462,7 @@ Reviews remain projections by default.
 
 System Review != player-authored Reflection.
 
-## Phase 24 — Symbolic guidance
+## Phase 26 — Symbolic guidance
 
 **Status:** candidate after grounded life context
 
@@ -435,7 +486,7 @@ recorded draw
 
 Neither astrology nor tarot may masquerade as empirical player truth or crowd out more relevant grounded information.
 
-## Phase 25 — Expand real-life domains under pressure
+## Phase 27 — Expand real-life domains under pressure
 
 Admit domains only when distinct factual semantics require them:
 
@@ -450,6 +501,8 @@ Transportation
 additional domain-specific Requirements
 ```
 
+Each new domain should expose a semantic admission contract as part of its operational boundary.
+
 ## Deferred until earned
 
 Do not prematurely build:
@@ -460,7 +513,10 @@ Do not prematurely build:
 - universal skill taxonomy;
 - universal life-events/facts table;
 - universal Knowledge database;
-- persistent question backlog merely because questions exist;
+- universal persistent candidate backlog;
+- raw conversation/archive as the player model;
+- generic `misc_facts`, `notes`, `memory`, or `other` canonical tables;
+- persistence based only on model confidence;
 - vector database merely because Knowledge exists;
 - autonomous AI canonical writes;
 - astrology/tarot interpretations as facts;
@@ -474,19 +530,23 @@ Do not prematurely build:
 
 For every new slice:
 
-1. Define the smallest useful human question.
+1. Define the smallest useful human question or natural input.
 2. Identify the real-world phenomenon.
 3. Classify it as recorded reality, deterministic derivation, intelligent inference, or symbolic interpretation.
-4. Identify the true owner of canonical state, if one is needed.
-5. Identify Knowledge capabilities needed to resolve/interpret it.
-6. Preserve time, provenance, authority, coverage, uncertainty, freshness, and lineage.
-7. Define Information Needs and the appropriate resolver order.
-8. Define when Navigator may ask, and why.
-9. Define Schedule / Requirement implications where relevant.
-10. Define base vs effective capability effects where relevant.
-11. Define atomic vs resumable semantics for cross-module user intent.
-12. Implement one end-to-end vertical slice.
-13. Test ambiguity, conflict, provider outage, stale state, correction, and unknowns.
-14. Observe real use before generalizing further.
+4. Define recognition separately from resolution and domain admission.
+5. Identify exactly one true owner for each canonical claim.
+6. If no owner exists, do not persist it as player state.
+7. Preserve time, provenance, authority, coverage, uncertainty, freshness, and lineage.
+8. Define valid partial reality and which missing details must remain unknown.
+9. Define authorization requirements separately from semantic understanding.
+10. Define Information Needs from concrete admission/projection gaps, not blank profile fields.
+11. Define when Navigator may ask, and why.
+12. Define downstream recomputation after successful writes.
+13. Define Schedule / Requirement implications where relevant.
+14. Define base vs effective capability effects where relevant.
+15. Define atomic vs independently admissible semantics for multi-claim user intent.
+16. Implement one end-to-end vertical slice.
+17. Test ambiguity, irrelevant input, missing authorization, partial truth, conflict, provider outage, stale state, correction, and unknowns as applicable.
+18. Observe real use before generalizing further.
 
 > The architecture succeeds when Wayfinder can understand more while the player has to manage less.
