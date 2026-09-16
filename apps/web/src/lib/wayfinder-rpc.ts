@@ -1,5 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import type { CommandResponse, HelmRead, JourneyRead, OwnerBootstrap } from "@/lib/wayfinder-types";
+import type {
+  CommandResponse,
+  HelmRead,
+  JourneyRead,
+  OwnerBootstrap,
+  PersonCurrentRead
+} from "@/lib/wayfinder-types";
 
 function rpcErrorMessage(error: {
   message?: string;
@@ -29,6 +35,40 @@ function commandId() {
 
 export async function ensureOwner(timezone: string): Promise<OwnerBootstrap> {
   return rpc<OwnerBootstrap>("wf_ensure_owner", { p_timezone: timezone });
+}
+
+export async function getCurrentPerson(): Promise<PersonCurrentRead> {
+  return rpc<PersonCurrentRead>("wf_person_current_v0");
+}
+
+export async function initializeCharacter(input: {
+  displayName: string;
+  birthDate?: string | null;
+  birthTimeLocal?: string | null;
+  birthTimeAccuracy?: "EXACT" | "APPROXIMATE" | null;
+  birthPlaceLabel?: string | null;
+  heightValue?: number | null;
+  heightUnit?: "cm" | "m" | "in" | null;
+  weightValue?: number | null;
+  weightUnit?: "kg" | "lb" | null;
+  bodyObservedAt?: string | null;
+  bodyZoneId?: string | null;
+  commandId?: string;
+}): Promise<CommandResponse> {
+  return rpc<CommandResponse>("wf_character_initialize_v0", {
+    p_command_id: input.commandId ?? commandId(),
+    p_display_name: input.displayName,
+    p_birth_date: input.birthDate ?? null,
+    p_birth_time_local: input.birthTimeLocal ?? null,
+    p_birth_time_accuracy: input.birthTimeLocal ? input.birthTimeAccuracy ?? "EXACT" : null,
+    p_birth_place_label: input.birthPlaceLabel ?? null,
+    p_height_value: input.heightValue ?? null,
+    p_height_unit: input.heightValue == null ? null : input.heightUnit ?? "in",
+    p_weight_value: input.weightValue ?? null,
+    p_weight_unit: input.weightValue == null ? null : input.weightUnit ?? "lb",
+    p_body_observed_at: input.bodyObservedAt ?? null,
+    p_body_zone_id: input.bodyZoneId ?? null
+  });
 }
 
 export async function getHelm(input: {
