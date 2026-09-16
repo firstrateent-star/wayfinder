@@ -1,12 +1,13 @@
 # Wayfinder — Project State / Chat Recovery
 
 **Repository:** `firstrateent-star/wayfinder`  
-**Current milestone:** proven Slice 1A substrate + quiet read-only player shell + mature Life RPG architecture v0.2  
-**Current phase:** architectural freeze before the first new Person/Body/Time slices  
+**Current milestone:** proven Slice 1A substrate + mature Life RPG architecture + live Person/Temporal/Body v0.1  
+**Current phase:** Flower Character Creation orchestration, then deterministic natal-chart seam  
 **Canon:** `docs/CANON.md` + later addenda/ADRs  
-**Latest architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
-**Prior architecture:** `docs/17-life-rpg-discovery-architecture-v0.1.md`  
-**Latest ADR:** `decisions/ADR-031-time-schedule-and-requirements-are-distinct-from-reality.md`
+**Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
+**Live expansion:** `docs/19-person-temporal-body-v0.1.md`  
+**Latest ADR:** `decisions/ADR-032-person-and-body-have-distinct-canonical-ownership.md`  
+**Latest live test:** `lab/person-temporal-body-live-test-v0.1.md`
 
 ## Non-negotiable direction
 
@@ -14,7 +15,7 @@ Wayfinder is being rebuilt from the ground up using the newer Vlourish / Flower 
 
 Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a representation of evidence-backed lived reality, not the source of truth.
 
-Core laws now include:
+Core laws:
 
 - reality before interpretation;
 - unknown is not zero;
@@ -33,7 +34,8 @@ Core laws now include:
 - **Navigator asks questions only when missing information materially matters**;
 - **astrology is symbolic guidance over deterministic chart calculation, not canonical empirical truth**;
 - **Schedule owns planned time allocation, not occurrence**;
-- **Requirements/standards are distinct from goals and schedules and must be coverage-aware**.
+- **Requirements/standards are distinct from goals and schedules and must be coverage-aware**;
+- **Owner/auth identity, Person identity, Body observations, and Character projection remain distinct**.
 
 ## Mature conceptual architecture
 
@@ -94,39 +96,221 @@ A lower-authority layer must not masquerade as a higher-authority layer.
 
 Examples:
 
-- weight observation: recorded reality;
-- weight trend / natal planetary geometry: deterministic derivation;
-- recovery estimate / skill level / role: intelligent inference;
-- astrology/archetype/RPG narrative: symbolic interpretation.
+- weight observation: Recorded Reality;
+- weight-unit normalization / natal geometry: Deterministic Derivation;
+- recovery estimate / skill level / role: Intelligent Inference;
+- astrology/archetype/RPG narrative: Symbolic Interpretation.
 
-## Canonical module families
+## Current deployed backend
 
-Create only when distinct factual semantics earn ownership.
+Supabase project ref: `ngakauhlcmvwnmimtsca`.
 
-Current/proven:
-
-```text
-System
-Direction
-Practice
-Evidence
-```
-
-Next/future candidates:
+Private Wayfinder schemas now live:
 
 ```text
-Person
-Schedule
-Body
-Training
-Nutrition
-Finance
-Inventory
-World
-Social
+wf_system
+wf_person
+wf_direction
+wf_practice
+wf_evidence
+wf_body
 ```
 
-Do not create these schemas speculatively. Add each with its first complete vertical slice.
+Current canonical tables:
+
+```text
+wf_system
+├── owners
+├── command_receipts
+└── module_change_outbox
+
+wf_person
+├── persons
+└── person_versions
+
+wf_direction
+├── nodes
+├── node_versions
+└── edges
+
+wf_practice
+├── practices
+├── sessions
+└── session_versions
+
+wf_evidence
+└── links
+
+wf_body
+├── measurements
+└── measurement_versions
+```
+
+Authenticated clients use typed public RPCs. Private canonical schemas/tables remain inaccessible directly to `anon` / `authenticated`.
+
+## Proven foundation retained from Slice 1A
+
+Still valid and deployed:
+
+- owner identity and bootstrap;
+- private module schemas;
+- command envelope/idempotency;
+- canonical request hashing and conflicting command-id rejection;
+- atomic authoritative command boundaries;
+- exact-version Evidence lineage;
+- versioned correction;
+- result coverage vs epistemic coverage;
+- projection/read seam;
+- occurred vs recorded time;
+- transactional ModuleChange outbox;
+- frontend direct-table boundary guard;
+- deferred version-head integrity triggers with SECURITY DEFINER where required.
+
+Existing Direction / Practice / Evidence / Helm / Journey work remains architectural evidence. Do not delete it merely because Player Mode is quiet.
+
+## Person v0.1 — LIVE
+
+Person is distinct from owner/auth identity.
+
+```text
+Owner  -> authorization/account scope
+Person -> modeled human subject
+```
+
+Canonical Person v0.1 owns:
+
+```text
+preferred/display name
+birth date?
+birth local time?
+birth-time accuracy?  EXACT | APPROXIMATE
+birth-place label?
+```
+
+It does **not** own Body measurements, Role, Skill, XP, finances, current location, or Direction.
+
+Birth facts are stable in reality but their records are versioned/correctable because recorded knowledge can be wrong.
+
+Public RPCs:
+
+```text
+wf_person_create(...)
+wf_person_update_profile(...)
+wf_person_current_v0()
+```
+
+Live rollback testing proved:
+
+- create + exact current read;
+- same-command retry;
+- semantic duplicate NOOP;
+- v1 -> v2 correction lineage;
+- stale-version rejection;
+- future-birth-date rejection;
+- deferred-head integrity;
+- authenticated direct-table denial.
+
+No synthetic Person data remains after rollback.
+
+## Temporal Kernel v0.1 — LIVE
+
+Private helper:
+
+```text
+wf_system.local_day_bounds(local_date, zone_id)
+```
+
+Resolves a declared local calendar day to the real half-open UTC interval `[start,end)`.
+
+Live `America/New_York` checks:
+
+```text
+2026-03-08 -> 23 hours
+2026-09-15 -> 24 hours
+2026-11-01 -> 25 hours
+```
+
+This is the foundation for later Schedule and recurring Requirement semantics such as `protein >= target / local day`.
+
+## Body v0.1 — LIVE
+
+Body is the first new asymmetric reality domain after the mature architecture freeze.
+
+Canonical v0.1 metrics:
+
+```text
+height
+weight
+```
+
+They are temporal measurements, not Person profile columns.
+
+Stable measurement identity:
+
+```text
+id
+owner_id
+metric
+current_version_id
+```
+
+Versioned payload:
+
+```text
+value
+unit
+observed_at
+observed_zone_id?
+provenance
+recorded_at
+```
+
+Supported canonical units:
+
+```text
+height: cm | m | in
+weight: kg | lb
+```
+
+Reported quantity remains source reality. Normalized quantity is deterministic derivation.
+
+Public RPCs:
+
+```text
+wf_body_record_measurement(...)
+wf_body_correct_measurement(...)
+wf_body_current_v0()
+```
+
+Live rollback testing proved:
+
+- height/weight capture;
+- common unit alias normalization;
+- deterministic unit conversion;
+- true command retry;
+- metric/unit mismatch rejection;
+- exact v1 -> v2 correction lineage;
+- stale-version rejection;
+- latest-recorded current read;
+- authenticated direct-table denial;
+- deferred-head integrity.
+
+No synthetic Body data remains after rollback.
+
+`wf_body_current_v0()` deliberately means **latest recorded observation**, not perfect current physical truth. Missing metrics remain unknown rather than zero.
+
+## Character ownership law
+
+ADR-032 now fixes:
+
+```text
+Owner     -> System/auth scope
+Person    -> modeled identity + stable/correctable origin facts
+Body      -> temporal physical observations
+Character -> composed projection over Person + Body + future domains
+```
+
+A future Character Creation screen may *look* like one profile flow while routing each fact to its correct canonical owner.
 
 ## Time / Schedule / Requirement laws
 
@@ -152,12 +336,10 @@ precision
 Schedule owns planned temporal allocations and may reference records owned elsewhere.
 
 ```text
-Action: Finish edit           -> Direction
-Allocation Tue 12–3           -> Schedule
-Actual edit activity          -> Practice/Activity
+Action: Finish edit             -> Direction
+Allocation Tue 12–3             -> Schedule
+Actual edit activity            -> Practice/Activity
 ```
-
-These are related but not interchangeable.
 
 Requirement/Standard is distinct from Goal and Schedule.
 
@@ -169,9 +351,9 @@ Strength training >= 3 sessions / week
 Debt payment >= $500 by Sep 30
 ```
 
-Use a shared Requirement contract, while the domain that understands the metric owns/evaluates the semantics.
+Use a shared Requirement contract while the domain that understands the metric owns/evaluates its semantics.
 
-Requirement evaluation is coverage-aware. Partial logging must not be treated as zero unrecorded intake or automatic failure.
+Requirement evaluation remains coverage-aware. Partial logging must not be treated as zero unrecorded intake or automatic failure.
 
 Candidate states:
 
@@ -242,26 +424,6 @@ Gear may create BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, or SYNERGY
 
 Gear alone does not permanently increase learned Skill/Mastery. Real use produces evidence that may change permanent growth projections.
 
-## Character
-
-Character is a composed projection, not one canonical row.
-
-```text
-Identity          <- Person
-Origin            <- birth facts + natal chart
-Body              <- Body
-Skills            <- evidence-backed skill projections
-Roles             <- skill/activity clusters
-Attributes        <- broad evidence-backed tendencies
-Inventory/Gear    <- Inventory
-Effective State   <- base + gear + context + conditions
-Archetypes        <- symbolic interpretation
-Path              <- long-horizon becoming
-Achievements      <- evidence-backed milestones
-```
-
-Character Creation does not ask the player to enter Role, XP, Level, Skill, or Path.
-
 ## Discovery architecture
 
 ```text
@@ -331,59 +493,11 @@ Nutrition estimates preserve uncertainty. Incomplete intake coverage must not im
 
 Requirements such as daily protein or weekly strength exposure should be evaluated over explicit local temporal scopes.
 
-## Reviews
-
-Daily/weekly/monthly Reviews are projections first.
-
-System Review != user-authored Reflection.
-
-A Review may summarize:
-
-```text
-what happened
-requirement state
-schedule pressure
-quest movement
-body/recovery
-resource changes
-skill/growth evidence
-unknowns
-what matters next
-```
-
-If the user authors meaning, that belongs to a future Reflection/Meaning seam.
-
-## Current deployed backend
-
-Supabase project ref: `ngakauhlcmvwnmimtsca`.
-
-Private schemas:
-
-```text
-wf_system
-wf_direction
-wf_practice
-wf_evidence
-```
-
-Current canonical tables:
-
-```text
-wf_system: owners, command_receipts, module_change_outbox
-wf_direction: nodes, node_versions, edges
-wf_practice: practices, sessions, session_versions
-wf_evidence: links
-```
-
-Authenticated clients use public typed RPCs; private canonical tables remain inaccessible directly.
-
-Existing Slice 1A remains proof infrastructure. Do not delete it merely because the player UI is quiet.
-
 ## Current player UI
 
-`/helm` is intentionally quiet and read-only.
+`/helm` remains intentionally quiet and read-only.
 
-No normal player-facing Practice, Direction, Evidence, or correction forms are shown.
+No normal player-facing Practice, Direction, Evidence, Person, Body, or correction forms are exposed yet.
 
 Journey remains backend/product research but is hidden from the normal player shell.
 
@@ -391,13 +505,31 @@ Principle:
 
 > Build the model/intelligence first. Add player UI only when Wayfinder has something genuinely useful to show or ask.
 
+## Security posture / advisor context
+
+Supabase's generic metadata advisor reports RLS disabled on private `wf_person` / `wf_body` tables. This has **not** been blindly auto-remediated.
+
+Wayfinder's current primary client isolation is:
+
+```text
+private schema/table privilege denial
++
+owner-scoped public SECURITY DEFINER RPCs
+```
+
+Live tests explicitly proved `authenticated` direct access to both new schemas is denied. Enabling RLS without policies would change/block the designed boundary and requires an intentional defense-in-depth decision.
+
+Supabase also warns that authenticated users can execute the Wayfinder SECURITY DEFINER RPCs. This is expected because those RPCs are the deliberate privilege boundary; every new RPC still requires fixed search path, owner derivation, explicit authorization, and cross-owner testing.
+
+`Leaked Password Protection Disabled` remains a real production-hardening item unrelated to the Person/Body architecture.
+
 ## Mature build sequence
 
 ```text
-0. Preserve proven Slice 1A substrate
-1. Person + shared temporal contracts
-2. Body vertical slice
-3. Character Creation experience
+0. Preserve proven Slice 1A substrate                  ✅
+1. Person + shared temporal contracts                  ✅ LIVE / GATE PASSED
+2. Body vertical slice                                 ✅ LIVE / GATE PASSED
+3. Character Creation orchestration                    ← NEXT DESIGN/BUILD TARGET
 4. Deterministic natal chart calculation
 5. Schedule contract / one allocation
 6. Requirement contract / one recurring requirement
@@ -407,12 +539,29 @@ Principle:
 10. Inventory + effective capability
 11. Skill + Role projections
 12. Training + Nutrition
-13. Daily/Weekly Review + temporal guidance
-14. Symbolic astrology guidance
-15. Expand Finance / World / Social / richer domains under real pressure
+13. Cross-domain Growth + macro/training requirements
+14. Daily/Weekly Review + temporal guidance
+15. Symbolic astrology guidance/transits
+16. Expand Finance / World / Social / richer domains under real pressure
 ```
 
-Do not build broad UI, XP ledgers, universal skill taxonomies, or speculative domain schemas ahead of these seams.
+### Immediate next question
+
+A Character Creation experience may collect Person + Body in what feels like one save.
+
+Before exposing it, decide its transaction truth:
+
+```text
+A. one indivisible creation intent
+   -> Person + initial Body measurements must commit as one authoritative orchestration boundary
+
+or
+
+B. explicitly resumable creation
+   -> partial state is first-class, visible, and safely retryable
+```
+
+Do not accidentally implement a one-screen save as several unrelated commits that can leave a misleading half-created character.
 
 ## Anti-patterns
 
@@ -435,4 +584,4 @@ Do not build:
 
 ## Recovery prompt
 
-> Open `PROJECT_STATE.md`, then read `docs/18-mature-life-rpg-architecture-v0.2.md`, `decisions/ADR-031-time-schedule-and-requirements-are-distinct-from-reality.md`, `docs/17-life-rpg-discovery-architecture-v0.1.md`, ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Preserve the proven Slice 1A substrate and quiet player shell. Continue with the smallest Person + temporal contracts and then the Body vertical slice before broadening UI or domains.
+> Open `PROJECT_STATE.md`, then read `docs/18-mature-life-rpg-architecture-v0.2.md`, `docs/19-person-temporal-body-v0.1.md`, `decisions/ADR-032-person-and-body-have-distinct-canonical-ownership.md`, `decisions/ADR-031-time-schedule-and-requirements-are-distinct-from-reality.md`, ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person + Temporal Kernel + Body v0.1 are live and rollback-stress-tested. Preserve the quiet Player shell. Next Flower Character Creation orchestration/atomicity before exposing a multi-module player save; then add deterministic natal-chart calculation.
