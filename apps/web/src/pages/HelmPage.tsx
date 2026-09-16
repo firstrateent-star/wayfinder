@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Compass, LogOut, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { CalendarDays, Compass, LogOut, RefreshCw, Sparkles, Target, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiscoverySession } from "@/features/discovery/DiscoverySession";
 import { getInitialPosition, nextLocalDayScope } from "@/lib/position-api";
-import type { InitialPositionRead, PositionQuestionOpportunity } from "@/lib/position-api";
+import type { InitialPositionRead, PositionQuestionOpportunity, PositionScheduleAllocation } from "@/lib/position-api";
 import { supabase } from "@/lib/supabase";
 
 function greeting() {
@@ -18,17 +18,21 @@ function formatDay(value: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: "long", month: "short", day: "numeric" }).format(new Date(value));
 }
 
-function formatAllocationTime(position: InitialPositionRead) {
-  const item = position.schedule.next_recorded_allocation;
-  if (!item) return null;
-
-  if (item.startsAt && item.endsAt) {
-    const formatter = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-    return `${formatter.format(new Date(item.startsAt))}–${formatter.format(new Date(item.endsAt))}`;
-  }
-  if (item.windowStartsAt && item.windowEndsAt) return "Inside a planned window";
-  if (item.dueAt) return `Due ${new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(item.dueAt))}`;
+function formatAllocationTime(item: PositionScheduleAllocation) {
+  const formatter = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+  if (item.startsAt && item.endsAt) return `${formatter.format(new Date(item.startsAt))}–${formatter.format(new Date(item.endsAt))}`;
+  if (item.windowStartsAt && item.windowEndsAt) return `${formatter.format(new Date(item.windowStartsAt))}–${formatter.format(new Date(item.windowEndsAt))} window`;
+  if (item.dueAt) return `Due ${formatter.format(new Date(item.dueAt))}`;
   return "Planned";
+}
+
+function formatDuration(seconds: number) {
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours <= 0) return `${minutes} min`;
+  if (remainder === 0) return `${hours} hr${hours === 1 ? "" : "s"}`;
+  return `${hours} hr ${remainder} min`;
 }
 
 function bodyBaselineLabel(state: InitialPositionRead["foundation"]["body_baseline"]) {
@@ -78,9 +82,9 @@ export function HelmPage() {
   }
 
   const displayName = position?.person?.display_name ?? "Player";
-  const nextAllocation = position?.schedule.next_recorded_allocation ?? null;
-  const nextAllocationTime = position ? formatAllocationTime(position) : null;
   const tomorrowLabel = position ? formatDay(position.schedule.scope.from) : formatDay(scope.from);
+  const primaryInsight = position?.insights[0] ?? null;
+  const currentFocus = position?.direction.current_focus ?? null;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -130,7 +134,7 @@ export function HelmPage() {
                   {greeting()}, {displayName}.
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-slate-400">
-                  Your starting character is established. Wayfinder can now begin learning the structure around you without turning your life into a setup checklist.
+                  Wayfinder is starting to turn what it knows into structure: constraints, relationships, uncertainty, and the next thing worth learning.
                 </p>
               </div>
 
@@ -158,33 +162,65 @@ export function HelmPage() {
                       <p className="text-sm text-slate-400">{bodyBaselineLabel(position.foundation.body_baseline)}</p>
                     </div>
 
-                    <div className="flex items-start justify-between gap-6 py-3 last:pb-0">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
-                          <p className="text-sm text-slate-300">{tomorrowLabel}</p>
+                    <div className="flex items-center justify-between gap-6 py-3">
+                      <div className="flex items-start gap-2">
+                        <Target className="mt-0.5 h-3.5 w-3.5 text-slate-500" />
+                        <div>
+                          <p className="text-sm text-slate-300">Current direction</p>
+                          <p className="mt-1 text-xs text-slate-500">What the rest of discovery can organize around</p>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {nextAllocation ? "Known planned time" : "Schedule coverage is still unknown"}
-                        </p>
                       </div>
-                      <div className="max-w-[48%] text-right">
-                        {nextAllocation ? (
-                          <>
-                            <p className="text-sm text-slate-300">{nextAllocation.label}</p>
-                            {nextAllocationTime ? <p className="mt-1 text-xs text-slate-500">{nextAllocationTime}</p> : null}
-                          </>
-                        ) : (
-                          <p className="text-sm text-slate-500">Nothing recorded yet</p>
-                        )}
+                      <p className="max-w-[48%] text-right text-sm text-slate-400">{currentFocus?.title ?? "Not established yet"}</p>
+                    </div>
+
+                    <div className="py-3 last:pb-0">
+                      <div className="flex items-center justify-between gap-6">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+                            <p className="text-sm text-slate-300">{tomorrowLabel}</p>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {position.schedule.recorded_allocation_count > 0 ? "Recorded planned constraints" : "Schedule coverage is still unknown"}
+                          </p>
+                        </div>
+                        {position.schedule.hard_block_count > 0 ? (
+                          <p className="text-right text-sm text-slate-400">
+                            {formatDuration(position.schedule.recorded_hard_committed_seconds)} hard-planned
+                          </p>
+                        ) : null}
                       </div>
+
+                      {position.schedule.allocations.length > 0 ? (
+                        <div className="mt-4 space-y-2">
+                          {position.schedule.allocations.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-5 rounded-2xl border border-white/[0.05] bg-black/10 px-4 py-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm text-slate-300">{item.label}</p>
+                                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-600">{item.kind}</p>
+                              </div>
+                              <p className="shrink-0 text-sm text-slate-500">{formatAllocationTime(item)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-sm text-slate-500">Nothing recorded yet.</p>
+                      )}
+
+                      <p className="mt-4 text-xs leading-5 text-slate-600">
+                        Recorded gaps are not assumed to be free time; they are only spaces between the constraints Wayfinder currently knows about.
+                      </p>
                     </div>
                   </div>
-
-                  {!nextAllocation ? (
-                    <p className="mt-4 text-xs leading-5 text-slate-600">Nothing recorded does not mean the day is free.</p>
-                  ) : null}
                 </div>
+
+                {primaryInsight ? (
+                  <div className="rounded-3xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-600">Derived from what you told me</p>
+                    <p className="mt-3 text-base leading-7 text-slate-200">{primaryInsight.headline}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">{primaryInsight.detail}</p>
+                  </div>
+                ) : null}
 
                 {discoveryOpen ? (
                   <DiscoverySession
@@ -201,16 +237,18 @@ export function HelmPage() {
                       Navigator
                     </div>
                     <p className="mt-3 text-base leading-7 text-slate-300">
-                      {position.schedule.recorded_allocation_count === 0
-                        ? "I know who I’m navigating for. I don’t know enough about how your time is structured yet."
-                        : `I know about ${position.schedule.recorded_allocation_count} planned commitment${position.schedule.recorded_allocation_count === 1 ? "" : "s"} tomorrow, but I still won't assume the rest of the day is free.`}
+                      {currentFocus
+                        ? primaryInsight?.headline ?? `I know what you are trying to move forward: ${currentFocus.title}. I can now use new information in relation to that direction instead of merely filing it away.`
+                        : position.schedule.recorded_allocation_count > 0
+                          ? `I have ${position.schedule.recorded_allocation_count} planned item${position.schedule.recorded_allocation_count === 1 ? "" : "s"} to reason around now. The next useful thing is not another calendar entry — it is learning what you actually want to move forward.`
+                          : "I know who I’m navigating for, but I still need one real constraint before I can begin shaping Position."}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Discovery asks one high-value question at a time. Answers only become canonical when they have a legitimate domain and you authorize the write.
+                      Discovery should change the model after every answer: recompute Position, derive relationships, then choose a different high-value uncertainty instead of repeating the same form.
                     </p>
                     <Button className="mt-5" disabled={discoveryLoading} onClick={() => void startDiscovery()}>
                       <Sparkles className="mr-2 h-4 w-4" />
-                      {discoveryLoading ? "Choosing the next question…" : position.schedule.recorded_allocation_count === 0 ? "Start discovering my world" : "Continue discovery"}
+                      {discoveryLoading ? "Choosing the next question…" : "Continue discovery"}
                     </Button>
                   </div>
                 )}
