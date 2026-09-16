@@ -15,6 +15,31 @@ export interface CommandResponse {
   replayed: boolean;
 }
 
+export interface PersonCurrentRead {
+  person: {
+    ref: {
+      namespace: "person";
+      type: "person";
+      id: string;
+      version: string;
+    };
+    display_name: string;
+    birth_date: string | null;
+    birth_time_local: string | null;
+    birth_time_accuracy: "EXACT" | "APPROXIMATE" | null;
+    birth_place_label: string | null;
+    recorded_at: string;
+  } | null;
+  record_coverage: {
+    completeness: "COMPLETE";
+    evaluated_at: string;
+  };
+  epistemic_coverage: {
+    completeness: "UNKNOWN";
+    reason: string;
+  };
+}
+
 export interface DirectionNodeRead {
   id: string;
   version: string;
