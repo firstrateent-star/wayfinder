@@ -120,11 +120,12 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
     const before = state;
     pushRewind(before);
 
+    const userMessage: ChatMessage | null = userText
+      ? { id: crypto.randomUUID(), role: "PLAYER", text: userText }
+      : null;
     const optimistic: ChatState = {
       ...before,
-      messages: userText
-        ? [...before.messages, { id: crypto.randomUUID(), role: "PLAYER", text: userText }].slice(-MAX_MESSAGES)
-        : before.messages,
+      messages: userMessage ? [...before.messages, userMessage].slice(-MAX_MESSAGES) : before.messages,
       suggestions: []
     };
     setState(optimistic);
@@ -133,8 +134,9 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
     setError(null);
 
     try {
+      const effectiveText = input.action === "START_TRAINING" && !input.text ? "I want to log a workout" : input.text;
       const response = await navigatorChat({
-        text: input.text,
+        text: effectiveText,
         action: input.action,
         episode: before.episode,
         zoneId,
