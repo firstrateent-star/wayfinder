@@ -1,132 +1,138 @@
-# Initial Position + Discovery v0.1
+# Initial Position + Discovery v0.2
 
-**Status:** LIVE / CI PASSED
+**Status:** LIVE / CI PASSED / PLAYER FEEDBACK ITERATED
 
-This slice converts Helm from a generic development placeholder into the first real player-specific Position surface.
+This slice converts Helm from a passive saved-record display into the first recursive Position + Discovery loop.
 
-## Flower result
+## Player feedback that changed the design
 
-After Character Creation, Wayfinder already knows enough to stop speaking generically, but not enough to pretend it understands the player's life. The correct seam is therefore:
+The first live version proved domain-safe persistence, but real use exposed a failure:
 
-```text
-canonical Person + Body + Schedule
-            ↓
-     Initial Position
-            ↓
-        quiet Helm
-            ↓
- opt-in Discovery Session
-            ↓
- structured Information Need
-            ↓
- explicit player answer
-            ↓
- authorized domain command
-            ↓
- refreshed Position
-```
+> multiple Discovery answers were saved correctly, yet Wayfinder mostly repeated them back and counted them.
 
-Initial Position is a projection. It owns no canonical life truth.
+That is not enough. A personal intelligence system must transform new information into useful structure and then let that changed understanding affect what happens next.
 
-## Laws
+ADR-040 formalizes the new law:
 
-1. **Known records are not complete life coverage.**
-   - An empty Schedule read does not mean the day is free.
-   - One known commitment does not prove no other commitments exist.
+> **Discovery must transform understanding, not merely persist answers.**
 
-2. **Discovery is not onboarding paperwork.**
-   - Normal Helm does not proactively ask the P2 discovery question.
-   - The player explicitly starts Discovery.
-   - v0 asks one question at a time.
-
-3. **Every persisted answer has a legitimate owner.**
-   - The first question resolves `schedule.next_day.coverage`.
-   - A confirmed fixed commitment writes through `wf_schedule_create_allocation`.
-   - There is no generic profile/facts table.
-
-4. **Player refusal/no-add is not false evidence of absence.**
-   - “Nothing I need to add” creates no canonical assertion that the day is empty.
-   - v0 intentionally does not persist this ephemeral response.
-
-5. **Planned still does not mean happened.**
-   - Discovery may create a HARD Schedule allocation.
-   - That allocation is planning state only and never occurrence evidence.
-
-6. **Home remains relevance-driven.**
-   - Initial Position surfaces only the current character foundation, bounded planned-time knowledge, and one Navigator entry point.
-   - It does not render permanent domain widgets.
-
-## Runtime
-
-Shared intelligence:
+## Current loop
 
 ```text
-supabase/functions/_shared/intelligence/initial-position-service.ts
+canonical Person + Body + Direction + Schedule
+                 ↓
+          Initial Position v0.2
+                 ↓
+      deterministic synthesis
+                 ↓
+ constraints / overlaps / recorded gaps / focus relationships
+                 ↓
+               Helm
+                 ↓
+       opt-in Discovery Session
+                 ↓
+      highest-value Information Need
+                 ↓
+       authorized domain command
+                 ↓
+          recompute Position
+                 ↺
 ```
 
-The service composes:
+Initial Position is still a projection. It owns no canonical life truth.
+
+## What v0.2 now does with Schedule information
+
+Instead of returning only a count and one next item, Position now returns all recorded planned allocations in the bounded scope and derives:
 
 ```text
-Person snapshot
-Body baseline presence
-bounded Schedule snapshot
-Question Planner
+ordered planned allocations
+hard-planned block count
+merged hard-planned occupied duration
+overlapping hard commitments
+largest recorded gap between hard commitments
 ```
 
-into:
+A recorded gap is explicitly **not** called free time. It only means there is no conflicting HARD allocation in the records currently supplied to Position for that interval.
+
+Example:
 
 ```text
-initial_position_v0.1
-├── person display name
-├── foundation
-│   ├── origin established?
-│   ├── birth time known?
-│   ├── birthplace known?
-│   └── body baseline state
-├── schedule
-│   ├── bounded scope
-│   ├── recorded allocation count
-│   ├── next recorded allocation
-│   ├── result coverage
-│   └── epistemic coverage = UNKNOWN
-├── question opportunities
-└── explicit non-claims
+Chiro 11:45–12:45
+Stage Presence 3:00–6:00
+
+↓
+
+recorded between-commitment gap: 2h 15m
 ```
 
-Explicit non-claims include:
+That derived gap can become useful once another domain supplies meaning, such as an explicit current Direction.
+
+## Direction joins Position
+
+Initial Position now reads the existing Direction domain through:
 
 ```text
-unscheduled time is free
-planned activity occurred
-all commitments are known
-missing Body observations are zero/absent in reality
+wf_direction_current
 ```
 
-## Information Need
+It selects the most recent explicit ACTIVE `direction` node as the current focus. It does not infer a permanent Role, identity, personality, or class.
 
-First concept:
+If Schedule contains useful structure and an explicit current Direction exists, Position may derive a cross-domain insight such as:
+
+```text
+recorded schedule gap
++ current Direction
+ -> candidate planning window for that Direction
+```
+
+This remains a deterministic projection, not a canonical fact that the time is actually free.
+
+## Discovery progression
+
+The Question Planner now has two proving Information Needs:
 
 ```text
 schedule.next_day.coverage
+direction.current_focus
 ```
 
-Priority:
+Current behavior:
 
 ```text
-no recorded allocations -> P2_HIGH_LEVERAGE
-some recorded allocations -> P3_CALIBRATION
+0 recorded planned items
+ -> Schedule coverage is P1_HIGH_IMPACT
+ -> ask for a real fixed constraint first
+
+1 recorded planned item
+ -> repeated Schedule coverage falls to P3_CALIBRATION
+ -> missing current Direction is P2_HIGH_LEVERAGE
+ -> Discovery changes domains
+
+2+ recorded planned items
+ -> repeated Schedule coverage falls to P4_OPTIONAL
+ -> do not keep asking the same calendar question by default
 ```
 
-Canonical destination:
+This is not a hard-coded onboarding checklist. It is the first proof that new information changes the next Information Need.
+
+## Canonical ownership remains intact
 
 ```text
-module: schedule
-command: CREATE_ALLOCATION
+Schedule answer
+ -> wf_schedule_create_allocation
+ -> wf_schedule owns planned time
+
+Current Direction answer
+ -> wf_direction_capture_node(kind = direction)
+ -> wf_direction owns the explicit Direction
+
+Position
+ -> composes them
+ -> owns no canonical truth
 ```
 
-The question requires explicit authorization before canonical write.
-
-Normal `TASK_DRIVEN` Position gives the question planner a zero proactive-question budget for this need. `DISCOVERY_SESSION` gives a one-question budget.
+There is still no generic profile/facts table.
 
 ## Edge Function
 
@@ -134,50 +140,36 @@ Live JWT-protected function:
 
 ```text
 initial-position
-version: 1
+version: 2
 status: ACTIVE
 verify_jwt: true
 ```
 
-It uses authenticated public read boundaries:
+Authenticated reads:
 
 ```text
 wf_person_current_v0
 wf_body_current_v0
+wf_direction_current
 wf_schedule_current_v0
 ```
-
-and then passes their bounded outputs into the projection service.
 
 The Edge Function performs no canonical writes.
 
 ## Frontend
 
-Helm now:
+Helm now shows:
 
-- greets the player by preferred/display name;
-- states that the starting character has been established;
-- shows Origin foundation state;
-- shows Body baseline state without exposing a tracker dashboard;
-- shows the next local day's known planned-time state;
-- explicitly says an empty schedule does not mean free time;
-- presents Navigator as the path into Discovery.
+- preferred/display name;
+- Origin foundation state;
+- Body baseline state;
+- explicit current Direction when known;
+- all recorded planned allocations in the next-local-day scope;
+- derived hard-planned duration;
+- deterministic Position insight when one is supported;
+- Navigator language that explains what changed rather than only reporting a count.
 
-Discovery v0 flow:
-
-```text
-Anything fixed next local day?
-  ├── no
-  │    -> preserve uncertainty, no write
-  └── yes
-       -> short label
-       -> start/end time
-       -> explicit save
-       -> HARD Schedule allocation
-       -> refresh Initial Position
-```
-
-The flow is structured in v0. General natural-language extraction remains a later Discovery capability so provenance and authorization do not get blurred prematurely.
+Discovery now changes from Schedule to Direction when the information-value model says Direction is the stronger missing piece.
 
 ## Validation
 
@@ -187,28 +179,34 @@ Automated test:
 lab/initial-position-discovery-v0.1.test.ts
 ```
 
-Proves:
+Now proves:
 
 - task-driven Helm remains non-interruptive;
-- Discovery Session surfaces exactly one high-leverage schedule question;
-- empty Schedule remains epistemically unknown;
-- known planned time does not establish complete coverage;
-- writes require explicit authorization.
+- an empty Schedule prioritizes one real temporal constraint;
+- after a Schedule answer, Discovery moves to Direction rather than repeating the form;
+- two HARD commitments produce deterministic occupied-duration and between-commitment-gap structure;
+- Direction + Schedule can produce a cross-domain `FOCUS_WINDOW` insight;
+- overlapping commitments are detected;
+- recorded gaps never become claims of actual availability.
 
-Intelligence CI passed.
+Intelligence CI passed. Web CI passed. Vercel deployment reports success.
 
-Web CI initially caught unsupported button variants in the frontend; the implementation was corrected to the existing component contract and Web CI then passed.
+## Still intentionally missing
 
-Vercel deployment for the corrected build reports success.
-
-## What this does not yet do
-
-- no LLM chat/extraction;
+- no general LLM extraction from free conversation;
 - no persistent question queue;
-- no durable “player said no other commitments” absence record;
-- no calendar connector;
-- no automatic discovery from emails/calendar/messages;
-- no full Position ranking across Direction/Requirements/Training/Nutrition;
-- no permanent Schedule widget on Home.
+- no calendar/email connector discovery;
+- no automatic proposal to reserve a recorded gap yet;
+- no Training/Nutrition/Finance/Gear synthesis yet;
+- no claim that deterministic schedule structure alone understands the player's whole day;
+- no permanent domain-dashboard Home.
 
-Those should be earned by later slices rather than guessed into v0.
+The next slices should preserve the same recursion:
+
+```text
+new evidence
+ -> owning domain
+ -> recompute understanding
+ -> derive supported relationships
+ -> choose the next useful uncertainty or action
+```
