@@ -8,6 +8,7 @@ on:
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
       - "supabase/functions/semantic-admission/**"
+      - "supabase/functions/navigator-chat/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
       - "lab/natal-geometry-v0.1.test.ts"
       - "lab/requirements-v0.1.test.ts"
@@ -21,6 +22,7 @@ on:
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
       - "supabase/functions/semantic-admission/**"
+      - "supabase/functions/navigator-chat/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
       - "lab/natal-geometry-v0.1.test.ts"
       - "lab/requirements-v0.1.test.ts"
@@ -46,6 +48,8 @@ jobs:
         run: deno check supabase/functions/initial-position/index.ts
       - name: Type-check semantic admission Edge Function
         run: deno check supabase/functions/semantic-admission/index.ts
+      - name: Type-check Navigator chat Edge Function
+        run: deno check supabase/functions/navigator-chat/index.ts
       - name: Type-check requirement evaluator
         run: deno check supabase/functions/_shared/intelligence/requirements.ts
       - name: Run birth context vertical slice tests
