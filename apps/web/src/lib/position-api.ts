@@ -19,12 +19,44 @@ export interface PositionQuestionOpportunity {
     needId: string;
     concept: string;
     priorityClass: "P0_BLOCKING" | "P1_HIGH_IMPACT" | "P2_HIGH_LEVERAGE" | "P3_CALIBRATION" | "P4_OPTIONAL";
+    evidence?: unknown;
   };
+}
+
+export interface PositionScheduleAllocation {
+  id: string;
+  version: string;
+  label: string;
+  kind: "HARD" | "SOFT" | "WINDOWED" | "FLOATING";
+  state: "PLANNED" | "CANCELLED";
+  startsAt: string | null;
+  endsAt: string | null;
+  windowStartsAt: string | null;
+  windowEndsAt: string | null;
+  dueAt: string | null;
+  zoneId: string;
+}
+
+export interface PositionDirectionNode {
+  id: string;
+  version: string;
+  kind: "value" | "direction" | "outcome" | "commitment" | "quest" | "plan" | "action";
+  title: string;
+  description: string | null;
+  intentState: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+  recordedAt: string;
+}
+
+export interface PositionInsight {
+  kind: "RECORDED_CONSTRAINTS" | "RECORDED_WINDOW" | "RECORDED_OVERLAP" | "FOCUS_WINDOW";
+  headline: string;
+  detail: string;
+  claimClass: "DETERMINISTIC_DERIVATION";
 }
 
 export interface InitialPositionRead {
   projection_type: "initial_position";
-  rule_version: "initial_position_v0.1";
+  rule_version: "initial_position_v0.2";
   computed_at: string;
   person: {
     display_name: string;
@@ -35,26 +67,35 @@ export interface InitialPositionRead {
     birth_place_known: boolean;
     body_baseline: "ESTABLISHED" | "PARTIAL" | "NOT_RECORDED";
   };
+  direction: {
+    current_focus: PositionDirectionNode | null;
+    active_direction_count: number;
+    note: string;
+  };
   schedule: {
     scope: PositionScheduleScope & { intervalSemantics: "[start,end)" };
+    allocations: PositionScheduleAllocation[];
     recorded_allocation_count: number;
-    next_recorded_allocation: {
-      id: string;
-      version: string;
-      label: string;
-      kind: "HARD" | "SOFT" | "WINDOWED" | "FLOATING";
-      state: "PLANNED" | "CANCELLED";
-      startsAt: string | null;
-      endsAt: string | null;
-      windowStartsAt: string | null;
-      windowEndsAt: string | null;
-      dueAt: string | null;
-      zoneId: string;
+    hard_block_count: number;
+    recorded_hard_committed_seconds: number;
+    next_recorded_allocation: PositionScheduleAllocation | null;
+    largest_between_commitment_gap: {
+      from: string;
+      to: string;
+      durationSeconds: number;
+      after: { id: string; label: string };
+      before: { id: string; label: string };
     } | null;
+    overlaps: Array<{
+      first: { id: string; label: string };
+      second: { id: string; label: string };
+      overlapSeconds: number;
+    }>;
     result_coverage: "COMPLETE" | "PARTIAL";
     epistemic_coverage: "UNKNOWN";
     note: string;
   };
+  insights: PositionInsight[];
   question_opportunities: PositionQuestionOpportunity[];
   does_not_assert: string[];
 }
