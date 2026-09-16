@@ -1,7 +1,7 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.7  
-**Status:** CANDIDATE-STABLE — Knowledge/Inquiry spine + birth-context proving slice live
+**Version:** 0.8  
+**Status:** CANDIDATE-STABLE — deterministic natal foundation + Character Creation + Schedule + Requirement contract proven
 
 Wayfinder grows through complete vertical slices. Progress is measured by how much real life the system can model, resolve, explain, and guide without weakening truth boundaries or burdening the player with unnecessary input.
 
@@ -105,8 +105,6 @@ Body owns temporal physical observations; unit normalization is deterministic de
 
 `wf_character_initialize_v0` atomically routes one player intent across Person + Body while preserving module ownership. No canonical Character table exists.
 
-Player-facing Character Creation remains deferred until the next presentation seam is ready.
-
 ## Phase 9 — Knowledge + Inquiry Acquisition Spine
 
 **Status:** ✅ EXECUTABLE FRAMEWORK / CI PASSED
@@ -140,99 +138,89 @@ canonical state
 
 There is no model-improvised fallback.
 
-No universal `wf_knowledge`, `wf_questions`, profile completeness table, or generic fact store exists.
-
 ## Phase 10 — Birth-context Knowledge proving slice
 
 **Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / CI PASSED
 
 Reference: `docs/22-birth-context-knowledge-slice-v0.1.md`, ADR-036.
 
-Live Edge Function:
-
 ```text
-birth-context
-verify_jwt = true
-```
-
-Flow:
-
-```text
-Person.birth_place_label
+Person birth facts
  -> geo.resolve_place
- -> RESOLVED | AMBIGUOUS | UNAVAILABLE
- -> prioritized player question when appropriate
+ -> ambiguity/question when required
  -> geo.resolve_timezone
  -> time.resolve_local_instant
  -> natal readiness
 ```
 
-Proven in automated tests:
-
-```text
-qualified Key West resolution
-historical UTC conversion
-place ambiguity preservation
-question prioritization
-non-nagging missing birth time
-Discovery Session questioning
-DST fold ambiguity
-provider-outage preservation
-```
-
-Current external geocoding provider is provisional and replaceable behind the capability contract.
-
-Current local-time resolver uses runtime `Intl` timezone rules; pin/version a timezone dataset before treating persisted natal geometry as perfectly reproducible.
+Missing birth time remains unknown; DST gaps/folds and provider outage are preserved instead of guessed.
 
 ## Phase 11 — Deterministic natal geometry
 
-**Status:** ← NEXT BUILD TARGET
+**Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / CI PASSED
 
-Build a deterministic, versioned ephemeris capability over resolved birth context.
+Reference: `docs/23-natal-geometry-v0.1.md`, ADR-037.
 
-Prove:
+Live capability:
 
 ```text
-UTC birth instant
-+ WGS84 coordinates
-+ ephemeris implementation/data version
- -> planetary positions
- -> Ascendant / houses when supported
- -> aspects
+astro.natal_geometry
 ```
 
-Requirements:
+Proven:
 
-- no symbolic interpretation in this phase;
-- explicit algorithm/data version;
-- missing/approximate inputs remain visible;
-- no noon defaults;
-- output is reconstructable derivation, not Person truth.
+```text
+resolved UTC birth instant
++ WGS84 coordinates
++ pinned Astronomy Engine version
+ -> Sun through Pluto geometry
+ -> Ascendant / MC / Descendant / IC
+ -> Equal + Whole Sign houses
+ -> pairwise aspect geometry
+```
 
-## Phase 12 — Character Creation UI
+No symbolic interpretation or active-orb assertion is stored as astronomical truth.
 
-**Status:** candidate after natal-readiness + deterministic natal seam
+## Phase 12 — Character Creation player experience
 
-One simple RPG-like flow may collect:
+**Status:** ✅ IMPLEMENTED / WEB CI PASSED
+
+Authenticated players without a canonical Person are routed to `/create-character` before Helm.
+
+The flow collects only:
 
 ```text
 Name
 Birth date
 Birth time optional/approximate/unknown
-Birthplace
+Birthplace optional
 Height optional
 Weight starting observation optional
 ```
 
-The frontend may feel unified while backend ownership remains separate.
+One submit uses the atomic `wf_character_initialize_v0` backend seam.
 
-No Role, XP, Level, Skill, Path, or stat self-rating.
+No Role, XP, Level, Skill, Path, stat self-rating, or giant profile questionnaire.
 
-## Phase 13 — Schedule
+## Phase 13 — Schedule v0.1
 
-**Status:** candidate
+**Status:** ✅ LIVE / DATABASE GATE PASSED
 
-Prove one planned temporal allocation while preserving planned != occurred.
+Private module:
+
+```text
+wf_schedule
+├── allocations
+└── allocation_versions
+```
+
+Public RPCs:
+
+```text
+wf_schedule_create_allocation
+wf_schedule_revise_allocation
+wf_schedule_current_v0
+```
 
 Modes:
 
@@ -243,27 +231,84 @@ WINDOWED
 FLOATING
 ```
 
-## Phase 14 — Requirements / Standards
+Schedule owns planned temporal allocation only. Passing time does not turn a Schedule record into occurrence evidence.
 
-**Status:** candidate
+Live rollback testing proved create, revise, current-head read and private-schema access denial. See `lab/schedule-live-test-v0.1.md`.
 
-Prove one timezone-correct recurring/bounded requirement with coverage-aware evaluation.
+## Phase 14 — Requirement contract v0.1
 
-Candidate states:
+**Status:** ✅ EXECUTABLE / CI PASSED
+
+Reference: `docs/24-character-schedule-requirements-v0.1.md`, ADR-038.
+
+No universal `wf_requirements` truth table exists.
+
+The owning domain supplies metric semantics; the shared runtime evaluates temporal rules:
 
 ```text
-IN_PROGRESS
-SATISFIED
-AT_RISK
-CLOSED_BELOW_TARGET
+AT_LEAST
+AT_MOST
+BETWEEN
+EXACT
+```
+
+Coverage:
+
+```text
+COMPLETE
+PARTIAL
 UNKNOWN
 ```
 
-Domains own metric semantics; no universal requirement truth store merely for convenience.
+Evaluation:
 
-## Phase 15 — Generalized Discovery
+```text
+SATISFIED
+IN_PROGRESS
+CLOSED_BELOW_TARGET
+BREACHED
+UNKNOWN
+```
 
-**Status:** candidate
+The evaluator understands monotonic proof while preserving unknowns. Example: reaching a protein minimum can be known before day close, but a closed day below the recorded target cannot be called a miss when intake coverage is incomplete.
+
+## Phase 15 — Training + Nutrition requirement proving slice
+
+**Status:** ← NEXT BUILD TARGET
+
+Build the smallest factual Training and Nutrition foundations necessary to feed real observations into the Requirement contract.
+
+Training v0 target:
+
+```text
+strength session reality
+exercise/set/load structure only as needed
+weekly strength exposure metric
+```
+
+Nutrition v0 target:
+
+```text
+intake/meal reality
+measured vs estimated nutrients
+protein aggregation
+intake coverage
+```
+
+Reference Knowledge should provide exercise/food interpretation rather than relying on unstructured model memory.
+
+First end-to-end requirements:
+
+```text
+strength sessions >= N / local week
+protein >= target grams / local day
+```
+
+The point is not to build giant fitness trackers. It is to prove that domain-owned reality + Knowledge + temporal Requirements can generate trustworthy signals for Navigator.
+
+## Phase 16 — Generalized Discovery
+
+**Status:** candidate after the first real Training/Nutrition observations
 
 Prove:
 
@@ -278,11 +323,11 @@ source
 
 Prefer transient candidates until durable queues/conflict workflows earn persistence.
 
-## Phase 16 — Navigator active-learning loop
+## Phase 17 — Navigator temporal active-learning loop
 
 **Status:** candidate
 
-Prove bounded context assembly plus:
+Combine bounded context from Direction + Schedule + real Requirement evaluations and classify:
 
 ```text
 KNOWN
@@ -294,15 +339,22 @@ MISSING-BUT-IMPORTANT
 
 Navigator should answer the supported portion first, then ask the smallest high-value question when needed.
 
-## Phase 17 — Position + relevance-driven Helm
+## Phase 18 — Position + relevance-driven Helm
 
 **Status:** candidate
 
-Compose “Where am I?” from proven domains and only surface information that matters now.
+Compose “Where am I?” from proven domains and surface only what matters now, for example:
+
+```text
+next hard commitment
+meaningful open window
+one weekly training exposure remaining
+recorded protein below target but coverage incomplete
+```
 
 Home remains a relevance projection, not a dashboard.
 
-## Phase 18 — Inventory + Effective Capability
+## Phase 19 — Inventory + Effective Capability
 
 **Status:** candidate
 
@@ -322,39 +374,15 @@ Support BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, SYNERGY.
 
 Gear does not permanently manufacture mastery.
 
-## Phase 19 — Skill + Role projections
+## Phase 20 — Skill + Role projections
 
 **Status:** candidate
 
 Infer one narrow Skill from evidence and one higher-order Role pattern. Preserve lineage, uncertainty, recency, and base-vs-effective capability separation.
 
-## Phase 20 — Training + Nutrition
+## Phase 21 — Cross-domain strength / growth analysis
 
-**Status:** candidate
-
-Add distinct factual domains once their semantics are needed.
-
-Training reference knowledge:
-
-```text
-exercise
-movement family
-muscles
-variants
-equipment requirements
-```
-
-Nutrition reference knowledge:
-
-```text
-foods
-serving units
-energy/macros/micros
-source quality
-measured vs estimated resolution
-```
-
-Then prove cross-domain growth:
+**Status:** candidate after Training + Nutrition baseline
 
 ```text
 Training
@@ -368,19 +396,6 @@ Training
 
 Avoid unjustified causal certainty.
 
-## Phase 21 — Recurring minimums / macros / strength guidance
-
-**Status:** candidate after Training + Nutrition
-
-Prove examples such as:
-
-```text
-protein >= target / local day
-strength exposure >= target / week
-```
-
-Incomplete logging never means unrecorded intake/activity was zero.
-
 ## Phase 22 — Daily / Weekly Review
 
 **Status:** candidate
@@ -389,9 +404,11 @@ Reviews remain projections by default.
 
 System Review != player-authored Reflection.
 
-## Phase 23 — Symbolic astrology
+## Phase 23 — Symbolic guidance
 
-**Status:** candidate after deterministic chart + grounded life context
+**Status:** candidate after grounded life context
+
+Astrology:
 
 ```text
 canonical birth facts
@@ -400,7 +417,16 @@ canonical birth facts
  -> clearly labeled interpretation
 ```
 
-Astrology may enrich Navigator guidance but must never masquerade as empirical personal truth or crowd out more relevant grounded information.
+Tarot may later join the same symbolic/reflection family:
+
+```text
+recorded draw
++ versioned card/spread knowledge
+ -> symbolic interpretation
+ -> player-authored reflection when it resonates
+```
+
+Neither astrology nor tarot may masquerade as empirical player truth or crowd out more relevant grounded information.
 
 ## Phase 24 — Expand real-life domains under pressure
 
@@ -430,7 +456,7 @@ Do not prematurely build:
 - persistent question backlog merely because questions exist;
 - vector database merely because Knowledge exists;
 - autonomous AI canonical writes;
-- astrology interpretations as facts;
+- astrology/tarot interpretations as facts;
 - calendar entries as occurrence evidence;
 - incomplete macro logs as zero intake;
 - broad frontend forms;
