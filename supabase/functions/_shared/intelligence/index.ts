@@ -6,3 +6,5 @@ export * from "./acquisition-router.ts";
 export * from "./geo-open-meteo.ts";
 export * from "./local-time-resolver.ts";
 export * from "./birth-context-service.ts";
+export * from "./natal-geometry.ts";
+export * from "./natal-geometry-service.ts";
