@@ -1,6 +1,6 @@
 # Wayfinder Deterministic Natal Geometry v0.1
 
-**Status:** IMPLEMENTED / CI GATE PASSED — deployment pending final promotion from build branch
+**Status:** ✅ LIVE / CI GATE PASSED / EDGE DEPLOYED
 
 ## Purpose
 
@@ -32,6 +32,13 @@ MIT license
 ```
 
 The implementation is pinned by version. Provider identity is separate from capability identity so a future calculator can be substituted without changing the contract.
+
+Live Edge Function:
+
+```text
+natal-geometry
+verify_jwt: true
+```
 
 ## Input contract
 
