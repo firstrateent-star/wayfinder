@@ -1,9 +1,9 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.5  
-**Status:** CANDIDATE — Person/Temporal/Body live; Character Creation orchestration next
+**Version:** 0.6  
+**Status:** CANDIDATE — Person/Temporal/Body + Character Initialization live; Knowledge/Inquiry spine is current build target
 
-The roadmap prioritizes architectural leverage, complete vertical slices, real evidence, and low player burden over feature count or screen count.
+The roadmap prioritizes architectural leverage, complete vertical slices, real evidence, low player burden, and clear information ownership over feature count or screen count.
 
 ## Phase 0 — Foundation
 
@@ -66,11 +66,14 @@ Normal player mode is intentionally quiet/read-only.
 
 No manual Practice/Direction/Evidence/correction inputs are part of normal player mode.
 
-## Phase 5 — Mature Life RPG architectural freeze
+## Phase 5 — Mature Life RPG architectural grammar
 
-**Status: CANDIDATE-STABLE target / recursively active**
+**Status: CANDIDATE-STABLE / recursively active**
 
-Reference: `docs/18-mature-life-rpg-architecture-v0.2.md`.
+References:
+- `docs/18-mature-life-rpg-architecture-v0.2.md`
+- `docs/20-knowledge-and-home-surface-v0.1.md`
+- `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`
 
 Current high-leverage laws:
 
@@ -83,12 +86,16 @@ Current high-leverage laws:
 - RPG mechanics are projections by default;
 - inventory modifies effective capability, not permanent base mastery;
 - Discovery routes candidate facts through owning modules;
-- Navigator questions are information-need driven;
+- Reference Knowledge is separate from Player Reality;
+- Navigator questions are derived from structured Information Needs;
+- an Information Need should use the correct resolver before bothering the player;
+- questions require a legitimate destination, derived use, or explicit session-only purpose;
 - astrology = canonical birth facts + deterministic calculation + symbolic interpretation;
 - Owner, Person, Body, and Character are distinct concepts;
-- no universal life/facts table.
+- Home/Helm is a relevance projection, not a widget dashboard;
+- no universal life/facts/profile table.
 
-ADR-030 through ADR-032 capture the strongest durable decisions.
+ADR-030 through ADR-035 capture the strongest durable decisions.
 
 ## Phase 6 — Person + shared temporal contracts
 
@@ -112,11 +119,7 @@ wf_person_current_v0
 
 Person owns only preferred identity and stable/correctable birth/origin facts.
 
-The temporal kernel now proves local-day scope across DST instead of assuming every day is 24 elapsed hours.
-
-Live rollback testing proved retry safety, semantic NOOP, exact correction lineage, stale-version rejection, private-schema denial, and deferred-head integrity.
-
-Reference: `docs/19-person-temporal-body-v0.1.md`.
+The temporal kernel proves local-day scope across DST instead of assuming every day is 24 elapsed hours.
 
 ## Phase 7 — Body asymmetric slice
 
@@ -144,66 +147,101 @@ wf_body_correct_measurement
 wf_body_current_v0
 ```
 
-Proven:
-
-```text
-measurement
- -> source quantity/unit
- -> observed time
- -> exact version/correction lineage
- -> deterministic unit normalization
- -> latest-recorded Body read
- -> explicit epistemic limits
-```
-
 Height/weight are temporal Body facts, not Person columns.
 
-Reference: `lab/person-temporal-body-live-test-v0.1.md`.
+## Phase 8 — Character Creation backend orchestration
 
-## Phase 8 — Character Creation orchestration
+**Status: ✅ LIVE / ATOMICITY GATE PASSED**
 
-**Status: ← CURRENT DESIGN / BUILD TARGET**
+Public orchestration RPC:
 
-The player should experience Character Creation as a simple RPG-like beginning while the backend preserves distinct owners:
+```text
+wf_character_initialize_v0
+```
+
+One player-facing Character Creation intent can atomically route:
 
 ```text
 Name / birth facts -> Person
 Height / weight    -> Body
-Home Base          -> World only after World exists; otherwise defer
 ```
 
-No Role, XP, Level, Skill, Path, or stat inputs.
+without creating a canonical Character table or collapsing module ownership.
 
-### Gate before UI exposure
+Live rollback testing proved all-or-nothing initialization, retry safety, no duplicate creation, and correlated module changes.
 
-The next Flower must resolve transaction truth.
+**Player-facing UI remains intentionally deferred.** Home Base remains deferred until World earns a canonical owner.
 
-If the player experiences initial creation as one indivisible save, then a Person write plus required initial Body measurements cannot be several unrelated client commits that may leave a misleading half-created Character.
+## Phase 9 — Knowledge + Inquiry acquisition spine
 
-Choose and prove one of two semantics:
+**Status: ← CURRENT BUILD TARGET**
+
+Reference: `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md` and ADR-035.
+
+Build the minimum cross-domain intelligence contracts before broad domain expansion:
 
 ```text
-A. ATOMIC INITIAL CAPTURE
-   one authoritative orchestration boundary commits the required cross-module state together
-
-B. EXPLICITLY RESUMABLE CAPTURE
-   partial completion is first-class, visible, safe to retry, and never presented as complete
+KnowledgeQuery / KnowledgeResolution
+Knowledge provider registry + readiness
+InformationNeed
+QuestionOpportunity
+Question priority classes
+Information Resolution Router
+source/answer provenance handoff
+bounded context handoff
+relevance handoff to Helm/Navigator
 ```
 
-Do not let frontend convenience choose this implicitly.
+Resolution law:
 
-Only after this boundary passes stress testing should the player-facing Character Creation screen be exposed.
+```text
+canonical player read
+ -> deterministic derivation
+ -> trusted reference knowledge
+ -> live external context when materially needed
+ -> player question when appropriate
+ -> preserve unknown
+```
 
-## Phase 9 — Deterministic natal calculation
+No model-improvised fallback.
 
-**Status: candidate after Character Creation contract**
+Do not create a universal `wf_knowledge`, `wf_questions`, or profile-completion schema yet.
 
-Once birth facts exist, prove:
+## Phase 10 — Birth-context Knowledge proving slice
+
+**Status: candidate immediately after Phase 9 contracts**
+
+Use astrology readiness as the first executable Knowledge + Question Planner slice.
+
+Prove:
+
+```text
+Person.birth_place_label
+ -> geo.resolve_place
+ -> resolved coordinates/place OR ambiguity
+
+resolved coordinates + local birth datetime
+ -> geo.resolve_timezone
+ -> IANA timezone / historical temporal context
+
+resolved context
+ -> natal readiness
+```
+
+Ambiguity should become an Information Need and only become a player question when precise natal computation materially requires resolution.
+
+Missing birth time remains unknown unless chart features requiring it are requested or the player enters an opt-in Discovery Session.
+
+## Phase 11 — Deterministic natal calculation
+
+**Status: candidate**
+
+Once birth context is resolved, prove:
 
 ```text
 birth date/time/place
- -> resolved geographic coordinates/timezone where required
- -> ephemeris/version
+ -> resolved geographic/time context
+ -> ephemeris implementation + version
  -> planetary positions
  -> houses/aspects where inputs allow
  -> reconstructable natal geometry
@@ -211,15 +249,25 @@ birth date/time/place
 
 No symbolic interpretation is required to pass this phase.
 
-The calculator must expose missing-input limitations rather than fabricating Ascendant/houses when birth time or location resolution is insufficient.
+The calculator must expose missing-input limitations rather than fabricate Ascendant/houses when birth time or location resolution is insufficient.
 
-## Phase 10 — Schedule slice
+## Phase 12 — Character Creation player experience
+
+**Status: candidate after Knowledge/natal readiness seam**
+
+Expose a simple RPG-like beginning that uses the already-proven atomic backend and can intelligently handle birth-context ambiguity.
+
+Do not ask for Role, XP, Level, Skill, Path, stat self-ratings, or broad profile questionnaires.
+
+Character Creation establishes the person. Later life evidence and selective Navigator inquiry reveal the character.
+
+## Phase 13 — Schedule slice
 
 **Status: candidate**
 
 Prove one scheduled allocation and preserve planned != occurred.
 
-Support the conceptual planning modes:
+Support:
 
 ```text
 HARD
@@ -230,7 +278,7 @@ FLOATING
 
 A Schedule allocation may reference another record but does not own the referenced Action/Quest/activity and does not prove it happened.
 
-## Phase 11 — Requirement / Standard contract
+## Phase 14 — Requirement / Standard contract
 
 **Status: candidate**
 
@@ -256,14 +304,14 @@ UNKNOWN
 
 Do not create a universal requirements truth store merely for convenience; let domains own/evaluate their metrics through a shared contract.
 
-## Phase 12 — Discovery contract
+## Phase 15 — Generalized Discovery / source interpretation
 
 **Status: candidate**
 
-Prove:
+Generalize the first structured answer/source path into:
 
 ```text
-source/conversation
+source/conversation/connector
  -> candidate
  -> provenance
  -> reconciliation
@@ -273,35 +321,53 @@ source/conversation
 
 Prefer transient candidates until real asynchronous/conflict/review pressure proves durable candidate persistence is necessary.
 
-## Phase 13 — Navigator information-need loop
+## Phase 16 — Navigator information-need loop
 
 **Status: candidate**
 
-Navigator should prove:
+Prove full generalized behavior:
 - bounded context assembly;
 - KNOWN / INFERRED / CONFLICTING / UNKNOWN / MISSING-BUT-IMPORTANT separation;
+- resolver selection before player questioning;
 - supported answer first;
 - one high-value question only when useful;
+- P0/P1/P2/P3/P4 priority behavior;
 - source-aware interpretation of the answer;
+- question destination/purpose validation;
 - proposal separate from command;
 - authorization before consequential canonical mutation;
-- lineage explanation.
+- lineage explanation;
+- question cooldown / non-nagging behavior;
+- opt-in adaptive Discovery Session.
 
-## Phase 14 — Position v0
+## Phase 17 — Position v0 + Helm relevance router
 
-Compose the first useful read-only Position answer to “Where am I?” from the smallest proven set of sources:
+Compose the first useful read-only Position answer to “Where am I?” from the smallest proven set of sources.
 
+Candidate inputs:
 - Person;
 - current Direction;
 - Schedule pressure;
 - Requirement state;
 - Body/current capacity where known;
 - recent Activity;
-- important unknowns.
+- important unknowns;
+- one materially relevant Navigator question if warranted.
 
 Do not make Position a canonical table.
 
-## Phase 15 — Inventory + effective capability
+Helm remains sparse:
+
+```text
+POSITION
+ATTENTION
+NEXT WINDOW / MOVE
+NAVIGATOR
+```
+
+Any section may be absent.
+
+## Phase 18 — Inventory + effective capability
 
 **Status: candidate**
 
@@ -309,7 +375,7 @@ Prove one real item and one explainable modifier:
 
 ```text
 item ownership/access
- -> capability metadata
+ -> reference capability resolution
  -> available/equipped/in-use relation
  -> loadout/context
  -> effective capability change
@@ -319,7 +385,7 @@ Support explainable modifier semantics such as BOOST, GATE, UNLOCK, REDUCER, CON
 
 Ownership alone must not create permanent Skill/Mastery growth.
 
-## Phase 16 — Skill + Role projections
+## Phase 19 — Skill + Role projections
 
 Infer one narrow skill family from evidence, then one higher-order Role pattern.
 
@@ -327,15 +393,23 @@ Prove:
 - evidence lineage;
 - uncertainty;
 - recency/frequency/depth effects;
+- reference skill knowledge without rigid universal taxonomy;
 - explainability;
 - separation of base capability from equipment/context;
 - no user-entered levels required.
 
-## Phase 17 — Training + Nutrition
+## Phase 20 — Training + Nutrition
 
 Add Training and Nutrition as distinct factual modules once their semantics are needed.
 
-Training proves exercise/workout structure. Nutrition proves meals/intake/quantity and estimated-vs-measured nutrient semantics.
+Knowledge Engine responsibilities include:
+
+```text
+Training -> exercise/movement/equipment reference knowledge + versioned guidance
+Nutrition -> food/nutrient reference data + versioned guidance
+```
+
+Player canonical state remains the actual workouts/meals/intake.
 
 Then prove one cross-domain growth question:
 
@@ -351,7 +425,7 @@ Training
 
 Avoid unjustified causal certainty.
 
-## Phase 18 — Daily / Weekly Review + temporal guidance
+## Phase 21 — Daily / Weekly Review + temporal guidance
 
 Reviews remain projections by default.
 
@@ -361,17 +435,18 @@ Prove:
 - schedule pressure;
 - quest movement;
 - current unknowns;
-- what matters next.
+- what matters next;
+- selective question opportunities rather than review questionnaires.
 
 System Review != user-authored Reflection.
 
-## Phase 19 — Symbolic astrology guidance
+## Phase 22 — Symbolic astrology guidance
 
 Once natal calculation and grounded life context are stable, add clearly labeled symbolic interpretation and transit guidance.
 
 Navigator may combine practical guidance with the astrology lens while preserving the authority distinction.
 
-## Phase 20 — Expand domains under pressure
+## Phase 23 — Expand domains under pressure
 
 Admit new modules only when distinct factual semantics demand them:
 - Finance;
@@ -382,6 +457,8 @@ Admit new modules only when distinct factual semantics demand them:
 - additional domain-specific Requirements;
 - other real-life areas proven through use.
 
+Every new domain should reuse the same Knowledge/Inquiry/Discovery/Guidance seams rather than inventing its own AI behavior.
+
 ## Deferred until architecture earns them
 
 - permanent XP ledger;
@@ -391,10 +468,15 @@ Admit new modules only when distinct factual semantics demand them:
 - autonomous canonical AI writes;
 - arbitrary gear-score persistence;
 - universal life-events/facts table;
+- universal profile/preferences blob;
+- profile-completeness percentage;
 - astrology interpretations stored as facts;
 - broad frontend forms;
 - universal Journey event table;
 - giant persistent Discovery inbox without real reconciliation pressure;
+- giant persistent Question queue without real cross-session pressure;
+- universal Knowledge database before provider-specific needs prove it;
+- vector database as a default solution for structured reference facts;
 - speculative empty schemas.
 
 ## Build discipline
@@ -405,16 +487,20 @@ For every expansion:
 2. identify the real-world phenomenon;
 3. classify it as recorded reality, deterministic derivation, intelligent inference, or symbolic interpretation;
 4. decide whether a new canonical owner is actually required;
-5. prefer reconstructable projections over duplicated state;
-6. preserve time/provenance/coverage/uncertainty;
-7. define Discovery recognition;
-8. define Schedule/Requirement semantics if relevant;
-9. define base vs effective capability effects;
-10. define what Navigator may say/ask/propose;
-11. define atomic vs resumable semantics for any multi-module user intent;
-12. implement one end-to-end slice;
-13. stress invariants and complements;
-14. observe real use;
-15. promote, adapt, or reject assumptions.
+5. identify whether missing information belongs to Player Reality, Knowledge, Live Context, or preserved uncertainty;
+6. choose the correct resolver before considering a player question;
+7. if asking, define the answer destination/derived use/session-only purpose;
+8. prefer reconstructable projections over duplicated state;
+9. preserve time/provenance/coverage/uncertainty;
+10. define Discovery recognition;
+11. define Schedule/Requirement semantics if relevant;
+12. define base vs effective capability effects;
+13. define what Navigator may say/ask/propose;
+14. define atomic vs resumable semantics for any multi-module user intent;
+15. define Helm relevance/expiry rather than adding a permanent widget;
+16. implement one end-to-end slice;
+17. stress invariants, complements, ambiguity, provider failure, and missing data;
+18. observe real use;
+19. promote, adapt, or reject assumptions.
 
-The measure of progress is how much real life Wayfinder can correctly model, discover, evaluate, explain, and guide while asking less of the player — not the number of screens, tables, integrations, or RPG mechanics.
+The measure of progress is how much real life Wayfinder can correctly model, resolve, discover, evaluate, explain, and guide while asking less of the player — not the number of screens, tables, integrations, questions, knowledge entries, or RPG mechanics.
