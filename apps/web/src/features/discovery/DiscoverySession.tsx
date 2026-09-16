@@ -129,7 +129,7 @@ export function DiscoverySession({ question, knownScheduleCount, scope, onSaved,
           <div className="mt-5 flex flex-wrap gap-3">
             <Button onClick={() => setStep("LABEL")}>Yes, something is fixed</Button>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setDeclined(true);
                 setStep("DONE");
@@ -210,7 +210,7 @@ export function DiscoverySession({ question, knownScheduleCount, scope, onSaved,
               ? "This gives Navigator one real constraint to reason around. Whether it actually occurs remains a separate question for Reality."
               : "Unknown stays unknown. Wayfinder can ask something else later when another answer has enough value to justify the interruption."}
           </p>
-          <Button variant="outline" className="mt-5" onClick={onClose}>Return to Helm</Button>
+          <Button variant="secondary" className="mt-5" onClick={onClose}>Return to Helm</Button>
         </div>
       ) : null}
     </div>
