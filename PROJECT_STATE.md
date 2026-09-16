@@ -1,20 +1,20 @@
 # Wayfinder — Project State / Chat Recovery
 
 **Repository:** `firstrateent-star/wayfinder`  
-**Current milestone:** proven Slice 1A + live Person/Temporal/Body + atomic Character Initialization v0.1  
-**Current phase:** Knowledge Engine contract + deterministic natal-readiness seam; player shell remains quiet/relevance-driven  
-**Canon:** `docs/CANON.md` + later addenda/ADRs  
+**Current milestone:** Knowledge/Inquiry spine + birth-context proving slice live  
+**Current phase:** deterministic natal geometry next; player shell remains quiet/relevance-driven  
+**Current roadmap:** `docs/06-build-roadmap.md` v0.7  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
-**Live Person/Body:** `docs/19-person-temporal-body-v0.1.md`  
-**Knowledge/Home contract:** `docs/20-knowledge-and-home-surface-v0.1.md`  
-**Latest ADR:** `decisions/ADR-034-reference-knowledge-and-helm-relevance-are-separate-from-player-canonical-state.md`  
-**Latest live test:** `lab/character-initialization-atomic-live-test-v0.1.md`
+**Knowledge/Home:** `docs/20-knowledge-and-home-surface-v0.1.md`  
+**Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
+**Birth-context slice:** `docs/22-birth-context-knowledge-slice-v0.1.md`  
+**Latest ADR:** `decisions/ADR-036-birth-context-is-derived-through-knowledge-resolution.md`
 
 ## Non-negotiable direction
 
-Wayfinder is being rebuilt from the ground up using the newer Vlourish / Flower architecture. Old Wayfinder code is research evidence only; do not merge or migrate it into this architecture.
+Wayfinder is being rebuilt from the ground up using the newer Vlourish / Flower architecture. Old Wayfinder code is research evidence only; do not merge/migrate it into this architecture.
 
-Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a representation of evidence-backed lived reality, not the source of truth.
+Wayfinder is a personal Life OS expressed as a Life RPG. The RPG represents evidence-backed lived reality; it is not the source of truth.
 
 Core laws:
 
@@ -27,56 +27,59 @@ Core laws:
 - important conclusions expose lineage;
 - history is preserved while interpretation can evolve;
 - occurred, recorded, planned, scheduled, due, and valid time are distinct;
-- one indivisible user save should use one authoritative transaction when partial commit would violate intent;
-- **complex underneath, quiet on the player surface**;
-- **the player should not have to manually model their life**;
-- **RPG mechanics are projections by default**;
-- **equipment modifies effective state, not permanent base mastery**;
-- **Navigator asks questions only when missing information materially matters**;
-- **astrology is symbolic guidance over deterministic chart calculation, not canonical empirical truth**;
-- **Schedule owns planned time allocation, not occurrence**;
-- **Requirements/standards are distinct from goals and schedules and must be coverage-aware**;
-- **Owner/auth identity, Person identity, Body observations, and Character projection remain distinct**;
-- **an indivisible cross-module player intent may use System orchestration over module-owned commands in one database transaction; domains still do not directly write each other's canonical tables**;
-- **Reference Knowledge is separate from Player Reality**;
-- **the language model is a reasoner/interface, not the authoritative encyclopedia**;
-- **a domain earns canonical storage through distinct truth semantics; an item earns Helm visibility through current relevance**.
+- complex underneath, quiet on the player surface;
+- the player should not have to manually model their life;
+- RPG mechanics are projections by default;
+- equipment modifies effective state, not permanent base mastery;
+- Navigator asks questions only when missing information materially matters;
+- astrology is symbolic guidance over deterministic chart calculation, not canonical empirical truth;
+- Schedule owns planned temporal allocation, not occurrence;
+- Requirement/Standard is distinct from Goal and Schedule;
+- Owner/auth identity, Person identity, Body observations, and Character projection are distinct;
+- Reference Knowledge is separate from Player Reality;
+- the language model is a reasoner/interface, not the authoritative encyclopedia;
+- available information does not automatically deserve Home visibility;
+- information gaps resolve through typed resolvers before asking the player;
+- no model-improvised fallback when a resolver cannot establish an answer.
 
-## Mature conceptual architecture
+## Mature architecture
 
 ```text
-PERSON
-  |
-  v
-TIME / TEMPORAL KERNEL
-  |
-  +--> REALITY ENGINE
-  +--> DIRECTION ENGINE
-  +--> SOURCE ENGINE
-            |
-            v
-       DISCOVERY ENGINE
-            ^
-            |
-       KNOWLEDGE ENGINE
-   reference / guidance / live context
-            |
-            v
-        GUIDANCE ENGINE
-            |
-            v
-          GAME ENGINE
-            |
-            v
-         NAVIGATOR
-            |
-            v
-          PERSON
+TIME
+ |
+ +--> CANONICAL PLAYER PLANE
+ |      System / Person / Body / Direction / Practice / ...
+ |
+ +--> KNOWLEDGE PLANE
+ |      deterministic / reference / guidance / live external
+ |
+ +--> ACQUISITION + INQUIRY
+ |      InformationNeed / resolver routing / QuestionPlanner
+ |
+ +--> INTELLIGENCE + GUIDANCE
+ |      Discovery / Position / Schedule / Requirements / Growth
+ |
+ +--> GAME / PROJECTION
+ |      Character / Skills / Role / XP / Stats / Stamina / ...
+ |
+ +--> EXPERIENCE
+        Helm / Navigator / Character / Quests / Calendar / Atlas
 ```
 
-Knowledge is not another player-life database. It provides deterministic/reference/domain/live context used to resolve and interpret player reality.
+Cross-cutting:
 
-## Four epistemic layers
+```text
+Time
+Provenance
+Authority
+Coverage
+Uncertainty
+Freshness
+Permissions
+Lineage
+```
+
+Four epistemic layers:
 
 ```text
 1. RECORDED REALITY
@@ -85,64 +88,13 @@ Knowledge is not another player-life database. It provides deterministic/referen
 4. SYMBOLIC INTERPRETATION
 ```
 
-Examples:
+A lower-authority layer must never masquerade as a higher-authority layer.
 
-- weight observation: Recorded Reality;
-- unit normalization / natal geometry: Deterministic Derivation;
-- recovery estimate / skill level / role: Intelligent Inference;
-- astrology/archetype/RPG narrative: Symbolic Interpretation.
-
-A lower-authority layer must not masquerade as a higher-authority layer.
-
-## Knowledge Engine contract — CANDIDATE-STABLE
-
-Keep four information classes distinct:
-
-```text
-PERSONAL REALITY
-What is recorded about the player?
-
-REFERENCE KNOWLEDGE
-What does Wayfinder know about the domain?
-
-LIVE EXTERNAL CONTEXT
-What is true outside the player right now?
-
-AI INFERENCE
-What may be concluded from those inputs?
-```
-
-Knowledge source classes:
-
-```text
-DETERMINISTIC
-REFERENCE_DATA
-GUIDANCE
-LIVE_EXTERNAL
-```
-
-Examples:
-
-```text
-Workout performed                    -> Player Training reality
-Exercise muscle/movement definition  -> Reference knowledge
-Gym hours tonight                    -> Live external context
-Training-balance interpretation      -> Intelligent inference
-```
-
-Do not mix global/reference knowledge into canonical player schemas merely because it is relevant.
-
-Prefer local/versioned reference resolution over web retrieval when enough. Retrieve live external knowledge only when current context materially changes the answer.
-
-Meaningful knowledge resolution should retain source/version/effective time/authority or confidence/lineage where applicable.
-
-Reference: `docs/20-knowledge-and-home-surface-v0.1.md` and ADR-034.
-
-## Current deployed backend
+## Current deployed canonical backend
 
 Supabase project ref: `ngakauhlcmvwnmimtsca`.
 
-Private Wayfinder schemas:
+Private schemas:
 
 ```text
 wf_system
@@ -153,7 +105,7 @@ wf_evidence
 wf_body
 ```
 
-Current canonical tables:
+Canonical tables:
 
 ```text
 wf_system
@@ -183,36 +135,31 @@ wf_body
 └── measurement_versions
 ```
 
-Authenticated clients use typed public RPCs. Private canonical schemas/tables remain inaccessible directly to `anon` / `authenticated`.
+Authenticated clients use narrow public typed RPCs; private canonical schemas remain inaccessible directly to `anon` / `authenticated`.
 
-## Proven foundation retained from Slice 1A
+## Proven substrate
 
 Still valid:
 
-- owner identity + bootstrap;
-- command envelope/idempotency + canonical hashing;
-- private module schemas;
-- exact-version Evidence lineage;
-- versioned correction + stale-write rejection;
-- result vs epistemic coverage;
-- projection/read seam;
-- occurred vs recorded time;
+- owner bootstrap and auth scope;
+- idempotent command runtime;
+- private module boundaries;
+- exact-version lineage;
+- correction/supersession with stale-write rejection;
 - transactional ModuleChange outbox;
-- frontend direct-table guard;
-- deferred version-head integrity with SECURITY DEFINER where required.
+- result coverage vs epistemic coverage;
+- occurred vs recorded time;
+- public read/projection seam;
+- frontend private-table guard;
+- deferred version-head integrity.
 
-Existing Direction / Practice / Evidence / Helm / Journey remain architectural evidence even though Player Mode is intentionally sparse.
+Direction / Practice / Evidence / Helm / Journey remain proof infrastructure even though normal Player Mode is intentionally sparse.
 
-## Person v0.1 — ✅ LIVE / GATE PASSED
+## Person + Temporal Kernel — ✅ LIVE
 
-Person is distinct from owner/auth identity.
+Person is distinct from owner/auth scope.
 
-```text
-Owner  -> authorization/account scope
-Person -> modeled human subject
-```
-
-Canonical Person owns:
+Canonical Person currently owns:
 
 ```text
 display/preferred name
@@ -222,9 +169,9 @@ birth-time accuracy?  EXACT | APPROXIMATE
 birth-place label?
 ```
 
-It does not own Body, Role, Skill, XP, finances, current location, Direction, or astrology interpretation.
+Person does not own Body, Role, Skill, XP, finances, current location, astrology interpretation, coordinates, or timezone reference data.
 
-Public RPCs:
+Public Person RPCs:
 
 ```text
 wf_person_create
@@ -232,19 +179,13 @@ wf_person_update_profile
 wf_person_current_v0
 ```
 
-Live rollback testing passed retry, NOOP, exact correction lineage, stale rejection, future-date validation, private-schema denial, and deferred-head integrity.
-
-## Temporal Kernel v0.1 — ✅ LIVE / GATE PASSED
-
-Private helper:
+Temporal helper:
 
 ```text
 wf_system.local_day_bounds(local_date, zone_id)
 ```
 
-Resolves a local calendar day to the real half-open UTC interval `[start,end)`.
-
-`America/New_York` live validation:
+DST proof for `America/New_York`:
 
 ```text
 2026-03-08 -> 23h
@@ -252,9 +193,7 @@ Resolves a local calendar day to the real half-open UTC interval `[start,end)`.
 2026-11-01 -> 25h
 ```
 
-This is the base for timezone-correct recurring Requirements and Schedule evaluation.
-
-## Body v0.1 — ✅ LIVE / GATE PASSED
+## Body v0.1 — ✅ LIVE
 
 Canonical metrics:
 
@@ -263,16 +202,7 @@ height
 weight
 ```
 
-These are temporal Body measurements, not Person profile columns.
-
-Canonical source payload preserves reported quantity/unit + observed time. Cross-unit normalization is deterministic derivation.
-
-Supported canonical units:
-
-```text
-height: cm | m | in
-weight: kg | lb
-```
+Height/weight are temporal Body observations, not Person profile columns.
 
 Public RPCs:
 
@@ -282,95 +212,263 @@ wf_body_correct_measurement
 wf_body_current_v0
 ```
 
-Live rollback testing passed capture, alias normalization, deterministic conversion, retry, metric/unit validation, correction lineage, stale rejection, current read, private-schema denial, and deferred-head integrity.
+Unit normalization is deterministic derivation; latest recorded observation != perfect current physical truth.
 
-`wf_body_current_v0()` means latest recorded observation, not perfect current physical truth.
-
-## Atomic Character Initialization v0.1 — ✅ LIVE / GATE PASSED
+## Atomic Character Initialization — ✅ LIVE
 
 Public orchestration RPC:
 
 ```text
-wf_character_initialize_v0(...)
+wf_character_initialize_v0
 ```
 
-Character is **not** persisted. The orchestration routes:
+Routes one indivisible player intent:
 
 ```text
-name / birth facts -> Person command
-height             -> Body command (optional)
-weight             -> Body command (optional)
+name / birth facts -> Person
+height             -> Body optional
+weight             -> Body optional
 ```
 
-The outer player intent is atomic because the current one-screen Character Creation concept is indivisible from the player's perspective.
+All required child writes commit or roll back together. Character is still not a canonical table.
 
-Implementation law:
+## Knowledge + Inquiry Acquisition Spine — ✅ EXECUTABLE / CI PASSED
+
+Shared runtime:
 
 ```text
-outer command receipt
-      |
-      v
-System/application orchestrator
-      |
-      +--> Person command
-      +--> Body height command
-      +--> Body weight command
-      |
- one Postgres child subtransaction
-      |
-  all commit
-      or
-  all rollback
+supabase/functions/_shared/intelligence/
+├── contracts.ts
+├── knowledge-registry.ts
+├── knowledge-router.ts
+├── acquisition-router.ts
+├── question-planner.ts
+├── geo-open-meteo.ts
+├── local-time-resolver.ts
+└── birth-context-service.ts
 ```
 
-Domains retain canonical ownership; the orchestrator does not create a Character table and does not give Person authority over Body.
+Core resolution order:
 
-Child `ModuleChange` rows remain module-owned and receive the outer command id as `correlation_id`.
+```text
+canonical state
+ -> deterministic derivation
+ -> trusted reference knowledge
+ -> live external context when materially needed
+ -> player question when appropriate
+ -> preserve unknown
+```
 
-Live rollback stress test proved:
+There is no LLM-guess fallback.
 
-- deliberately invalid Body child after valid Person child caused full child rollback;
-- after rejection, Person read remained null and Body read remained null;
-- valid initialization created exactly 1 Person + 2 Body measurements;
-- outer response returned 3 affected refs;
-- exact outer command retry returned `APPLIED` with `replayed=true` and no duplicate writes;
-- a new initialization command after success returned `CHARACTER_ALREADY_INITIALIZED`;
-- 3 module-owned changes were correlated to the outer command;
-- deferred constraints passed;
-- rollback left zero synthetic Person/Body rows.
+Question Planner uses structured Information Needs, not blank profile fields.
 
-Reference: `decisions/ADR-033-indivisible-cross-module-player-intents-use-atomic-orchestration.md`.
+Priority classes:
+
+```text
+P0_BLOCKING
+P1_HIGH_IMPACT
+P2_HIGH_LEVERAGE
+P3_CALIBRATION
+P4_OPTIONAL
+```
+
+Ranking can consider uncertainty reduction, current relevance, decision impact, cross-domain leverage, future reuse, freshness, conflict resolution, deadline/requirement impact, answerability, user burden, sensitivity, interruption cost, redundancy and repetition.
+
+Normal mode has a low question budget. Discovery Session may ask broader/high-leverage questions adaptively.
+
+Do not persist a universal question backlog merely because the runtime can create Information Needs.
+
+## Birth Context Knowledge slice — ✅ LIVE / CI PASSED
+
+Live Supabase Edge Function:
+
+```text
+birth-context
+version: 1
+verify_jwt: true
+status: ACTIVE
+```
+
+Path:
+
+```text
+Person birth facts
+ -> geo.resolve_place
+ -> RESOLVED | AMBIGUOUS | UNAVAILABLE
+ -> Question Planner when player clarification is appropriate
+ -> geo.resolve_timezone
+ -> time.resolve_local_instant
+ -> natal readiness
+```
+
+Current capabilities:
+
+```text
+geo.resolve_place
+geo.resolve_timezone
+time.resolve_local_instant
+```
+
+Current place provider:
+
+```text
+geo.open_meteo
+```
+
+This provider is provisional/replaceable behind the capability contract. Open-Meteo geocoding provides WGS84 coordinates and IANA timezone reference data where available.
+
+Current local-time provider:
+
+```text
+time.intl_local_instant
+```
+
+It preserves DST gaps/folds rather than guessing.
+
+Natal readiness states:
+
+```text
+NO_PERSON
+MISSING_BIRTH_DATE
+MISSING_BIRTH_PLACE
+AMBIGUOUS_BIRTH_PLACE
+PLACE_RESOLUTION_UNAVAILABLE
+TIMEZONE_RESOLUTION_UNAVAILABLE
+READY_FOR_TIME_INDEPENDENT_CHART_ONLY
+AMBIGUOUS_BIRTH_INSTANT
+BIRTH_INSTANT_UNRESOLVABLE
+READY
+```
+
+Important limitation:
+
+v0.1 local-time conversion uses runtime `Intl` timezone rules. Pin/version a timezone-rule dataset before treating persisted natal geometry as perfectly reproducible across runtimes.
+
+The birth-context Edge Function is read-only. A selected birthplace candidate may resolve the current request but does not silently rewrite Person.
+
+Persisting clarified birthplace remains an authorized Person update/correction.
+
+## Automated intelligence validation — ✅
+
+Workflow:
+
+```text
+.github/workflows/intelligence-ci.yml
+```
+
+Test:
+
+```text
+lab/birth-context-vertical-slice-v0.1.test.ts
+```
+
+Passing CI proves:
+
+- qualified Key West resolution;
+- historical local birth time -> UTC conversion;
+- ambiguous Springfield remains ambiguous;
+- ambiguity becomes a prioritized player question;
+- missing birth time does not nag in ordinary task-driven readiness;
+- Discovery Session may ask for birth time;
+- DST fold produces two candidate instants rather than a guess;
+- provider outage remains unavailable and does not fabricate a place.
+
+Supabase deployment compilation also succeeded and the Edge Function is ACTIVE.
+
+## Knowledge / Player Reality law
+
+Examples:
+
+```text
+Workout performed                    -> Player Training reality
+Exercise muscle definition           -> Reference Knowledge
+Gym hours tonight                    -> Live external context
+Training-balance interpretation      -> Intelligent inference
+
+Birth place label                    -> Person truth
+Coordinates / timezone               -> Reference Knowledge
+UTC birth instant                    -> deterministic derivation
+Natal symbolism                      -> symbolic interpretation
+```
+
+Do not mix reference/global knowledge into canonical player schemas merely because it is relevant.
+
+## Helm / Home law
+
+Helm is a relevance projection, not a dashboard.
+
+```text
+HELM
+├── Position
+├── Attention
+├── Next window / move
+└── Navigator
+```
+
+Any section may be absent. Silence is valid.
+
+No domain receives permanent Home real estate merely because it exists.
+
+A surfaced item should be able to answer:
+
+```text
+Why now?
+What kind of claim is this?
+What supports it?
+What can I do?
+When does it stop mattering?
+```
 
 ## Character / RPG ownership
 
 ```text
-Owner     -> System/auth scope
+Owner     -> auth/system scope
 Person    -> identity + stable/correctable origin facts
 Body      -> temporal physical observations
 Character -> composed projection
 ```
 
-Character eventually composes:
+Future Character composes:
 
 ```text
 Identity          <- Person
-Origin            <- birth facts + natal geometry
+Origin            <- birth facts + deterministic natal geometry
 Body              <- Body
 Skills            <- evidence-backed inference
-Role              <- skill/activity clusters
+Roles             <- skill/activity clusters
 Attributes        <- broad evidence-backed patterns
 Inventory/Gear    <- Inventory
-Effective State   <- base + gear + environment + conditions + access + allies
+Effective State   <- base + gear + context + conditions + access + allies
 Archetypes        <- symbolic interpretation
 Path              <- long-horizon becoming
 Achievements      <- evidence-backed milestones
 ```
 
-Do not persist a canonical Character aggregate merely to simplify UI.
+No canonical Character aggregate solely for UI convenience.
+
+## Inventory / capability law
+
+```text
+BASE CAPABILITY
+= demonstrated skill + enduring evidence-backed attributes + mastery
+
+EFFECTIVE CAPABILITY
+= Base Capability
++ Equipment
++ Environment
++ Current Condition
++ Available Access
++ Relevant Allies
+```
+
+Modifier semantics may include BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, SYNERGY.
+
+Ownership alone does not permanently increase Skill/Mastery.
 
 ## Time / Schedule / Requirements
 
-Time remains cross-cutting:
+Time is cross-cutting:
 
 ```text
 occurred
@@ -387,176 +485,27 @@ timezone
 precision
 ```
 
-Schedule owns planned temporal allocation, not occurrence.
-
-```text
-Action: Finish edit             -> Direction
-Allocation Tue 12–3             -> Schedule
-Actual edit activity            -> Practice/Activity
-```
+Schedule owns planned allocation, not occurrence.
 
 Requirement/Standard remains distinct from Goal and Schedule.
 
-Examples:
+Requirement evaluation must be coverage-aware; incomplete nutrition/activity logging never implies zero unrecorded reality.
+
+## Training / Nutrition future law
+
+Training and Nutrition will be distinct factual domains when their semantics are needed.
+
+Both reuse Knowledge rather than relying on unstructured model memory:
 
 ```text
-Protein >= 150 g / local day
-Strength training >= 3 sessions / week
-Debt payment >= $500 by Sep 30
+Training Knowledge
+exercise / movement / muscles / variants / equipment / guidance
+
+Nutrition Knowledge
+food / serving / calories / macros / micros / source quality / guidance
 ```
 
-Requirement evaluation must remain coverage-aware; partial logs do not imply zero unrecorded intake.
-
-## Discovery
-
-```text
-Source Item
- -> Discovery Candidate
- -> Reconciliation / Validation
- -> Owning Domain Command
- -> Canonical Record
-```
-
-Discovery is not a second life database and does not directly author canonical truth.
-
-Prefer transient candidates until async/conflict/review pressure proves durable candidate persistence is necessary.
-
-## Navigator
-
-Navigator separates:
-
-```text
-KNOWN
-INFERRED
-CONFLICTING
-UNKNOWN
-MISSING-BUT-IMPORTANT
-```
-
-It should answer what is supportable first and ask only the smallest high-value question needed.
-
-```text
-Question Value
-≈ uncertainty reduction × relevance × decision impact × future reuse / user burden
-```
-
-Navigator assembles bounded personal context + appropriate Knowledge resolutions rather than dumping the entire database or searching the web by default.
-
-## Helm / Home relevance law — CANDIDATE-STABLE
-
-Helm is not a dashboard and domains do not get permanent Home widgets simply because they exist.
-
-> **Helm answers: What matters now?**
-
-Guidance is responsible for deciding what earns surface attention.
-
-Candidate Helm structure:
-
-```text
-HELM
-├── POSITION          small grounded orientation
-├── ATTENTION         zero to a few things that matter now
-├── NEXT WINDOW/MOVE  temporal opportunity or pressure when useful
-└── NAVIGATOR         one useful guidance statement/question when warranted
-```
-
-Sections may be absent. Silence is valid.
-
-A surfaced item should explain:
-
-```text
-why now?
-what kind of claim/guidance is this?
-what supports it?
-what can I do?
-when does it stop mattering?
-```
-
-Candidate relevance factors:
-
-```text
-Direction alignment
-urgency / temporal proximity
-impact / consequence
-confidence / coverage
-change / novelty
-unresolved attention need
-actionability
-minus interruption + repetition/clutter cost
-```
-
-This is a routing/gating concept, not yet a frozen persisted numeric score.
-
-Examples:
-
-- Nutrition macros stay off Home unless a requirement/trend/current decision makes them relevant.
-- Calendar surfaces next hard commitment/conflict/open window, not an entire calendar widget.
-- Inventory surfaces when current gear/access changes what is possible.
-- Astrology is optional symbolic context and should never crowd out grounded urgent information.
-- Achievements may surface briefly when newly meaningful, then live in Character/Journey.
-
-Progressive disclosure:
-
-```text
-Helm -> what matters now
-Domain surface -> structured area
-Detail -> history/model/measurements
-Lineage -> why Wayfinder believes/says it
-```
-
-Reference: `docs/20-knowledge-and-home-surface-v0.1.md` and ADR-034.
-
-## Astrology / natal calculation — NEXT
-
-Keep three layers distinct:
-
-```text
-Birth Data (canonical Person facts)
- -> deterministic ephemeris/chart calculation
- -> natal geometry / planetary positions / houses / aspects
- -> symbolic interpretation
-```
-
-Immediate pressure before calculation:
-
-A birthplace **label** such as `Key West, FL` is not yet resolved geographic truth.
-
-The Knowledge Engine should provide the place/time-resolution seam rather than embedding global geography into Person.
-
-A mature deterministic natal engine needs an explicit input contract for:
-
-```text
-birth date
-birth local time when known
-resolved birthplace identity / coordinates
-IANA timezone / historical offset resolution
-ephemeris implementation + version
-```
-
-Do not fabricate houses/Ascendant when birth time or geographic resolution is insufficient.
-
-The next build should establish Knowledge resolution for birthplace/timezone + deterministic natal readiness before symbolic astrology guidance.
-
-## Inventory / gear / capability law
-
-```text
-BASE CAPABILITY
-= demonstrated skill + enduring evidence-backed attributes + mastery
-
-EFFECTIVE CAPABILITY
-= Base Capability
-+ Equipment
-+ Environment
-+ Current Condition
-+ Available Access
-+ Relevant Allies
-```
-
-Gear may contribute BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, or SYNERGY effects. Ownership alone does not permanently raise Skill/Mastery.
-
-## Strength / macros / recurring minimums
-
-Strength/muscle growth is cross-domain:
+Strength/growth is cross-domain:
 
 ```text
 Training
@@ -568,85 +517,63 @@ Training
  -> Growth analysis
 ```
 
-Nutrition estimates preserve uncertainty. Incomplete intake coverage must not imply unrecorded food was zero.
+## Astrology architecture
 
-Nutrition/Training should use Reference Knowledge for food composition, exercise semantics, movement/muscle relationships, equipment requirements, and versioned guidance rather than relying on unstructured model memory/web lookup each time.
+Keep these layers separate:
+
+```text
+Birth facts                 -> canonical Person
+Resolved place/time context -> Knowledge + deterministic derivation
+Natal geometry              -> deterministic derivation
+Astrology meanings          -> symbolic Knowledge
+Personal interpretation     -> symbolic/reflective guidance
+```
+
+Do not fabricate birth time, houses, Ascendant, or geographic resolution.
 
 ## Current Player UI
 
-`/helm` remains intentionally quiet/read-only.
+`/helm` remains intentionally sparse/read-only.
 
-No normal player-facing Practice, Direction, Evidence, Person, Body, or Character Creation forms are exposed yet.
+Do not replace it with a hodge-podge dashboard as domains arrive.
 
-The current sparse Helm is directionally correct. Do not replace it with a domain-widget dashboard as new capabilities arrive.
+Character Creation backend exists, but player-facing Character Creation UI remains deferred until deterministic natal geometry/readiness presentation is stable enough.
 
-The backend Character Initialization RPC exists, but UI exposure is intentionally deferred until natal/readiness and presentation seams are clearer.
+## Security context
 
-## Security / advisor context
+Private canonical schemas remain protected primarily by schema/table privilege denial plus owner-scoped public `SECURITY DEFINER` RPCs with fixed search paths.
 
-Supabase's generic metadata advisor reports RLS disabled on private `wf_person` / `wf_body` tables. This was not blindly auto-remediated.
+Supabase advisor warnings about authenticated execution of these public SECURITY DEFINER functions are expected for the chosen narrow RPC boundary and must continue to be reviewed carefully.
 
-Current primary boundary:
+`Leaked Password Protection Disabled` remains a production-hardening item.
 
-```text
-private schema/table privilege denial
-+
-owner-scoped public SECURITY DEFINER RPCs
-```
+The new `birth-context` Edge Function has JWT verification enabled and performs no canonical writes.
 
-Live tests explicitly proved authenticated direct access to both new schemas is denied.
+## Next build
 
-Supabase also warns that authenticated users can execute Wayfinder SECURITY DEFINER RPCs; this is expected because those RPCs are the designed narrow privilege boundary and must remain owner-scoped/fixed-search-path/stress-tested.
+**Deterministic natal geometry.**
 
-`Leaked Password Protection Disabled` remains a real production-hardening item.
-
-## Mature build sequence
+Build a versioned ephemeris capability over the now-resolved birth context:
 
 ```text
-0. Proven Slice 1A substrate                              ✅
-1. Person + shared temporal contracts                    ✅ LIVE
-2. Body vertical slice                                   ✅ LIVE
-3. Atomic Character Creation backend orchestration       ✅ LIVE
-4. Knowledge Engine contract + birthplace/time resolution ← NEXT
-5. Deterministic natal readiness / natal calculation
-6. Player-facing Character Creation experience
-7. Schedule contract / one allocation
-8. Requirement contract / one recurring requirement
-9. Discovery contract
-10. Navigator information-need loop
-11. Position v0 + relevance-routed Helm
-12. Inventory + effective capability
-13. Skill + Role projections
-14. Training + Nutrition + Reference Knowledge resolvers
-15. Cross-domain Growth + macro/training requirements
-16. Daily/Weekly Review + temporal guidance
-17. Symbolic astrology guidance/transits
-18. Expand Finance / World / Social / richer domains under real pressure
+UTC birth instant
++ WGS84 coordinates
++ ephemeris implementation/data version
+ -> planetary positions
+ -> Ascendant / houses when timed inputs support them
+ -> aspects
 ```
 
-## Anti-patterns
+Before symbolic astrology interpretation:
 
-Do not build:
+- choose/pin the ephemeris implementation/data;
+- preserve algorithm/data version in lineage;
+- decide house-system handling explicitly;
+- preserve approximate-birth-time uncertainty;
+- do not persist duplicate Character truth merely to display the chart.
 
-- universal `life_events` / `facts` table;
-- one table per RPG mechanic;
-- permanent XP ledger before rules stabilize;
-- direct AI canonical writes;
-- arbitrary gear bonuses without capability rationale;
-- astrology interpretations as facts;
-- unresolved birthplace text treated as coordinates/timezone truth;
-- reference food/exercise/geography knowledge mixed into player canonical records;
-- calendar entries as proof an event occurred;
-- incomplete macro logs as zero unrecorded intake;
-- Navigator questionnaires merely to fill blanks;
-- frontend-owned stat math;
-- duplicated current-state stores that can drift;
-- giant fixed domain enum;
-- full-life context dumps into every model call;
-- web-search-everything Navigator behavior;
-- permanent Home widgets for every domain;
-- speculative empty schemas.
+After that, expose the simple Character Creation UI, then continue Schedule -> Requirements -> generalized Discovery -> Navigator -> Position -> Inventory -> Skills/Role -> Training/Nutrition.
 
 ## Recovery prompt
 
-> Open `PROJECT_STATE.md`, then read `docs/20-knowledge-and-home-surface-v0.1.md`, ADR-034, `docs/18-mature-life-rpg-architecture-v0.2.md`, `docs/19-person-temporal-body-v0.1.md`, ADR-033, `lab/character-initialization-atomic-live-test-v0.1.md`, ADR-032, ADR-031, ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person + Temporal Kernel + Body + atomic Character Initialization v0.1 are live and rollback-stress-tested. Keep Reference Knowledge separate from player canonical reality. Keep Helm as a relevance projection rather than a dashboard. Next establish the Knowledge resolution seam for birthplace/timezone and deterministic natal readiness before symbolic astrology or broad player UI.
+> Open `PROJECT_STATE.md`, then read `docs/06-build-roadmap.md`, `docs/22-birth-context-knowledge-slice-v0.1.md`, `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, `docs/20-knowledge-and-home-surface-v0.1.md`, `docs/18-mature-life-rpg-architecture-v0.2.md`, ADR-036 through ADR-030, `docs/CANON.md`, `docs/04-domain-protocol.md`, and `docs/05-intelligence-runtime.md`. Person + Temporal Kernel + Body + atomic Character Initialization are live. The Knowledge/Inquiry runtime is executable and CI-tested. The JWT-protected `birth-context` Edge Function is live and resolves place -> timezone -> UTC birth instant with ambiguity/question handling. Keep Helm quiet. Next build deterministic, versioned natal geometry before symbolic astrology or broad domain UI.
