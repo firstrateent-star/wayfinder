@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Compass, LogOut, RefreshCw, Sparkles, Target, UserRound } from "lucide-react";
+import { CalendarDays, Compass, LogOut, RefreshCw, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DiscoverySession } from "@/features/discovery/DiscoverySession";
+import { NavigatorChat } from "@/features/navigator/NavigatorChat";
 import { getInitialPosition, nextLocalDayScope } from "@/lib/position-api";
-import type { InitialPositionRead, PositionQuestionOpportunity, PositionScheduleAllocation } from "@/lib/position-api";
+import type { InitialPositionRead, PositionScheduleAllocation } from "@/lib/position-api";
 import { supabase } from "@/lib/supabase";
 
 function greeting() {
@@ -26,29 +26,11 @@ function formatAllocationTime(item: PositionScheduleAllocation) {
   return "Planned";
 }
 
-function formatDuration(seconds: number) {
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (hours <= 0) return `${minutes} min`;
-  if (remainder === 0) return `${hours} hr${hours === 1 ? "" : "s"}`;
-  return `${hours} hr ${remainder} min`;
-}
-
-function bodyBaselineLabel(state: InitialPositionRead["foundation"]["body_baseline"]) {
-  if (state === "ESTABLISHED") return "Baseline established";
-  if (state === "PARTIAL") return "Partial baseline";
-  return "Not established yet";
-}
-
 export function HelmPage() {
   const scope = useMemo(() => nextLocalDayScope(), []);
   const [position, setPosition] = useState<InitialPositionRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [discoveryOpen, setDiscoveryOpen] = useState(false);
-  const [discoveryLoading, setDiscoveryLoading] = useState(false);
-  const [discoveryQuestion, setDiscoveryQuestion] = useState<PositionQuestionOpportunity | null>(null);
 
   async function refreshPosition() {
     setError(null);
@@ -66,25 +48,10 @@ export function HelmPage() {
     void refreshPosition();
   }, []);
 
-  async function startDiscovery() {
-    setDiscoveryLoading(true);
-    setError(null);
-    try {
-      const discoveryPosition = await getInitialPosition({ questionMode: "DISCOVERY_SESSION", scheduleScope: scope });
-      setPosition(discoveryPosition);
-      setDiscoveryQuestion(discoveryPosition.question_opportunities[0] ?? null);
-      setDiscoveryOpen(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Navigator could not prepare a discovery question.");
-    } finally {
-      setDiscoveryLoading(false);
-    }
-  }
-
   const displayName = position?.person?.display_name ?? "Player";
   const tomorrowLabel = position ? formatDay(position.schedule.scope.from) : formatDay(scope.from);
-  const primaryInsight = position?.insights[0] ?? null;
   const currentFocus = position?.direction.current_focus ?? null;
+  const primaryInsight = position?.insights[0] ?? null;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -108,7 +75,7 @@ export function HelmPage() {
           </Button>
         </header>
 
-        <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center py-14 sm:py-20">
+        <section className="mx-auto w-full max-w-3xl py-10 sm:py-14">
           {loading ? (
             <div className="flex items-center justify-center gap-3 py-24 text-sm text-slate-400">
               <Compass className="h-5 w-5 animate-pulse text-emerald-300" />
@@ -128,133 +95,55 @@ export function HelmPage() {
 
           {!loading && position ? (
             <>
-              <div className="mb-9">
+              <div className="mb-7">
                 <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-300/60">Where am I?</p>
                 <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-100 sm:text-5xl">
                   {greeting()}, {displayName}.
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-slate-400">
-                  Wayfinder is starting to turn what it knows into structure: constraints, relationships, uncertainty, and the next thing worth learning.
+                  Talk to Navigator naturally. It should understand first, route what belongs somewhere, ask for missing details when they matter, and leave the rest alone.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-3xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                    <UserRound className="h-4 w-4 text-emerald-300/80" />
-                    Starting position
+              <div className="mb-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5 sm:px-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-start gap-2.5">
+                    <Target className="mt-0.5 h-4 w-4 text-emerald-300/60" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-slate-600">Current direction</p>
+                      <p className="mt-1 truncate text-sm text-slate-300">{currentFocus?.title ?? "Not established yet"}</p>
+                    </div>
                   </div>
 
-                  <div className="mt-5 divide-y divide-white/[0.06]">
-                    <div className="flex items-center justify-between gap-6 py-3 first:pt-0">
-                      <div>
-                        <p className="text-sm text-slate-300">Origin</p>
-                        <p className="mt-1 text-xs text-slate-500">Your character foundation</p>
-                      </div>
-                      <p className="text-sm text-slate-400">{position.foundation.origin_established ? "Established" : "Incomplete"}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-6 py-3">
-                      <div>
-                        <p className="text-sm text-slate-300">Body</p>
-                        <p className="mt-1 text-xs text-slate-500">Initial observations only</p>
-                      </div>
-                      <p className="text-sm text-slate-400">{bodyBaselineLabel(position.foundation.body_baseline)}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-6 py-3">
-                      <div className="flex items-start gap-2">
-                        <Target className="mt-0.5 h-3.5 w-3.5 text-slate-500" />
-                        <div>
-                          <p className="text-sm text-slate-300">Current direction</p>
-                          <p className="mt-1 text-xs text-slate-500">What the rest of discovery can organize around</p>
-                        </div>
-                      </div>
-                      <p className="max-w-[48%] text-right text-sm text-slate-400">{currentFocus?.title ?? "Not established yet"}</p>
-                    </div>
-
-                    <div className="py-3 last:pb-0">
-                      <div className="flex items-center justify-between gap-6">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
-                            <p className="text-sm text-slate-300">{tomorrowLabel}</p>
-                          </div>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {position.schedule.recorded_allocation_count > 0 ? "Recorded planned constraints" : "Schedule coverage is still unknown"}
-                          </p>
-                        </div>
-                        {position.schedule.hard_block_count > 0 ? (
-                          <p className="text-right text-sm text-slate-400">
-                            {formatDuration(position.schedule.recorded_hard_committed_seconds)} hard-planned
-                          </p>
-                        ) : null}
-                      </div>
-
-                      {position.schedule.allocations.length > 0 ? (
-                        <div className="mt-4 space-y-2">
-                          {position.schedule.allocations.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between gap-5 rounded-2xl border border-white/[0.05] bg-black/10 px-4 py-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm text-slate-300">{item.label}</p>
-                                <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-600">{item.kind}</p>
-                              </div>
-                              <p className="shrink-0 text-sm text-slate-500">{formatAllocationTime(item)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-slate-500">Nothing recorded yet.</p>
-                      )}
-
-                      <p className="mt-4 text-xs leading-5 text-slate-600">
-                        Recorded gaps are not assumed to be free time; they are only spaces between the constraints Wayfinder currently knows about.
+                  <div className="flex items-start gap-2.5 sm:justify-end">
+                    <CalendarDays className="mt-0.5 h-4 w-4 text-emerald-300/60" />
+                    <div className="min-w-0 sm:text-right">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-slate-600">{tomorrowLabel}</p>
+                      <p className="mt-1 text-sm text-slate-300">
+                        {position.schedule.recorded_allocation_count > 0
+                          ? `${position.schedule.recorded_allocation_count} planned item${position.schedule.recorded_allocation_count === 1 ? "" : "s"}`
+                          : "Schedule coverage unknown"}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {primaryInsight ? (
-                  <div className="rounded-3xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-600">Derived from what you told me</p>
-                    <p className="mt-3 text-base leading-7 text-slate-200">{primaryInsight.headline}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{primaryInsight.detail}</p>
+                {position.schedule.allocations.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[0.05] pt-3">
+                    {position.schedule.allocations.slice(0, 4).map((item) => (
+                      <span key={item.id} className="rounded-full border border-white/[0.06] bg-black/10 px-3 py-1.5 text-xs text-slate-500">
+                        <span className="text-slate-400">{item.label}</span> · {formatAllocationTime(item)}
+                      </span>
+                    ))}
                   </div>
                 ) : null}
 
-                {discoveryOpen ? (
-                  <DiscoverySession
-                    question={discoveryQuestion}
-                    knownScheduleCount={position.schedule.recorded_allocation_count}
-                    scope={scope}
-                    onSaved={refreshPosition}
-                    onClose={() => setDiscoveryOpen(false)}
-                  />
-                ) : (
-                  <div className="rounded-3xl border border-emerald-300/10 bg-emerald-300/[0.025] p-5 sm:p-6">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
-                      <Sparkles className="h-4 w-4 text-emerald-300" />
-                      Navigator
-                    </div>
-                    <p className="mt-3 text-base leading-7 text-slate-300">
-                      {currentFocus
-                        ? primaryInsight?.headline ?? `I know what you are trying to move forward: ${currentFocus.title}. I can now use new information in relation to that direction instead of merely filing it away.`
-                        : position.schedule.recorded_allocation_count > 0
-                          ? `I have ${position.schedule.recorded_allocation_count} planned item${position.schedule.recorded_allocation_count === 1 ? "" : "s"} to reason around now. The next useful thing is not another calendar entry — it is learning what you actually want to move forward.`
-                          : "I know who I’m navigating for, but I still need one real constraint before I can begin shaping Position."}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Discovery should change the model after every answer: recompute Position, derive relationships, then choose a different high-value uncertainty instead of repeating the same form.
-                    </p>
-                    <Button className="mt-5" disabled={discoveryLoading} onClick={() => void startDiscovery()}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      {discoveryLoading ? "Choosing the next question…" : "Continue discovery"}
-                    </Button>
-                  </div>
-                )}
-
-                {error ? <p className="px-1 text-sm text-rose-300">{error}</p> : null}
+                {primaryInsight ? <p className="mt-3 border-t border-white/[0.05] pt-3 text-xs leading-5 text-slate-500">{primaryInsight.headline}</p> : null}
               </div>
+
+              <NavigatorChat displayName={displayName} onCanonicalChange={refreshPosition} />
+
+              {error ? <p className="mt-4 px-1 text-sm text-rose-300">{error}</p> : null}
             </>
           ) : null}
         </section>
