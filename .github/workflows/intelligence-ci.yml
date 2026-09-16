@@ -1,0 +1,30 @@
+name: Wayfinder Intelligence CI
+
+on:
+  push:
+    paths:
+      - "supabase/functions/_shared/intelligence/**"
+      - "supabase/functions/birth-context/**"
+      - "lab/birth-context-vertical-slice-v0.1.test.ts"
+      - ".github/workflows/intelligence-ci.yml"
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/intelligence/**"
+      - "supabase/functions/birth-context/**"
+      - "lab/birth-context-vertical-slice-v0.1.test.ts"
+      - ".github/workflows/intelligence-ci.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check birth context Edge Function
+        run: deno check supabase/functions/birth-context/index.ts
+      - name: Run birth context vertical slice tests
+        run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
