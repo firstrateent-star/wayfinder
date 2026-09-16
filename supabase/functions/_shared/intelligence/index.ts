@@ -9,3 +9,5 @@ export * from "./birth-context-service.ts";
 export * from "./natal-geometry.ts";
 export * from "./natal-geometry-service.ts";
 export * from "./requirements.ts";
+export * from "./semantic-admission.ts";
+export * from "./training-semantic.ts";
