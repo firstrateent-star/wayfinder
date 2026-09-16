@@ -1,7 +1,7 @@
 # Wayfinder Build Roadmap
 
-**Version:** 0.8  
-**Status:** CANDIDATE-STABLE — deterministic natal foundation + Character Creation + Schedule + Requirement contract proven
+**Version:** 0.9  
+**Status:** CANDIDATE-STABLE — Initial Position + first governed Discovery Session live
 
 Wayfinder grows through complete vertical slices. Progress is measured by how much real life the system can model, resolve, explain, and guide without weakening truth boundaries or burdening the player with unnecessary input.
 
@@ -44,8 +44,6 @@ Action Fulfillment, Bearing, Helm and Journey proved that derived state can rema
 
 **Status:** ✅ live
 
-Normal Helm is intentionally sparse/read-only.
-
 > Complex underneath. Quiet on the surface.
 
 Do not turn new backend capabilities into permanent Home widgets.
@@ -76,28 +74,13 @@ Available information != information deserving attention
 
 **Status:** ✅ LIVE / GATE PASSED
 
-Live:
-
-```text
-wf_person.persons
-wf_person.person_versions
-wf_system.local_day_bounds(...)
-```
-
-Person owns preferred identity and stable/correctable birth/origin facts only.
+Person owns preferred identity and stable/correctable birth/origin facts only. `wf_system.local_day_bounds(...)` provides DST-aware local-day boundaries.
 
 ## Phase 7 — Body asymmetric slice
 
 **Status:** ✅ LIVE / GATE PASSED
 
-Live canonical metrics:
-
-```text
-height
-weight
-```
-
-Body owns temporal physical observations; unit normalization is deterministic derivation.
+Height and weight are temporal Body observations. Unit normalization is deterministic derivation.
 
 ## Phase 8 — Atomic Character Creation backend
 
@@ -110,8 +93,6 @@ Body owns temporal physical observations; unit normalization is deterministic de
 **Status:** ✅ EXECUTABLE FRAMEWORK / CI PASSED
 
 Reference: `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`, ADR-035.
-
-Executable runtime:
 
 ```text
 KnowledgeQuery / KnowledgeResolution
@@ -153,21 +134,11 @@ Person birth facts
  -> natal readiness
 ```
 
-Missing birth time remains unknown; DST gaps/folds and provider outage are preserved instead of guessed.
-
 ## Phase 11 — Deterministic natal geometry
 
 **Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / CI PASSED
 
 Reference: `docs/23-natal-geometry-v0.1.md`, ADR-037.
-
-Live capability:
-
-```text
-astro.natal_geometry
-```
-
-Proven:
 
 ```text
 resolved UTC birth instant
@@ -187,7 +158,7 @@ No symbolic interpretation or active-orb assertion is stored as astronomical tru
 
 Authenticated players without a canonical Person are routed to `/create-character` before Helm.
 
-The flow collects only:
+The flow collects only grounded starting facts:
 
 ```text
 Name
@@ -198,9 +169,7 @@ Height optional
 Weight starting observation optional
 ```
 
-One submit uses the atomic `wf_character_initialize_v0` backend seam.
-
-No Role, XP, Level, Skill, Path, stat self-rating, or giant profile questionnaire.
+No Role, XP, Level, Skill, Path, stat self-rating, or giant questionnaire.
 
 ## Phase 13 — Schedule v0.1
 
@@ -214,14 +183,6 @@ wf_schedule
 └── allocation_versions
 ```
 
-Public RPCs:
-
-```text
-wf_schedule_create_allocation
-wf_schedule_revise_allocation
-wf_schedule_current_v0
-```
-
 Modes:
 
 ```text
@@ -231,9 +192,7 @@ WINDOWED
 FLOATING
 ```
 
-Schedule owns planned temporal allocation only. Passing time does not turn a Schedule record into occurrence evidence.
-
-Live rollback testing proved create, revise, current-head read and private-schema access denial. See `lab/schedule-live-test-v0.1.md`.
+Schedule owns planned temporal allocation only. Passing time does not turn Schedule into occurrence evidence.
 
 ## Phase 14 — Requirement contract v0.1
 
@@ -241,9 +200,9 @@ Live rollback testing proved create, revise, current-head read and private-schem
 
 Reference: `docs/24-character-schedule-requirements-v0.1.md`, ADR-038.
 
-No universal `wf_requirements` truth table exists.
+No universal `wf_requirements` truth table exists. The owning domain supplies metric semantics; the shared runtime evaluates temporal rules.
 
-The owning domain supplies metric semantics; the shared runtime evaluates temporal rules:
+Rules:
 
 ```text
 AT_LEAST
@@ -270,11 +229,59 @@ BREACHED
 UNKNOWN
 ```
 
-The evaluator understands monotonic proof while preserving unknowns. Example: reaching a protein minimum can be known before day close, but a closed day below the recorded target cannot be called a miss when intake coverage is incomplete.
+## Phase 15 — Initial Position + Discovery Session v0.1
 
-## Phase 15 — Training + Nutrition requirement proving slice
+**Status:** ✅ LIVE / EDGE FUNCTION ACTIVE / WEB + INTELLIGENCE CI PASSED
 
-**Status:** ← NEXT BUILD TARGET
+Reference: `docs/25-initial-position-discovery-v0.1.md`, ADR-039.
+
+Helm now composes a sparse player-specific Initial Position from:
+
+```text
+Person
++ Body baseline presence
++ bounded Schedule read
++ Question Planner
+```
+
+Live Edge Function:
+
+```text
+initial-position
+verify_jwt = true
+```
+
+Discovery v0 proves:
+
+```text
+structured Information Need
+ -> opt-in one-question Discovery Session
+ -> explicit player answer
+ -> authorized owning-domain command when persistence is justified
+ -> refreshed Position
+```
+
+First need:
+
+```text
+schedule.next_day.coverage
+```
+
+If the player supplies a fixed commitment, it is written as a HARD Schedule allocation. If the player says there is nothing to add, Wayfinder does **not** create canonical proof that the day is empty.
+
+Helm explicitly preserves:
+
+```text
+empty schedule != free time
+planned != happened
+record completeness != life completeness
+```
+
+The corrected frontend build passed Web CI and Vercel deployment.
+
+## Phase 16 — Training + Nutrition requirement proving slice
+
+**Status:** ← NEXT BROAD DOMAIN TARGET
 
 Build the smallest factual Training and Nutrition foundations necessary to feed real observations into the Requirement contract.
 
@@ -306,11 +313,11 @@ protein >= target grams / local day
 
 The point is not to build giant fitness trackers. It is to prove that domain-owned reality + Knowledge + temporal Requirements can generate trustworthy signals for Navigator.
 
-## Phase 16 — Generalized Discovery
+## Phase 17 — Generalized Discovery
 
-**Status:** candidate after the first real Training/Nutrition observations
+**Status:** candidate after first real domain observations
 
-Prove:
+Generalize beyond the structured Schedule question:
 
 ```text
 source
@@ -323,7 +330,7 @@ source
 
 Prefer transient candidates until durable queues/conflict workflows earn persistence.
 
-## Phase 17 — Navigator temporal active-learning loop
+## Phase 18 — Navigator temporal active-learning loop
 
 **Status:** candidate
 
@@ -339,11 +346,11 @@ MISSING-BUT-IMPORTANT
 
 Navigator should answer the supported portion first, then ask the smallest high-value question when needed.
 
-## Phase 18 — Position + relevance-driven Helm
+## Phase 19 — Position + relevance-driven Helm
 
-**Status:** candidate
+**Status:** v0 seed live; richer composition candidate
 
-Compose “Where am I?” from proven domains and surface only what matters now, for example:
+Initial Position is now live. Grow it only as grounded signals earn relevance, for example:
 
 ```text
 next hard commitment
@@ -354,7 +361,7 @@ recorded protein below target but coverage incomplete
 
 Home remains a relevance projection, not a dashboard.
 
-## Phase 19 — Inventory + Effective Capability
+## Phase 20 — Inventory + Effective Capability
 
 **Status:** candidate
 
@@ -374,13 +381,13 @@ Support BOOST, MULTIPLIER, GATE, UNLOCK, REDUCER, CONSTRAINT, SYNERGY.
 
 Gear does not permanently manufacture mastery.
 
-## Phase 20 — Skill + Role projections
+## Phase 21 — Skill + Role projections
 
 **Status:** candidate
 
 Infer one narrow Skill from evidence and one higher-order Role pattern. Preserve lineage, uncertainty, recency, and base-vs-effective capability separation.
 
-## Phase 21 — Cross-domain strength / growth analysis
+## Phase 22 — Cross-domain strength / growth analysis
 
 **Status:** candidate after Training + Nutrition baseline
 
@@ -396,7 +403,7 @@ Training
 
 Avoid unjustified causal certainty.
 
-## Phase 22 — Daily / Weekly Review
+## Phase 23 — Daily / Weekly Review
 
 **Status:** candidate
 
@@ -404,7 +411,7 @@ Reviews remain projections by default.
 
 System Review != player-authored Reflection.
 
-## Phase 23 — Symbolic guidance
+## Phase 24 — Symbolic guidance
 
 **Status:** candidate after grounded life context
 
@@ -428,7 +435,7 @@ recorded draw
 
 Neither astrology nor tarot may masquerade as empirical player truth or crowd out more relevant grounded information.
 
-## Phase 24 — Expand real-life domains under pressure
+## Phase 25 — Expand real-life domains under pressure
 
 Admit domains only when distinct factual semantics require them:
 
