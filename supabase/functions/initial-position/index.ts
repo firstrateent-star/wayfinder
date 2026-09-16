@@ -31,6 +31,19 @@ interface BodyRead {
   weight?: unknown | null;
 }
 
+interface DirectionRead {
+  nodes?: Array<{
+    id: string;
+    version: string;
+    kind: "value" | "direction" | "outcome" | "commitment" | "quest" | "plan" | "action";
+    title: string;
+    description: string | null;
+    intent_state: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+    lifecycle_status: "ACTIVE";
+    recorded_at: string;
+  }>;
+}
+
 interface ScheduleRead {
   allocations?: Array<{
     id: string;
@@ -118,9 +131,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const [personRead, bodyRead, scheduleRead] = await Promise.all([
+    const [personRead, bodyRead, directionRead, scheduleRead] = await Promise.all([
       rpc<PersonRead>(authHeader, "wf_person_current_v0"),
       rpc<BodyRead>(authHeader, "wf_body_current_v0"),
+      rpc<DirectionRead>(authHeader, "wf_direction_current"),
       rpc<ScheduleRead>(authHeader, "wf_schedule_current_v0", {
         p_from: scope.from,
         p_to: scope.to,
@@ -144,6 +158,17 @@ Deno.serve(async (req: Request) => {
       body: {
         heightRecorded: Boolean(bodyRead.height),
         weightRecorded: Boolean(bodyRead.weight)
+      },
+      direction: {
+        nodes: (directionRead.nodes ?? []).map((node) => ({
+          id: node.id,
+          version: node.version,
+          kind: node.kind,
+          title: node.title,
+          description: node.description,
+          intentState: node.intent_state,
+          recordedAt: node.recorded_at
+        }))
       },
       schedule: {
         scope: {
