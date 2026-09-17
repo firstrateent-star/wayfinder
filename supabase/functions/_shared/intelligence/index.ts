@@ -11,3 +11,6 @@ export * from "./natal-geometry-service.ts";
 export * from "./requirements.ts";
 export * from "./semantic-admission.ts";
 export * from "./training-semantic.ts";
+export * from "./concept-registry.ts";
+export * from "./semantic-compiler.ts";
+export * from "./wayfinder-capacity.ts";

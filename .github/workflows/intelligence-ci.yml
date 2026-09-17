@@ -14,6 +14,7 @@ on:
       - "lab/requirements-v0.1.test.ts"
       - "lab/initial-position-discovery-v0.1.test.ts"
       - "lab/semantic-admission-training-v0.1.test.ts"
+      - "lab/semantic-compiler-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -28,6 +29,7 @@ on:
       - "lab/requirements-v0.1.test.ts"
       - "lab/initial-position-discovery-v0.1.test.ts"
       - "lab/semantic-admission-training-v0.1.test.ts"
+      - "lab/semantic-compiler-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -52,6 +54,8 @@ jobs:
         run: deno check supabase/functions/navigator-chat/index.ts
       - name: Type-check requirement evaluator
         run: deno check supabase/functions/_shared/intelligence/requirements.ts
+      - name: Type-check Semantic Compiler contracts
+        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
@@ -62,3 +66,5 @@ jobs:
         run: deno test lab/initial-position-discovery-v0.1.test.ts
       - name: Run Semantic Admission + Training tests
         run: deno test lab/semantic-admission-training-v0.1.test.ts
+      - name: Run Semantic Compiler + Capacity Lab tests
+        run: deno test lab/semantic-compiler-v0.1.test.ts
