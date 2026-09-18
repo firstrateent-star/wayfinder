@@ -111,8 +111,10 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
     reasonerPasses = pass;
     const rawOutput = await input.reasoner.propose({ source: input.source, context, concepts: input.concepts });
     finalOutput = normalizeSemanticReasonerOutput(rawOutput, input.concepts);
-    const deterministicRequests = inferDeterministicContextRequests(input.source, finalOutput.graph, input.concepts);
-    const requests = dedupeRequests([...(finalOutput.contextRequests ?? []), ...deterministicRequests], executedKeys)
+    const modelRequests = finalOutput.contextRequests ?? [];
+    const deterministicRequests = inferDeterministicContextRequests(input.source, finalOutput.graph, input.concepts)
+      .filter((fallback) => !modelRequests.some((request) => request.kind === fallback.kind));
+    const requests = dedupeRequests([...modelRequests, ...deterministicRequests], executedKeys)
       .slice(0, limits.maxRequestsPerPass)
       .map((request) => ({ ...request, limit: Math.min(request.limit ?? limits.maxItemsPerRequest, limits.maxItemsPerRequest) }));
 
