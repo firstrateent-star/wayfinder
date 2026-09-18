@@ -249,17 +249,23 @@ export class InMemorySemanticContextProvider implements SemanticContextProvider 
     const query = request.query?.trim().toLowerCase();
     const limit = request.limit ?? DEFAULT_BOUNDED_CONTEXT_LIMITS.maxItemsPerRequest;
 
-    const items = this.catalog.filter((item) => {
-      const conceptMatch = concepts.size === 0 || item.concepts?.some((itemConcept) =>
-        [...concepts].some((requestedConcept) =>
-          this.concepts
-            ? conceptMatchesRequested(itemConcept, requestedConcept, this.concepts)
-            : requestedConcept === itemConcept
-        )
-      );
-      const queryMatch = contextQueryMatches(item, query);
-      return conceptMatch && queryMatch;
-    }).slice(0, limit);
+    const items = this.catalog
+      .filter((item) => {
+        const conceptMatch = concepts.size === 0 || item.concepts?.some((itemConcept) =>
+          [...concepts].some((requestedConcept) =>
+            this.concepts
+              ? conceptMatchesRequested(itemConcept, requestedConcept, this.concepts)
+              : requestedConcept === itemConcept
+          )
+        );
+        if (!conceptMatch) return false;
+        // When the model has already constrained by semantic concept, free-form query text
+        // is advisory ranking rather than a hard filter. This prevents phrases like
+        // "same thing yesterday" from hiding a valid RUNNING child of ACTIVITY.
+        return concepts.size > 0 || contextQueryMatches(item, query);
+      })
+      .sort((a, b) => Number(contextQueryMatches(b, query)) - Number(contextQueryMatches(a, query)))
+      .slice(0, limit);
 
     const personalAliases = request.kind === "PERSONAL_ALIASES"
       ? this.aliases.filter((alias) => !query || alias.phrase.toLowerCase().includes(query)).slice(0, limit)
