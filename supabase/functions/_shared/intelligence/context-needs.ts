@@ -58,10 +58,12 @@ export function inferDeterministicContextRequests(
 function canonicalGraphConcepts(graph: CandidateLifeGraph, concepts: ConceptRegistry) {
   const result = new Set<string>();
   for (const node of graph.nodes) {
-    if (concepts.get(node.concept)) result.add(node.concept);
-    for (const parent of node.parentConcepts ?? []) {
-      if (concepts.get(parent)) result.add(parent);
+    if (concepts.get(node.concept)) {
+      result.add(node.concept);
+      continue;
     }
+    const firstKnownParent = (node.parentConcepts ?? []).find((parent) => concepts.get(parent));
+    if (firstKnownParent) result.add(firstKnownParent);
   }
   return [...result];
 }
