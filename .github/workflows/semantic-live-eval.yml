@@ -1,0 +1,31 @@
+name: Wayfinder Semantic Live Eval
+
+on:
+  push:
+    paths:
+      - "supabase/functions/_shared/intelligence/live-semantic-reasoner.ts"
+      - "supabase/functions/_shared/intelligence/context-assembler.ts"
+      - "supabase/functions/_shared/intelligence/semantic-compiler.ts"
+      - "supabase/functions/_shared/intelligence/concept-registry.ts"
+      - "supabase/functions/_shared/intelligence/wayfinder-capacity.ts"
+      - "lab/semantic-live-model-v0.1.ts"
+      - ".github/workflows/semantic-live-eval.yml"
+  workflow_dispatch:
+
+jobs:
+  live-semantic-eval:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      WAYFINDER_SEMANTIC_MODEL: ${{ vars.WAYFINDER_SEMANTIC_MODEL || 'gpt-5.6-luna' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check live semantic evaluator
+        run: deno check lab/semantic-live-model-v0.1.ts
+      - name: Run read-only real-model semantic lab
+        run: deno run --allow-env=OPENAI_API_KEY,WAYFINDER_SEMANTIC_MODEL --allow-net=api.openai.com lab/semantic-live-model-v0.1.ts

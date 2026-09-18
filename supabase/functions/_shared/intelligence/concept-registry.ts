@@ -33,6 +33,10 @@ export class ConceptRegistry {
     return this.concepts.get(id);
   }
 
+  list() {
+    return [...this.concepts.values()];
+  }
+
   resolveExact(value: string) {
     const ids = [...(this.aliases.get(normalize(value)) ?? [])];
     return ids.map((id) => this.concepts.get(id)).filter((item): item is ConceptDefinition => Boolean(item));

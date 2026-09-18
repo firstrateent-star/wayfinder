@@ -14,3 +14,5 @@ export * from "./training-semantic.ts";
 export * from "./concept-registry.ts";
 export * from "./semantic-compiler.ts";
 export * from "./wayfinder-capacity.ts";
+export * from "./live-semantic-reasoner.ts";
+export * from "./context-assembler.ts";
