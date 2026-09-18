@@ -141,7 +141,7 @@ function isRetryableProviderError(error: unknown) {
   if (message.startsWith("MODEL_PROVIDER_NETWORK:")) return true;
   if (message === "MODEL_PROVIDER_NO_STRUCTURED_OUTPUT" || message === "MODEL_PROVIDER_STRUCTURED_OUTPUT_INVALID_JSON") return true;
 
-  const statusMatch = message.match(/^MODEL_PROVIDER_(?:HTTP_|INVALID_JSON:)(\\d{3})/);
+  const statusMatch = message.match(/^MODEL_PROVIDER_(?:HTTP_|INVALID_JSON:)(\d{3})/);
   if (!statusMatch) return false;
   const status = Number(statusMatch[1]);
   return status === 408 || status === 409 || status === 429 || status >= 500;
