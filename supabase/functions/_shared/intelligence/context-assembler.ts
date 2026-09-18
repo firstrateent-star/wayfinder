@@ -1,4 +1,6 @@
 import type { ConceptRegistry } from "./concept-registry.ts";
+import { conceptMatchesRequested, normalizeSemanticReasonerOutput } from "./concept-resolution.ts";
+import { inferDeterministicContextRequests } from "./context-needs.ts";
 import type {
   ContextRequest,
   SemanticCompilation,
@@ -107,8 +109,10 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
 
   for (let pass = 1; pass <= limits.maxReasonerPasses; pass++) {
     reasonerPasses = pass;
-    finalOutput = await input.reasoner.propose({ source: input.source, context, concepts: input.concepts });
-    const requests = dedupeRequests(finalOutput.contextRequests ?? [], executedKeys)
+    const rawOutput = await input.reasoner.propose({ source: input.source, context, concepts: input.concepts });
+    finalOutput = normalizeSemanticReasonerOutput(rawOutput, input.concepts);
+    const deterministicRequests = inferDeterministicContextRequests(input.source, finalOutput.graph, input.concepts);
+    const requests = dedupeRequests([...(finalOutput.contextRequests ?? []), ...deterministicRequests], executedKeys)
       .slice(0, limits.maxRequestsPerPass)
       .map((request) => ({ ...request, limit: Math.min(request.limit ?? limits.maxItemsPerRequest, limits.maxItemsPerRequest) }));
 
@@ -230,7 +234,8 @@ export class InMemorySemanticContextProvider implements SemanticContextProvider 
   readonly id = "in-memory-semantic-context";
   constructor(
     private readonly catalog: SemanticContextItem[],
-    private readonly aliases: NonNullable<SemanticContextBundle["personalAliases"]> = []
+    private readonly aliases: NonNullable<SemanticContextBundle["personalAliases"]> = [],
+    private readonly concepts?: ConceptRegistry
   ) {}
 
   supports() {
@@ -243,7 +248,13 @@ export class InMemorySemanticContextProvider implements SemanticContextProvider 
     const limit = request.limit ?? DEFAULT_BOUNDED_CONTEXT_LIMITS.maxItemsPerRequest;
 
     const items = this.catalog.filter((item) => {
-      const conceptMatch = concepts.size === 0 || item.concepts?.some((concept) => concepts.has(concept));
+      const conceptMatch = concepts.size === 0 || item.concepts?.some((itemConcept) =>
+        [...concepts].some((requestedConcept) =>
+          this.concepts
+            ? conceptMatchesRequested(itemConcept, requestedConcept, this.concepts)
+            : requestedConcept === itemConcept
+        )
+      );
       const queryMatch = !query || item.summary.toLowerCase().includes(query) || item.ref.toLowerCase().includes(query);
       return conceptMatch && queryMatch;
     }).slice(0, limit);

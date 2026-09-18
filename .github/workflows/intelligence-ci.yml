@@ -16,6 +16,7 @@ on:
       - "lab/semantic-admission-training-v0.1.test.ts"
       - "lab/semantic-compiler-v0.1.test.ts"
       - "lab/semantic-live-runtime-v0.1.test.ts"
+      - "lab/semantic-resolution-context-v0.2.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -32,6 +33,7 @@ on:
       - "lab/semantic-admission-training-v0.1.test.ts"
       - "lab/semantic-compiler-v0.1.test.ts"
       - "lab/semantic-live-runtime-v0.1.test.ts"
+      - "lab/semantic-resolution-context-v0.2.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -57,7 +59,7 @@ jobs:
       - name: Type-check requirement evaluator
         run: deno check supabase/functions/_shared/intelligence/requirements.ts
       - name: Type-check Semantic Compiler runtime
-        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts
+        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
@@ -72,3 +74,5 @@ jobs:
         run: deno test lab/semantic-compiler-v0.1.test.ts
       - name: Run live semantic runtime boundary tests
         run: deno test lab/semantic-live-runtime-v0.1.test.ts
+      - name: Run semantic concept + context resolution v0.2 tests
+        run: deno test lab/semantic-resolution-context-v0.2.test.ts

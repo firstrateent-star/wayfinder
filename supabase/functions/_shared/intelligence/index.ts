@@ -16,3 +16,5 @@ export * from "./semantic-compiler.ts";
 export * from "./wayfinder-capacity.ts";
 export * from "./live-semantic-reasoner.ts";
 export * from "./context-assembler.ts";
+export * from "./concept-resolution.ts";
+export * from "./context-needs.ts";

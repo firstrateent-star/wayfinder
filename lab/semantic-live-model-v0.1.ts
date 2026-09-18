@@ -36,7 +36,7 @@ const contextCatalog = [
 
 const providers = new SemanticContextProviderRegistry().register(new InMemorySemanticContextProvider(contextCatalog, [
   { phrase: "Stage", targetRef: "work:stage-presence", contextHint: "company/work context", strength: "HIGH" }
-]));
+], concepts));
 
 const initialContext: SemanticContextBundle = {
   asOf: "2026-09-17T23:50:00.000Z",
