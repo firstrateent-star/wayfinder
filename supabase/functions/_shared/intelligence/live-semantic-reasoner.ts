@@ -37,6 +37,8 @@ export interface OpenAIResponsesProviderOptions {
   apiKey: string;
   baseUrl?: string;
   fetcher?: typeof fetch;
+  maxAttempts?: number;
+  retryDelayMs?: number;
 }
 
 export class OpenAIResponsesProvider implements SemanticModelProvider {
@@ -51,29 +53,52 @@ export class OpenAIResponsesProvider implements SemanticModelProvider {
   }
 
   async generateStructured<T>(request: StructuredModelRequest): Promise<StructuredModelResponse<T>> {
-    const response = await this.fetcher(`${this.baseUrl}/v1/responses`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${this.options.apiKey}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        model: request.model,
-        input: [
-          { role: "system", content: request.system },
-          { role: "user", content: request.user }
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: request.schemaName,
-            strict: true,
-            schema: request.schema
-          }
+    const maxAttempts = Math.max(1, this.options.maxAttempts ?? 3);
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.generateStructuredOnce<T>(request);
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts || !isRetryableProviderError(error)) throw error;
+        const delayMs = Math.max(0, this.options.retryDelayMs ?? 250) * attempt;
+        if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("MODEL_PROVIDER_FAILED");
+  }
+
+  private async generateStructuredOnce<T>(request: StructuredModelRequest): Promise<StructuredModelResponse<T>> {
+    let response: Response;
+    try {
+      response = await this.fetcher(`${this.baseUrl}/v1/responses`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.apiKey}`,
+          "content-type": "application/json"
         },
-        max_output_tokens: request.maxOutputTokens ?? 5000
-      })
-    });
+        body: JSON.stringify({
+          model: request.model,
+          input: [
+            { role: "system", content: request.system },
+            { role: "user", content: request.user }
+          ],
+          text: {
+            format: {
+              type: "json_schema",
+              name: request.schemaName,
+              strict: true,
+              schema: request.schema
+            }
+          },
+          max_output_tokens: request.maxOutputTokens ?? 5000
+        })
+      });
+    } catch (error) {
+      throw new Error(`MODEL_PROVIDER_NETWORK:${error instanceof Error ? error.message : String(error)}`);
+    }
 
     const rawText = await response.text();
     let payload: Record<string, unknown>;
@@ -109,6 +134,17 @@ export class OpenAIResponsesProvider implements SemanticModelProvider {
       usage: typeof payload.usage === "object" && payload.usage ? payload.usage as Record<string, unknown> : undefined
     };
   }
+}
+
+function isRetryableProviderError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.startsWith("MODEL_PROVIDER_NETWORK:")) return true;
+  if (message === "MODEL_PROVIDER_NO_STRUCTURED_OUTPUT" || message === "MODEL_PROVIDER_STRUCTURED_OUTPUT_INVALID_JSON") return true;
+
+  const statusMatch = message.match(/^MODEL_PROVIDER_(?:HTTP_|INVALID_JSON:)(\\d{3})/);
+  if (!statusMatch) return false;
+  const status = Number(statusMatch[1]);
+  return status === 408 || status === 409 || status === 429 || status >= 500;
 }
 
 function extractResponseOutputText(payload: Record<string, unknown>): string | undefined {

@@ -107,9 +107,11 @@ const scenarios: Scenario[] = [
     return f;
   }),
   scenario("unknown-physical-activity", "I went wing foiling for an hour.", (r) => {
-    const f:Finding[]=[]; const node=r.compilation.graph.nodes.find(n=>/foil/i.test(n.concept)||n.parentConcepts?.includes("PHYSICAL_ACTIVITY"));
+    const f:Finding[]=[]; const node=r.compilation.graph.nodes.find(n=>n.concept==="PHYSICAL_ACTIVITY"||/foil/i.test(n.concept)||n.parentConcepts?.includes("PHYSICAL_ACTIVITY"));
     if (!node) f.push(loss("UNKNOWN_ACTIVITY_DROPPED","Unknown physical activity was not represented."));
     if (node && node.concept==="RUNNING") f.push(distortion("UNKNOWN_ACTIVITY_COLLAPSED","Wing foiling was incorrectly collapsed into RUNNING."));
+    const specificity = node ? JSON.stringify({ concept: node.concept, attributes: node.attributes, spans: node.sourceSpans ?? [] }).toLowerCase() : "";
+    if (node && !specificity.includes("foil")) f.push(loss("UNKNOWN_ACTIVITY_SPECIFICITY_LOST","Physical activity class was preserved, but the specific wing-foiling meaning was lost."));
     return f;
   }),
   scenario("fact-plan-feeling", "I ran two miles, felt great, and I'm going to lift tomorrow.", (r) => {
