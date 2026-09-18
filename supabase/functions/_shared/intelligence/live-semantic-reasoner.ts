@@ -430,7 +430,8 @@ function semanticSystemPrompt() {
     "Concept recognition does not establish occurrence: distinguish occurred, intended, planned, possible, hypothetical, question, negated, correction, reflection, and reports about other people.",
     "Keep the correct subject. A third party's event is never the player's event.",
     "Use context only when it actually supports resolution. If relevant context is missing, request bounded context rather than guessing.",
-    "For unknown specific concepts, use the player's phrase as the concept and include known broader parent concepts when defensible.",
+    "Prefer a supplied knownConcept id whenever it accurately describes the semantic class of the node. Keep specific people, merchants, places, foods, projects, or brands in attributes/references/entities rather than inventing them as the node concept when a known concept such as MEAL, EXPENSE, PERSON, PROJECT, RUNNING, or EMOTIONAL_STATE fits.",
+    "Only when no supplied known concept describes the semantic class should you use the player's specific phrase as an unknown concept and include known broader parent concepts when defensible.",
     "Relationships matter. Represent explicit chronology, comparison, repetition, correction, contrast, and player-attributed effects without upgrading them into scientific causality.",
     "Trace entries are concise observable support/provenance only, never hidden reasoning or chain-of-thought.",
     "Do not emit table names, SQL, commands, XP, guidance, or persistence decisions."

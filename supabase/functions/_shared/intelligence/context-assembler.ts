@@ -257,7 +257,7 @@ export class InMemorySemanticContextProvider implements SemanticContextProvider 
             : requestedConcept === itemConcept
         )
       );
-      const queryMatch = !query || item.summary.toLowerCase().includes(query) || item.ref.toLowerCase().includes(query);
+      const queryMatch = contextQueryMatches(item, query);
       return conceptMatch && queryMatch;
     }).slice(0, limit);
 
@@ -267,4 +267,20 @@ export class InMemorySemanticContextProvider implements SemanticContextProvider 
 
     return { items, personalAliases };
   }
+}
+
+const QUERY_STOPWORDS = new Set(["the", "a", "an", "this", "that", "same", "thing", "from", "with", "about", "for", "and", "or"]);
+
+function contextQueryMatches(item: SemanticContextItem, query?: string) {
+  if (!query) return true;
+  const haystack = `${item.summary} ${item.ref}`.toLowerCase();
+  if (haystack.includes(query)) return true;
+
+  const tokens = query
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !QUERY_STOPWORDS.has(token));
+
+  if (tokens.length === 0) return true;
+  return tokens.some((token) => haystack.includes(token));
 }
