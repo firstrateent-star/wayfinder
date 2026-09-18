@@ -9,6 +9,7 @@ on:
       - "supabase/functions/_shared/intelligence/concept-registry.ts"
       - "supabase/functions/_shared/intelligence/wayfinder-capacity.ts"
       - "lab/semantic-live-model-v0.1.ts"
+      - "lab/semantic-adversarial-live-v0.2.ts"
       - ".github/workflows/semantic-live-eval.yml"
   workflow_dispatch:
 
@@ -29,3 +30,7 @@ jobs:
         run: deno check lab/semantic-live-model-v0.1.ts
       - name: Run read-only real-model semantic lab
         run: deno run --allow-env=OPENAI_API_KEY,WAYFINDER_SEMANTIC_MODEL --allow-net=api.openai.com lab/semantic-live-model-v0.1.ts
+      - name: Type-check adversarial semantic evaluator
+        run: deno check lab/semantic-adversarial-live-v0.2.ts
+      - name: Run adversarial read-only semantic lab
+        run: deno run --allow-env=OPENAI_API_KEY,WAYFINDER_SEMANTIC_MODEL --allow-net=api.openai.com lab/semantic-adversarial-live-v0.2.ts
