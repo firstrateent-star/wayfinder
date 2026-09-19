@@ -68,7 +68,7 @@ export type NavigatorChatResponse = {
   disposition?: string;
   reason?: string;
   proposal?: { domain: string; disposition: string };
-  semantic_mode?: "GENERAL_READ_ONLY";
+  semantic_mode?: "GENERAL_READ_ONLY" | "UNAVAILABLE";
   command_result?: unknown;
   retention?: {
     conversation_persisted_server_side: boolean;
