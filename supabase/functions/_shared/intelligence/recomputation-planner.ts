@@ -36,11 +36,8 @@ export interface RecomputePlan {
   reason: "INITIAL_LOAD" | "NO_CHANGE" | "MODULE_CHANGE" | "COALESCED_PARTIAL_CHANGE_WINDOW";
   changedModules: string[];
   invalidated: RecomputeTarget[];
-  recomputeNow: Array<"POSITION" | "BEARING" | "HELM">;
-  deferred: Array<{
-    target: "REQUIREMENTS" | "CHARACTER";
-    reason: string;
-  }>;
+  recomputeNow: Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "HELM">;
+  deferred: Array<{ target: never; reason: string }>;
   navigatorContextInvalidated: boolean;
   cursor: ModuleChangeCursor | null;
   sourceChangeCount: number;
@@ -58,7 +55,7 @@ const impactMap: Record<string, readonly RecomputeTarget[]> = {
   evidence: ["BEARING", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"]
 };
 
-const liveNow = new Set<RecomputeTarget>(["POSITION", "BEARING", "HELM"]);
+const liveNow = new Set<RecomputeTarget>(["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM"]);
 
 function uniqueTargets(values: RecomputeTarget[]) {
   return [...new Set(values)];
@@ -74,11 +71,8 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
       reason: "INITIAL_LOAD",
       changedModules: [],
       invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-      recomputeNow: ["POSITION", "BEARING", "HELM"],
-      deferred: [
-        { target: "REQUIREMENTS", reason: "Requirement specs/observations are not yet composed in the current-state runtime." },
-        { target: "CHARACTER", reason: "Character remains a derived projection; recomputation has not yet been added to the current-state runtime." }
-      ],
+      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM"],
+      deferred: [],
       navigatorContextInvalidated: true,
       cursor: read.cursor,
       sourceChangeCount: 0,
@@ -105,11 +99,8 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
       reason: "COALESCED_PARTIAL_CHANGE_WINDOW",
       changedModules: [...new Set(read.changes.map((change) => change.module_id))],
       invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-      recomputeNow: ["POSITION", "BEARING", "HELM"],
-      deferred: [
-        { target: "REQUIREMENTS", reason: "Partial invalidation window is conservatively treated as affecting Requirements." },
-        { target: "CHARACTER", reason: "Partial invalidation window is conservatively treated as affecting Character." }
-      ],
+      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM"],
+      deferred: [],
       navigatorContextInvalidated: true,
       cursor: read.cursor,
       sourceChangeCount: read.matching_change_count,
@@ -119,21 +110,8 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
 
   const changedModules = [...new Set(read.changes.map((change) => change.module_id))];
   const invalidated = uniqueTargets(changedModules.flatMap((moduleId) => [...impactsForModule(moduleId)]));
-  const recomputeNow = invalidated.filter((target): target is "POSITION" | "BEARING" | "HELM" => liveNow.has(target)) as Array<"POSITION" | "BEARING" | "HELM">;
+  const recomputeNow = invalidated.filter((target): target is "POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "HELM" => liveNow.has(target)) as Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "HELM">;
   const deferred: RecomputePlan["deferred"] = [];
-
-  if (invalidated.includes("REQUIREMENTS")) {
-    deferred.push({
-      target: "REQUIREMENTS",
-      reason: "Requirement evaluation is available as a contract but is not yet composed into the current-state runtime."
-    });
-  }
-  if (invalidated.includes("CHARACTER")) {
-    deferred.push({
-      target: "CHARACTER",
-      reason: "Character remains reconstructable and has no current recomputation composer yet."
-    });
-  }
 
   return {
     reason: "MODULE_CHANGE",
