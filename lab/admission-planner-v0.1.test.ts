@@ -255,6 +255,46 @@ Deno.test("multiple declared persistence routes clarify instead of choosing regi
   assert(result.routing[0].reason.startsWith("MULTIPLE_PERSIST_ROUTES:"), "multiple routes should be explicit");
 });
 
+Deno.test("model claim type cannot break a tie between multiple declared persistence routes", async () => {
+  class ExplicitClaimReasoner implements SemanticReasoner {
+    readonly id = "explicit-claim-multi-route";
+    readonly version = "0.1";
+    propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+      return {
+        graph: graph(input.source.sourceId, [
+          node("training", "STRENGTH_TRAINING", "OCCURRED", { claimType: "CLAIM_A" })
+        ])
+      };
+    }
+  }
+
+  const capacity = new WayfinderCapacityRegistry()
+    .register({
+      domainId: "a",
+      version: "0.1",
+      concepts: [{ concept: "STRENGTH_TRAINING", facets: ["PERSIST"], claimTypes: ["CLAIM_A"] }],
+      claimTypesOwned: ["CLAIM_A"]
+    })
+    .register({
+      domainId: "b",
+      version: "0.1",
+      concepts: [{ concept: "STRENGTH_TRAINING", facets: ["PERSIST"], claimTypes: ["CLAIM_B"] }],
+      claimTypesOwned: ["CLAIM_B"]
+    });
+
+  const result = await compileLifeExpression({
+    source: source("explicit multi route"),
+    context: emptyContext,
+    reasoner: new ExplicitClaimReasoner(),
+    concepts,
+    capacity
+  });
+
+  assert(result.routing[0].route === "CLARIFY", "model claim type must not select one of multiple canonical routes");
+  assert(result.routing[0].owner === undefined, "no owner should be selected under route ambiguity");
+  assert(result.routing[0].reason.startsWith("MULTIPLE_PERSIST_ROUTES:"), "ambiguity should remain explicit");
+});
+
 Deno.test("planner rejects missing domain planning policy rather than routing by owner name alone", async () => {
   const compilation = await compile(source("workout-no-claim"));
   const plan = planSemanticAdmission(compilation, new AdmissionPlanningPolicyRegistry());
