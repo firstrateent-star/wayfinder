@@ -26,6 +26,7 @@ export function applySemanticSafetyNormalization(
   let graph = downgradeSarcasmRisk(output.graph);
   graph = normalizeInlineCorrections(graph, source.content);
   graph = normalizeFoodAcquisitionVsConsumption(graph, source.content);
+  graph = preserveExplicitClauseFinalChronology(graph, source.content);
   return { ...output, graph };
 }
 
@@ -230,6 +231,60 @@ export function normalizeFoodAcquisitionVsConsumption(graph: CandidateLifeGraph,
   return changed ? { ...graph, nodes, trace } : graph;
 }
 
+export function preserveExplicitClauseFinalChronology(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
+  const cues = [...sourceText.matchAll(/\\b(after|before)\\s*(?=,|;|\\.|!|\\?|$)/gi)];
+  if (!cues.length) return graph;
+
+  const positioned = graph.nodes
+    .filter((node) => node.nodeType !== "ENTITY" && !["QUESTION", "HYPOTHETICAL", "POSSIBLE", "NEGATED"].includes(node.realityMode))
+    .map((node) => ({ node, order: sourceOrder(node, sourceText) }))
+    .filter((item) => Number.isFinite(item.order) && item.order !== Number.MAX_SAFE_INTEGER)
+    .sort((a, b) => a.order - b.order);
+
+  if (positioned.length < 2) return graph;
+
+  const edges = [...graph.edges];
+  const trace = [...graph.trace];
+  let changed = false;
+
+  for (const cue of cues) {
+    const cueIndex = cue.index ?? -1;
+    if (cueIndex < 0) continue;
+
+    const beforeCue = positioned.filter((item) => item.order < cueIndex);
+    if (beforeCue.length < 2) continue;
+
+    const current = beforeCue[beforeCue.length - 1].node;
+    const prior = beforeCue[beforeCue.length - 2].node;
+    const relation = cue[1].toLowerCase() === "before" ? "BEFORE" as const : "AFTER" as const;
+
+    if (edges.some((edge) =>
+      edge.fromCandidateId === current.candidateId &&
+      edge.toCandidateId === prior.candidateId &&
+      edge.relation === relation
+    )) continue;
+
+    edges.push({
+      edgeId: `source-chronology:${current.candidateId}:${relation}:${prior.candidateId}`,
+      fromCandidateId: current.candidateId,
+      relation,
+      toCandidateId: prior.candidateId,
+      certainty: "HIGH",
+      sourceSpans: [cue[0]]
+    });
+    trace.push({
+      traceId: `safety:explicit-chronology:${current.candidateId}:${prior.candidateId}`,
+      stage: "RELATION_RESOLUTION",
+      candidateId: current.candidateId,
+      claim: relation,
+      support: [cue[0]],
+      result: `Preserved explicit clause-final ${cue[1].toLowerCase()} chronology between adjacent source-grounded meanings.`
+    });
+    changed = true;
+  }
+
+  return changed ? { ...graph, edges, trace } : graph;
+}
 export function normalizeInlineCorrections(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
   const hasLeadingCorrection = LEADING_CORRECTION.test(sourceText);
   const hasInlineCorrection = INLINE_CORRECTION.test(sourceText);
