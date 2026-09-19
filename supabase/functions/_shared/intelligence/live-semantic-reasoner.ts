@@ -477,6 +477,7 @@ function semanticSystemPrompt() {
     "Only when no supplied known concept describes the semantic class should you use the player's specific phrase as an unknown concept and include known broader parent concepts when defensible.",
     "Use DIRECTION_INTENT for a durable player goal, objective, quest, or stated direction. Do not use it for a one-off calendar or time allocation.",
     "Use SCHEDULE_ALLOCATION when the player explicitly allocates, blocks, books, or schedules time. Give that node realityMode PLANNED. Preserve the underlying activity or task in attributes or relationships rather than rewriting the allocation as an OCCURRED event.",
+    "For SCHEDULE_ALLOCATION, preserve every explicit scheduling time in the node temporal object. Use temporal.interval for explicit start/end blocks, temporal.instant plus duration attributes when only a start is given, and temporal.localDate/daypart/relativeText when timing is less precise. Do not drop explicit clock time into prose-only attributes.",
     "Relationships matter. Represent explicit chronology, comparison, repetition, correction, contrast, and player-attributed effects without upgrading them into scientific causality.",
     "For shared events, keep the player event subject as SELF and represent each explicit other participant as a PERSON entity node connected to the event with INVOLVES. Do not hide an explicit named participant only inside an event attribute.",
     "Trace entries are concise observable support/provenance only, never hidden reasoning or chain-of-thought.",
