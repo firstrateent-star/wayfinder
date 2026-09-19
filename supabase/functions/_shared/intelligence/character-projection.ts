@@ -162,7 +162,7 @@ function trainingMightSignals(read: TrainingCharacterRead): CharacterSignal[] {
         summary:
           "Recorded " +
           growthExerciseLabels.join(", ") +
-          " capability expanded beyond an earlier two-session performance frontier and was independently repeated in a later session. This is bounded exercise-specific Might growth evidence.",
+          " capability expanded beyond an earlier historical performance frontier built from at least two sessions and was independently repeated in a later session. This is bounded exercise-specific Might growth evidence.",
         sourceCount: growthRefs.length,
         lineage: growthRefs,
         doesNotAssert: growthEvaluation.doesNotAssert
