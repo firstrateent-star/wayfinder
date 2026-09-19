@@ -3,6 +3,7 @@ import {
   downgradeSarcasmRisk,
   normalizeFoodAcquisitionVsConsumption,
   normalizeInlineCorrections,
+  normalizeBareRunningQuantity,
   preserveExplicitClauseFinalChronology
 } from "../supabase/functions/_shared/intelligence/semantic-safety-normalization.ts";
 import type { CandidateLifeGraph, CandidateLifeNode, SemanticReasonerOutput } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
@@ -77,6 +78,46 @@ Deno.test("explicit clause-final after chronology is preserved between adjacent 
     !result.edges.some((edge) => edge.fromCandidateId === "food"),
     "later listed food acquisition must not receive invented chronology"
   );
+});
+
+Deno.test("bare running quantity preserves number but not an invented measurement type or unit", () => {
+  const graph = baseGraph([{
+    ...event("run", "RUNNING", "OCCURRED"),
+    attributes: {
+      distance: {
+        value: { amount: 5, unit: "miles" },
+        state: "RESOLVED",
+        precision: "EXACT",
+        certainty: "HIGH",
+        sourceSpans: ["5"]
+      }
+    },
+    sourceSpans: ["Ran 5 today"]
+  }]);
+  const result = normalizeBareRunningQuantity(graph, "Ran 5 today.");
+  const run = result.nodes[0];
+  assert(!run.attributes.distance, "unsupported distance interpretation must be removed");
+  assert(run.attributes.unqualifiedQuantity?.value === 5, "explicit numeric quantity must be preserved");
+  assert(run.attributes.unqualifiedQuantity?.state === "PARTIAL", "bare quantity must remain partial");
+  assert(run.unresolved?.some((item) => item.code === "RUNNING_QUANTITY_MEANING_UNRESOLVED" && item.blocking), "measurement ambiguity must block downstream persistence");
+});
+
+Deno.test("explicit running units are not stripped", () => {
+  const graph = baseGraph([{
+    ...event("run", "RUNNING", "OCCURRED"),
+    attributes: {
+      distance: {
+        value: { amount: 5, unit: "miles" },
+        state: "RESOLVED",
+        precision: "EXACT",
+        certainty: "HIGH",
+        sourceSpans: ["5 miles"]
+      }
+    },
+    sourceSpans: ["Ran 5 miles today"]
+  }]);
+  const result = normalizeBareRunningQuantity(graph, "Ran 5 miles today.");
+  assert(Boolean(result.nodes[0].attributes.distance), "explicit source unit should survive");
 });
 
 Deno.test("food acquisition language cannot silently become consumed nutrition", () => {
