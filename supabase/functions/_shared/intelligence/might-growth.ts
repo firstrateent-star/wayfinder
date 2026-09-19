@@ -43,6 +43,11 @@ export interface MightGrowthProof {
   exerciseLabel: string;
   ruleVersion: "might_growth_v0.1";
   baselineSessionCount: number;
+  baselineSessions: Array<{
+    sessionId: string;
+    sessionVersion: string;
+    occurredAt: string;
+  }>;
   baselineAnchor: StrengthCapabilityObservation;
   candidate: StrengthCapabilityObservation;
   confirmation: StrengthCapabilityObservation;
@@ -159,7 +164,7 @@ function proofForExercise(observations: readonly StrengthCapabilityObservation[]
   const sessionOrder = [...new Map(
     observations.map((observation) => [
       observation.sessionId,
-      { id: observation.sessionId, occurredAt: observation.occurredAt }
+      { id: observation.sessionId, version: observation.sessionVersion, occurredAt: observation.occurredAt }
     ])
   ).values()].sort((a, b) =>
     Date.parse(a.occurredAt) - Date.parse(b.occurredAt) || a.id.localeCompare(b.id)
@@ -167,7 +172,9 @@ function proofForExercise(observations: readonly StrengthCapabilityObservation[]
 
   for (let candidateIndex = MIN_BASELINE_SESSIONS; candidateIndex < sessionOrder.length - 1; candidateIndex += 1) {
     const candidateSession = sessionOrder[candidateIndex];
-    const baselineSessionIds = new Set(sessionOrder.slice(0, candidateIndex).map((session) => session.id));
+    const candidateTime = Date.parse(candidateSession.occurredAt);
+    const baselineSessions = sessionOrder.filter((session) => Date.parse(session.occurredAt) < candidateTime);
+    const baselineSessionIds = new Set(baselineSessions.map((session) => session.id));
     const baseline = observations.filter((observation) => baselineSessionIds.has(observation.sessionId));
     if (uniqueSessions(baseline).size < MIN_BASELINE_SESSIONS) continue;
 
@@ -180,7 +187,11 @@ function proofForExercise(observations: readonly StrengthCapabilityObservation[]
       );
       if (!candidate) continue;
 
-      const laterSessionIds = new Set(sessionOrder.slice(candidateIndex + 1).map((session) => session.id));
+      const laterSessionIds = new Set(
+        sessionOrder
+          .filter((session) => Date.parse(session.occurredAt) > candidateTime)
+          .map((session) => session.id)
+      );
       const confirmation = observations.find((observation) =>
         laterSessionIds.has(observation.sessionId) &&
         strictlyDominates(observation, anchor) &&
@@ -193,6 +204,11 @@ function proofForExercise(observations: readonly StrengthCapabilityObservation[]
         exerciseLabel: anchor.exerciseLabel,
         ruleVersion: "might_growth_v0.1",
         baselineSessionCount: baselineSessionIds.size,
+        baselineSessions: baselineSessions.map((session) => ({
+          sessionId: session.id,
+          sessionVersion: session.version,
+          occurredAt: session.occurredAt
+        })),
         baselineAnchor: anchor,
         candidate,
         confirmation
