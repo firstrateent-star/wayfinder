@@ -25,7 +25,7 @@ export type NavigatorTrainingDraft = {
   partial: boolean;
 };
 
-export type NavigatorEpisode = {
+export type NavigatorTrainingEpisode = {
   id: string;
   kind: "TRAINING_CAPTURE";
   stage: "TRAINING_SCOPE" | "TRAINING_MODE" | "TRAINING_DETAILS" | "TRAINING_TIME" | "TRAINING_CONFIRM";
@@ -36,8 +36,31 @@ export type NavigatorEpisode = {
   draft?: NavigatorTrainingDraft;
 };
 
+export type NavigatorSemanticEpisode = {
+  id: string;
+  kind: "SEMANTIC";
+  semantic: {
+    episodeId: string;
+    status: "OPEN" | "CLOSED";
+    startedAt: string;
+    updatedAt: string;
+    turns: Array<{
+      turnId: string;
+      sequence: number;
+      sourceId: string;
+      receivedAt: string;
+      graph: unknown;
+      routing: unknown[];
+      executedContextRequests: unknown[];
+      reasonerPasses: number;
+    }>;
+  };
+};
+
+export type NavigatorEpisode = NavigatorTrainingEpisode | NavigatorSemanticEpisode;
+
 export type NavigatorChatResponse = {
-  contract: "navigator-chat.v0.1";
+  contract: "navigator-chat.v0.2";
   message: string;
   episode: NavigatorEpisode | null;
   suggestions: NavigatorSuggestion[];
@@ -45,6 +68,7 @@ export type NavigatorChatResponse = {
   disposition?: string;
   reason?: string;
   proposal?: { domain: string; disposition: string };
+  semantic_mode?: "GENERAL_READ_ONLY";
   command_result?: unknown;
   retention?: {
     conversation_persisted_server_side: boolean;
