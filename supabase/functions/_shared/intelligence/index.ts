@@ -32,3 +32,5 @@ export * from "./training-exercises.ts";
 
 export * from "./direction-semantic.ts";
 export * from "./schedule-semantic.ts";
+
+export * from "./nutrition-semantic.ts";
