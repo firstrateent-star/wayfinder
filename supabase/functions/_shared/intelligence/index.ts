@@ -37,3 +37,6 @@ export * from "./nutrition-semantic.ts";
 
 export * from "./recomputation-planner.ts";
 export * from "./wayfinder-state-service.ts";
+
+export * from "./requirement-providers.ts";
+export * from "./character-projection.ts";
