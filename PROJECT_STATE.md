@@ -2,13 +2,15 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Semantic Admission v0.1 + first real Training domain live  
-**Current phase:** prove the same admission spine against Nutrition as a semantically different domain  
+**Current milestone:** Semantic Episode + Navigator semantic cutover v0.2  
+**Current phase:** finish the live multi-turn semantic gate, deploy general read-only Navigator understanding, then add governed multi-domain admission planning  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
 **Semantic Admission/Training:** `docs/26-semantic-admission-training-v0.1.md`  
-**Latest ADR:** `decisions/ADR-040-understanding-precedes-persistence.md`
+**Semantic Episode:** `docs/30-semantic-episode-graph-v0.1.md`  
+**Navigator semantic cutover:** `docs/31-navigator-semantic-cutover-v0.2.md`  
+**Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
 
 ## Non-negotiable direction
 
@@ -497,58 +499,37 @@ Existing `vl_*` RLS-without-policy findings are separate from Wayfinder.
 
 `Leaked Password Protection Disabled` remains a production-hardening item.
 
-## Strongest next build — Nutrition v0.1
+## Strongest next build — General Navigator + Admission Planner
 
-Nutrition is the second independent proof of Semantic Admission because its semantics differ materially from Training.
+The semantic architecture is now ahead of the production conversation layer. The immediate frontier is to finish the Semantic Episode live gate and cut Navigator over to the shared semantic runtime before adding another canonical domain.
 
-Minimum target:
-
-```text
-meal/intake reality
-food reference resolution
-quantity certainty
-measured vs estimated vs unknown nutrients
-protein/calorie/macro observations only when justified
-intake coverage
-```
-
-First natural-language proving case:
+Current cutover:
 
 ```text
-"I had three eggs and toast"
+natural conversation
+ -> live semantic reasoner
+ -> bounded Semantic Episode
+ -> Candidate Life Graph
+ -> Wayfinder Capacity
+ -> SESSION_ONLY / CLARIFY / route eligibility
+ -> explicit domain action
+ -> existing Training confirmation boundary
+ -> typed canonical command
 ```
 
-Desired behavior:
+Navigator v0.2 keeps general semantic conversation non-authoritative and transient. Training remains the only conversational canonical write path until the Admission Planner is proven.
 
-```text
-three eggs
- -> resolve confidently enough for a grounded food/intake candidate
+The next architecture steps are:
 
-toast
- -> accept only what is actually known
- -> preserve bread type/amount uncertainty
- -> do not fabricate exact macros
-```
+1. pass the live multi-turn Semantic Episode corpus with zero fabrication and no unresolved gate failures;
+2. deploy Navigator v0.2;
+3. register real canonical context providers for Training, Person, Direction, Schedule, Practice/Journey and other relevant reads;
+4. build the Admission Planner so one utterance can produce zero to many independently governed domain proposals;
+5. lower eligible semantic meaning into owning-domain admission without forcing the player to restate it;
+6. recompute Position, Requirements, Character projections and Bearing after accepted writes;
+7. then expand canonical capacity, including Nutrition, through the common Navigator/Admission spine.
 
-Then connect Nutrition observations to the existing Requirement evaluator:
-
-```text
-protein >= target grams / local day
-```
-
-Incomplete meal logging must not become zero intake.
-
-If Training and Nutrition both use the same Semantic Admission spine without changing its core contract, that is strong evidence the architecture can generalize to Finance, Inventory, World, Direction, Social and other domains.
-
-## After Nutrition
-
-1. Generalize semantic recognition beyond bounded proving grammars while keeping model output non-authoritative.
-2. Prove multi-domain decomposition of one utterance.
-3. Let domains generate Information Needs from real coverage/uncertainty gaps.
-4. Have Question Planner arbitrate across those needs.
-5. Recompose Position/Requirements after accepted writes.
-6. Add Inventory/effective capability, then Skill/Role projections.
-7. Add symbolic astrology/tarot guidance only after grounded context is rich enough.
+Nutrition remains the next strong independent domain proof, but it should now enter through this generalized nervous system rather than become a second domain-specific conversation flow.
 
 ## Deferred until earned
 
@@ -577,4 +558,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-The immediate architectural target is **Nutrition v0.1 through the existing Semantic Admission contract**, not more generic Discovery UI.
+The immediate architectural target is **the generalized Navigator → Semantic Episode → Admission Planner seam**, followed by production context providers and downstream recomputation. Nutrition follows through that common seam rather than preceding it.
