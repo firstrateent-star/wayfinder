@@ -370,7 +370,38 @@ export function createTrainingAdmissionPlanningPolicy(
   };
 }
 
+export function createDirectionAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "direction.admission-planning.v0.1",
+    version: "0.1",
+    owner: "direction",
+    claimTypes: ["DIRECTION_NODE"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") return { disposition: "SESSION_ONLY", reason: `DIRECTION_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      if (!["INTENTION", "PLAN", "CLAIM", "STATE"].includes(node.nodeType)) return { disposition: "SESSION_ONLY", reason: `DIRECTION_NODE_TYPE_NOT_INTENT:${node.nodeType}` };
+      if (!["INTENDED", "CURRENT_STATE"].includes(node.realityMode)) return { disposition: "SESSION_ONLY", reason: `DIRECTION_REALITY_NOT_INTENT:${node.realityMode}` };
+      return { disposition: "ELIGIBLE", reason: "DIRECTION_INTENT_ELIGIBLE_FOR_DOMAIN_ADMISSION" };
+    }
+  };
+}
+
+export function createScheduleAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "schedule.admission-planning.v0.1",
+    version: "0.1",
+    owner: "schedule",
+    claimTypes: ["SCHEDULE_ALLOCATION"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") return { disposition: "SESSION_ONLY", reason: `SCHEDULE_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      if (!["PLAN", "INTENTION", "EVENT"].includes(node.nodeType)) return { disposition: "SESSION_ONLY", reason: `SCHEDULE_NODE_TYPE_NOT_PLAN:${node.nodeType}` };
+      if (node.realityMode !== "PLANNED") return { disposition: "SESSION_ONLY", reason: `SCHEDULE_REALITY_NOT_PLANNED:${node.realityMode}` };
+      return { disposition: "ELIGIBLE", reason: "PLANNED_ALLOCATION_ELIGIBLE_FOR_SCHEDULE_ADMISSION" };
+    }
+  };
+}
 export function createWayfinderAdmissionPlanningRegistryV0() {
   return new AdmissionPlanningPolicyRegistry()
-    .register(createTrainingAdmissionPlanningPolicy());
+    .register(createTrainingAdmissionPlanningPolicy())
+    .register(createDirectionAdmissionPlanningPolicy())
+    .register(createScheduleAdmissionPlanningPolicy());
 }
