@@ -7,6 +7,7 @@ on:
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
+      - "supabase/functions/wayfinder-state/**"
       - "supabase/functions/semantic-admission/**"
       - "supabase/functions/navigator-chat/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
@@ -25,6 +26,7 @@ on:
       - "lab/admission-fulfillment-v0.1.test.ts"
       - "lab/schedule-direction-fulfillment-v0.1.test.ts"
       - "lab/nutrition-v0.1.test.ts"
+      - "lab/recomputation-loop-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -32,6 +34,7 @@ on:
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
+      - "supabase/functions/wayfinder-state/**"
       - "supabase/functions/semantic-admission/**"
       - "supabase/functions/navigator-chat/**"
       - "lab/birth-context-vertical-slice-v0.1.test.ts"
@@ -49,6 +52,7 @@ on:
       - "lab/admission-fulfillment-v0.1.test.ts"
       - "lab/schedule-direction-fulfillment-v0.1.test.ts"
       - "lab/nutrition-v0.1.test.ts"
+      - "lab/recomputation-loop-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -67,6 +71,8 @@ jobs:
         run: deno check supabase/functions/natal-geometry/index.ts
       - name: Type-check initial Position Edge Function
         run: deno check supabase/functions/initial-position/index.ts
+      - name: Type-check Wayfinder State Edge Function
+        run: deno check supabase/functions/wayfinder-state/index.ts
       - name: Type-check semantic admission Edge Function
         run: deno check supabase/functions/semantic-admission/index.ts
       - name: Type-check Navigator chat Edge Function
@@ -105,6 +111,8 @@ jobs:
         run: deno test lab/schedule-direction-fulfillment-v0.1.test.ts
       - name: Run Nutrition v0.1 tests
         run: deno test lab/nutrition-v0.1.test.ts
+      - name: Run recomputation loop tests
+        run: deno test lab/recomputation-loop-v0.1.test.ts
       - name: Run semantic entity lifting tests
         run: deno test lab/semantic-entity-lifting-v0.1.test.ts
       - name: Run source-context reconciliation tests
