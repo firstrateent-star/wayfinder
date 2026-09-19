@@ -105,7 +105,7 @@ export function createWayfinderCapacityV0() {
         { concept: "PHYSICAL_ACTIVITY", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "RUNNING", facets: ["RECOGNIZE", "REPRESENT"], notes: "Running is understood semantically but has no canonical persistence contract yet." },
         { concept: "WALKING", facets: ["RECOGNIZE", "REPRESENT"], notes: "Walking is understood semantically but has no canonical persistence contract yet." },
-        { concept: "MEAL", facets: ["RECOGNIZE", "REPRESENT"], notes: "Nutrition canonical capacity is not live yet." },
+        { concept: "MEAL", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "FOOD_INTAKE", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "EXPENSE", facets: ["RECOGNIZE", "REPRESENT"], notes: "Finance canonical capacity is not live yet." },
         { concept: "EMOTIONAL_STATE", facets: ["RECOGNIZE", "REPRESENT"], notes: "Emotional-state canonical capacity is not live yet." },
@@ -158,5 +158,18 @@ export function createWayfinderCapacityV0() {
       claimTypesOwned: ["SCHEDULE_ALLOCATION"],
       contextReadsProvided: ["schedule.current"],
       emittedChanges: ["schedule.allocation_created"]
+    })
+    .register({
+      domainId: "nutrition",
+      version: "0.1",
+      concepts: [{
+        concept: "FOOD_INTAKE",
+        facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+        claimTypes: ["NUTRITION_INTAKE"],
+        notes: "Consumed food and drink only. Acquisition does not establish intake; nutrition totals remain unknown unless explicitly supplied."
+      }],
+      claimTypesOwned: ["NUTRITION_INTAKE"],
+      contextReadsProvided: ["nutrition.recent_intakes"],
+      emittedChanges: ["nutrition.intake_captured"]
     });
 }
