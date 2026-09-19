@@ -49,6 +49,53 @@ type Scenario = { id: string; text: string; evaluate(result: ReadOnlySemanticLoo
 
 const scenarios: Scenario[] = [
   {
+    id: "consumed-food-routes-nutrition",
+    text: "I ate a turkey sandwich today.",
+    evaluate: (result) => {
+      const intake = find(result, "MEAL") ?? find(result, "FOOD_INTAKE");
+      const findings: Finding[] = [];
+      if (!intake) return [loss("CONSUMED_FOOD_MISSED", "Explicitly consumed food was not represented as MEAL or FOOD_INTAKE.")];
+      if (intake.subject.kind !== "SELF" || intake.realityMode !== "OCCURRED") findings.push(distortion("CONSUMED_FOOD_REALITY", "Player consumption must remain SELF + OCCURRED."));
+      const route = result.compilation.routing.find((item) => item.candidateId === intake.candidateId);
+      if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "nutrition" || route.claimType !== "NUTRITION_INTAKE") {
+        findings.push(loss("CONSUMED_FOOD_NOT_ROUTED", "Explicit consumption did not reach the Nutrition owner."));
+      }
+      const nutritionKeys = Object.entries(intake.attributes).filter(([key, field]) =>
+        /calor|protein|carb|fat/i.test(key) && field.value != null
+      );
+      if (nutritionKeys.length) findings.push(fabrication("NUTRITION_TOTALS_INVENTED", "Calories or macros were supplied even though the player did not state them."));
+      return findings;
+    }
+  },
+  {
+    id: "food-acquisition-does-not-route-nutrition",
+    text: "I bought a turkey sandwich today.",
+    evaluate: (result) => {
+      const findings: Finding[] = [];
+      const acquisition = find(result, "FOOD_ACQUISITION");
+      if (!acquisition) findings.push(loss("FOOD_ACQUISITION_MISSED", "Buying food was not represented as FOOD_ACQUISITION."));
+      if (findAll(result, "MEAL").some((node) => node.realityMode === "OCCURRED") || findAll(result, "FOOD_INTAKE").some((node) => node.realityMode === "OCCURRED")) {
+        findings.push(fabrication("ACQUISITION_BECAME_CONSUMPTION", "Buying food was upgraded into eating it."));
+      }
+      if (result.compilation.routing.some((route) => route.owner === "nutrition")) {
+        findings.push(fabrication("ACQUISITION_ROUTED_TO_NUTRITION", "Food acquisition reached canonical Nutrition without evidence of consumption."));
+      }
+      return findings;
+    }
+  },
+  {
+    id: "acquisition-plus-explicit-consumption-routes-nutrition",
+    text: "I grabbed Chipotle and ate it after the run.",
+    evaluate: (result) => {
+      const findings: Finding[] = [];
+      const intake = find(result, "MEAL") ?? find(result, "FOOD_INTAKE");
+      if (!intake || intake.realityMode !== "OCCURRED") return [loss("EXPLICIT_CONSUMPTION_MISSED", "Explicit eating after acquisition was not preserved as consumed intake.")];
+      const route = result.compilation.routing.find((item) => item.candidateId === intake.candidateId);
+      if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "nutrition") findings.push(loss("EXPLICIT_CONSUMPTION_NOT_ROUTED", "Explicitly eaten food did not route to Nutrition."));
+      return findings;
+    }
+  },
+  {
     id: "durable-direction-intent",
     text: "My long-term goal is to build a sustainable business.",
     evaluate: (result) => {
