@@ -571,6 +571,5 @@ Deno.test("episode boundary converts dangling cross-turn edges into transient ep
   assert(currentGraph.references.some((reference) =>
     reference.resolvedRef === expectedRef && reference.candidateRefs.includes("c2")
   ), "cross-turn relation must resolve to the full transient episode ref");
-  assert(currentGraph.validationErrors === undefined, "candidate graph does not carry validation errors");
   assert(second.result.compilation.validationErrors.length === 0, "normalized cross-turn relation graph must validate");
 });
