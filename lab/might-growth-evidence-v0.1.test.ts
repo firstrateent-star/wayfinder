@@ -40,6 +40,7 @@ function session(
 
 Deno.test("one later performance expansion is not enough to establish Might growth", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -53,6 +54,7 @@ Deno.test("one later performance expansion is not enough to establish Might grow
 
 Deno.test("one baseline session cannot establish a longitudinal growth baseline", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
       session("c1", 4, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 8),
@@ -65,6 +67,7 @@ Deno.test("one baseline session cannot establish a longitudinal growth baseline"
 
 Deno.test("two-session baseline plus two later repeated frontier expansions evidences bounded Might growth", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -87,6 +90,7 @@ Deno.test("two-session baseline plus two later repeated frontier expansions evid
 
 Deno.test("performances from different exercises cannot establish growth", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("bench-b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("bench-b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -100,6 +104,7 @@ Deno.test("performances from different exercises cannot establish growth", () =>
 
 Deno.test("higher load with fewer reps is a tradeoff, not Pareto growth", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -121,6 +126,7 @@ Deno.test("LB and KG observations normalize before comparison without conversion
   assert(equivalent[0].normalizedLoadKg === equivalent[1].normalizedLoadKg, "185 lb and 84 kg should land on the same 0.5 kg comparison quantum");
 
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -150,6 +156,7 @@ Deno.test("unsupported or incomplete loaded sets are excluded rather than interp
 
 Deno.test("same-time sessions cannot fake a later confirmation", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -163,6 +170,7 @@ Deno.test("same-time sessions cannot fake a later confirmation", () => {
 
 Deno.test("an older stronger frontier blocks a false comeback growth claim", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 225, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -178,6 +186,7 @@ Deno.test("an older stronger frontier blocks a false comeback growth claim", () 
 
 Deno.test("Character v0.2 surfaces bounded Might growth with complete proof lineage", () => {
   const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "COMPLETE" },
     sessions: [
       session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
       session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
@@ -197,4 +206,20 @@ Deno.test("Character v0.2 surfaces bounded Might growth with complete proof line
     might.growth.lineage.map((ref) => ref.id).join(",") === "b1,b2,c1,c2",
     "Character growth lineage must preserve both baseline sessions plus candidate and confirmation"
   );
+});
+
+Deno.test("partial Training result coverage blocks an otherwise qualifying growth proof", () => {
+  const read: MightGrowthTrainingRead = {
+    result_coverage: { completeness: "PARTIAL" },
+    sessions: [
+      session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
+      session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
+      session("c1", 6, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 8),
+      session("c2", 9, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 9)
+    ]
+  };
+  const result = evaluateMightGrowth(read);
+  assert(result.resultCoverage === "PARTIAL", "coverage state must remain visible");
+  assert(result.state === "INSUFFICIENT_EVIDENCE", "partial bounded reads must fail closed for growth");
+  assert(result.proofs.length === 0, "no growth proof may be emitted from a truncated frontier");
 });
