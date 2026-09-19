@@ -18,4 +18,4 @@ export * from "./live-semantic-reasoner.ts";
 export * from "./context-assembler.ts";
 export * from "./concept-resolution.ts";
 export * from "./context-needs.ts";
-export * from "./entity-lifting.ts";\n
+export * from "./entity-lifting.ts";\nexport * from "./source-context-reconciliation.ts";

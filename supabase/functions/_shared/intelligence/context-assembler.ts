@@ -2,6 +2,7 @@ import type { ConceptRegistry } from "./concept-registry.ts";
 import { conceptMatchesRequested, normalizeSemanticReasonerOutput } from "./concept-resolution.ts";
 import { inferDeterministicContextRequests } from "./context-needs.ts";
 import { liftExplicitPersonParticipantsInOutput } from "./entity-lifting.ts";
+import { reconcileSourceAuthority } from "./source-context-reconciliation.ts";
 import type {
   ContextRequest,
   SemanticCompilation,
@@ -105,6 +106,7 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
   const trace: ContextAssemblyTraceEntry[] = [];
   const executedKeys = new Set<string>();
   let finalOutput: SemanticReasonerOutput | undefined;
+  let sourceBaseline: SemanticReasonerOutput | undefined;
   let exhausted = false;
   let reasonerPasses = 0;
 
@@ -115,6 +117,14 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
       normalizeSemanticReasonerOutput(rawOutput, input.concepts),
       context
     );
+    if (pass === 1) {
+      sourceBaseline = finalOutput;
+    } else if (sourceBaseline) {
+      finalOutput = {
+        ...finalOutput,
+        graph: reconcileSourceAuthority(sourceBaseline.graph, finalOutput.graph).graph
+      };
+    }
     const modelRequests = finalOutput.contextRequests ?? [];
     const deterministicRequests = inferDeterministicContextRequests(input.source, finalOutput.graph, input.concepts)
       .filter((fallback) => !modelRequests.some((request) => request.kind === fallback.kind));
