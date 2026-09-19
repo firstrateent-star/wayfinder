@@ -1,6 +1,7 @@
 import {
   applySemanticSafetyNormalization,
   downgradeSarcasmRisk,
+  normalizeFoodAcquisitionVsConsumption,
   normalizeInlineCorrections
 } from "../supabase/functions/_shared/intelligence/semantic-safety-normalization.ts";
 import type { CandidateLifeGraph, CandidateLifeNode, SemanticReasonerOutput } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
@@ -51,6 +52,31 @@ Deno.test("inline correction emitted as only final event still retains correctio
   const result = normalizeInlineCorrections(graph, "I ran Monday — actually, Tuesday.");
   assert(result.nodes.some((node) => node.realityMode === "CORRECTION"), "correction claim should be synthesized");
   assert(result.edges.some((edge) => edge.relation === "CORRECTS"), "synthesized correction should connect to final event");
+});
+
+Deno.test("food acquisition language cannot silently become consumed nutrition", () => {
+  const node = {
+    ...event("food", "FOOD_INTAKE", "OCCURRED"),
+    claimType: "nutrition.intake.recorded",
+    proposedOwners: ["nutrition"],
+    unresolved: [{
+      code: "CONSUMPTION_UNCLEAR",
+      description: "Grabbing food does not establish that it was eaten.",
+      blocking: false,
+      field: "consumption"
+    }]
+  };
+  const result = normalizeFoodAcquisitionVsConsumption(baseGraph([node]), "I grabbed Chipotle after the run.");
+  assert(result.nodes[0].concept === "FOOD_ACQUISITION", "unproven consumption should reduce to FOOD_ACQUISITION");
+  assert(!result.nodes[0].claimType, "nutrition claim type should be removed when consumption is not established");
+  assert(!(result.nodes[0].proposedOwners?.length), "canonical nutrition owner should be removed when consumption is not established");
+  assert(result.nodes[0].parentConcepts?.includes("FOOD_EVENT"), "food acquisition should retain its broader food-event class");
+});
+
+Deno.test("explicit eating prevents acquisition-only downgrade", () => {
+  const graph = baseGraph([event("food", "MEAL", "OCCURRED")]);
+  const result = normalizeFoodAcquisitionVsConsumption(graph, "I grabbed Chipotle and ate it after the run.");
+  assert(result.nodes[0].concept === "MEAL", "explicit consumption should remain consumptive meaning");
 });
 
 function event(id: string, concept: string, realityMode: CandidateLifeNode["realityMode"]): CandidateLifeNode {

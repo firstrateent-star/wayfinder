@@ -10,6 +10,9 @@ import type {
 const SARCASM_RISK = /sarcasm|irony|ironic|contrast.*literal|literal.*contrast/i;
 const LEADING_CORRECTION = /^\s*(actually\b|no\b|wait\b|sorry\b|i mean\b)/i;
 const INLINE_CORRECTION = /\b(actually|i mean|rather|correction|wait)\b|\bnot\b[^.!?—-]{0,60}[—-]/i;
+const CONSUMPTION_UNCLEAR = /consumption[_\s-]*unclear|not.*(?:eat|eaten|consum)|does not establish.*(?:eat|consum)|unclear.*(?:eat|consum)/i;
+const FOOD_ACQUISITION_CUE = /\b(grabbed|picked\s+up|got|bought|ordered)\b/i;
+const FOOD_CONSUMPTION_CUE = /\b(ate|eaten|eating|consumed|finished|drank|drunk|had)\b/i;
 
 export function applySemanticSafetyNormalization(
   output: SemanticReasonerOutput,
@@ -17,6 +20,7 @@ export function applySemanticSafetyNormalization(
 ): SemanticReasonerOutput {
   let graph = downgradeSarcasmRisk(output.graph);
   graph = normalizeInlineCorrections(graph, source.content);
+  graph = normalizeFoodAcquisitionVsConsumption(graph, source.content);
   return { ...output, graph };
 }
 
@@ -46,6 +50,56 @@ export function downgradeSarcasmRisk(graph: CandidateLifeGraph): CandidateLifeGr
   });
 
   return { ...graph, nodes, trace };
+}
+
+export function normalizeFoodAcquisitionVsConsumption(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
+  const sourceSuggestsAcquisitionOnly = FOOD_ACQUISITION_CUE.test(sourceText) && !FOOD_CONSUMPTION_CUE.test(sourceText);
+  const trace = [...graph.trace];
+  let changed = false;
+
+  const nodes = graph.nodes.map((node) => {
+    if (node.realityMode !== "OCCURRED" || !["FOOD_INTAKE", "MEAL"].includes(node.concept)) return node;
+
+    const reasonerFlaggedConsumptionUnclear = node.unresolved?.some((item) =>
+      CONSUMPTION_UNCLEAR.test(`${item.code} ${item.description}`)
+    ) ?? false;
+
+    if (!reasonerFlaggedConsumptionUnclear && !sourceSuggestsAcquisitionOnly) return node;
+
+    const unresolved = node.unresolved?.length
+      ? node.unresolved
+      : [{
+          code: "CONSUMPTION_NOT_ESTABLISHED",
+          description: "The source establishes obtaining food, but not that the food was consumed.",
+          blocking: false,
+          field: "consumption"
+        }];
+
+    const parentConcepts = [...new Set([
+      ...(node.parentConcepts ?? []).filter((id) => id !== "FOOD_INTAKE" && id !== "MEAL"),
+      "FOOD_EVENT"
+    ])];
+
+    trace.push({
+      traceId: `safety:food-acquisition:${node.candidateId}`,
+      stage: "CONCEPT_RESOLUTION",
+      candidateId: node.candidateId,
+      claim: node.concept,
+      support: node.sourceSpans,
+      result: "Consumptive meaning reduced to FOOD_ACQUISITION because the source did not establish eating or drinking."
+    });
+
+    const { claimType: _claimType, proposedOwners: _proposedOwners, ...rest } = node;
+    changed = true;
+    return {
+      ...rest,
+      concept: "FOOD_ACQUISITION",
+      parentConcepts,
+      unresolved
+    };
+  });
+
+  return changed ? { ...graph, nodes, trace } : graph;
 }
 
 export function normalizeInlineCorrections(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {

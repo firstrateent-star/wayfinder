@@ -241,11 +241,18 @@ const scenarios: Scenario[] = [
     return f;
   }),
   scenario("uncertain-merchant-meal", "I think I grabbed Chipotle or maybe Cava after the run.", (r) => {
-    const f:Finding[]=[]; const meal=find(r,"MEAL");
-    if (!meal) f.push(loss("MEAL_MISSED","Meal occurrence was missed."));
-    const s=JSON.stringify(meal?.attributes??{}).toLowerCase();
+    const f:Finding[]=[];
+    const acquisition=find(r,"FOOD_ACQUISITION");
+    const intake=find(r,"FOOD_INTAKE");
+    const meal=find(r,"MEAL");
+    const food=acquisition??intake??meal;
+    if (!food) f.push(loss("FOOD_EVENT_MISSED","Food acquisition meaning was missed."));
+    if (!acquisition && [intake,meal].some((node)=>node?.realityMode==="OCCURRED")) {
+      f.push(fabrication("UNESTABLISHED_CONSUMPTION","Obtaining food was upgraded into eating without evidence of consumption."));
+    }
+    const s=JSON.stringify(food?.attributes??{}).toLowerCase();
     if ((s.includes("chipotle")&&!s.includes("cava"))||(s.includes("cava")&&!s.includes("chipotle"))) {
-      if (!meal?.unresolved?.length && r.compilation.graph.alternateInterpretations.length===0) f.push(fabrication("MERCHANT_AMBIGUITY_FORCED","One merchant was selected without preserving uncertainty."));
+      if (!food?.unresolved?.length && r.compilation.graph.alternateInterpretations.length===0) f.push(fabrication("MERCHANT_AMBIGUITY_FORCED","One merchant was selected without preserving uncertainty."));
     }
     return f;
   }),
