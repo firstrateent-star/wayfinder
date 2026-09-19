@@ -81,7 +81,7 @@ export interface WayfinderStateRead {
   };
   character: {
     projection_type: "character";
-    rule_version: "character_v0.1";
+    rule_version: "character_v0.2";
     evidenced_facets: Array<"Might" | "Craft" | "Vigor" | "Fortune" | "Insight" | "Bond" | "Flow" | "Lore">;
     facets: Array<{
       facet: "Might" | "Craft" | "Vigor" | "Fortune" | "Insight" | "Bond" | "Flow" | "Lore";
@@ -124,7 +124,7 @@ export interface WayfinderStateRead {
     moduleChangeIsInvalidationOnly: true;
     requirementsRecomputed: true;
     characterRecomputed: true;
-    characterGrowthAsserted: false;
+    characterGrowthAsserted: boolean;
     requirementDefaultsInvented: false;
   };
 }
