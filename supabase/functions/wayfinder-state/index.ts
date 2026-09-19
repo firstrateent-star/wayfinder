@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { buildInitialPosition } from "../_shared/intelligence/initial-position-service.ts";
 import { planRecomputation, type ModuleChangeRead } from "../_shared/intelligence/recomputation-planner.ts";
 import { buildHelmState, type BearingRead, type DirectionGraphRead } from "../_shared/intelligence/wayfinder-state-service.ts";
+import { buildRequirementsProjection, type RequirementInputRead } from "../_shared/intelligence/requirement-providers.ts";
+import { buildCharacterProjection, type TrainingCharacterRead } from "../_shared/intelligence/character-projection.ts";
 import type { QuestionMode } from "../_shared/intelligence/contracts.ts";
 
 const corsHeaders = {
@@ -93,7 +95,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead] = await Promise.all([
+    const computedAt = new Date().toISOString();
+    const characterFrom = new Date(Date.parse(computedAt) - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead] = await Promise.all([
       rpc<PersonRead>(authHeader, "wf_person_current_v0"),
       rpc<BodyRead>(authHeader, "wf_body_current_v0"),
       rpc<DirectionGraphRead>(authHeader, "wf_direction_current"),
@@ -103,11 +107,18 @@ Deno.serve(async (req) => {
         p_after_committed_at: body.changeCursor?.committed_at ?? null,
         p_after_id: body.changeCursor?.id ?? null,
         p_limit: 100
+      }),
+      rpc<RequirementInputRead>(authHeader, "wf_training_strength_requirement_input_v0", { p_as_of: computedAt }),
+      rpc<RequirementInputRead>(authHeader, "wf_nutrition_protein_requirement_input_v0", { p_as_of: computedAt }),
+      rpc<TrainingCharacterRead>(authHeader, "wf_training_recent_v0", {
+        p_from: characterFrom,
+        p_to: computedAt,
+        p_limit: 100
       })
     ]);
 
     const position = buildInitialPosition({
-      now: new Date().toISOString(),
+      now: computedAt,
       questionMode: body.questionMode ?? "TASK_DRIVEN",
       person: personRead.person ? {
         displayName: personRead.person.display_name?.trim() || "Player",
@@ -138,23 +149,36 @@ Deno.serve(async (req) => {
       }
     });
 
+    const requirements = buildRequirementsProjection([
+      { domain: "training", read: trainingRequirement },
+      { domain: "nutrition", read: nutritionRequirement }
+    ], computedAt);
+    const character = buildCharacterProjection({
+      training: trainingCharacterRead,
+      computedAt
+    });
     const recomputation = planRecomputation(changeRead);
     const helm = buildHelmState({ position, bearing, direction: directionRead });
 
     return json({
-      contract: "wayfinder-state.v0.1",
-      computed_at: new Date().toISOString(),
+      contract: "wayfinder-state.v0.2",
+      computed_at: computedAt,
       change_cursor: changeRead.cursor,
       recomputation,
       position,
+      requirements,
+      character,
       bearing,
+      guidance_candidates: requirements.guidance_candidates,
       helm,
       invariants: {
         projectionsPersisted: false,
         canonicalSourceOfTruth: true,
         moduleChangeIsInvalidationOnly: true,
-        requirementsRecomputed: false,
-        characterRecomputed: false
+        requirementsRecomputed: true,
+        characterRecomputed: true,
+        characterGrowthAsserted: false,
+        requirementDefaultsInvented: false
       }
     });
   } catch (cause) {

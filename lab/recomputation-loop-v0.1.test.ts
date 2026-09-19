@@ -19,12 +19,11 @@ function changeRead(input: Partial<ModuleChangeRead> = {}): ModuleChangeRead {
 Deno.test("initial state load recomputes live projections without persisting them", () => {
   const plan = planRecomputation(changeRead({ initial_cursor: true }));
   assert(plan.reason === "INITIAL_LOAD", "initial read should identify initial load");
-  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,HELM", "live projections should recompute");
-  assert(plan.deferred.some((item) => item.target === "REQUIREMENTS"), "Requirements should be explicitly deferred");
-  assert(plan.deferred.some((item) => item.target === "CHARACTER"), "Character should be explicitly deferred");
+  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,REQUIREMENTS,CHARACTER,HELM", "all live projections should recompute");
+  assert(plan.deferred.length === 0, "Requirements and Character are now live recomputation targets");
 });
 
-Deno.test("Direction change invalidates Position Bearing Helm Character and Navigator context", () => {
+Deno.test("Direction change invalidates only projections that actually depend on Direction", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "22222222-2222-4222-8222-222222222222",
@@ -34,13 +33,14 @@ Deno.test("Direction change invalidates Position Bearing Helm Character and Navi
     }],
     matching_change_count: 1
   }));
-  for (const target of ["POSITION","BEARING","CHARACTER","HELM","NAVIGATOR_CONTEXT"] as const) {
+  for (const target of ["POSITION","BEARING","HELM","NAVIGATOR_CONTEXT"] as const) {
     assert(plan.invalidated.includes(target), `${target} should be invalidated by Direction`);
   }
-  assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction alone should not imply Requirement recomputation");
+  assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction has no Requirement provider in v0.1");
+  assert(!plan.invalidated.includes("CHARACTER"), "Direction has no Character provider in v0.1");
 });
 
-Deno.test("Nutrition change invalidates Requirements and Character but not Bearing", () => {
+Deno.test("Nutrition change invalidates Requirements but not permanent Character v0.1", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "33333333-3333-4333-8333-333333333333",
@@ -51,9 +51,24 @@ Deno.test("Nutrition change invalidates Requirements and Character but not Beari
     matching_change_count: 1
   }));
   assert(plan.invalidated.includes("REQUIREMENTS"), "Nutrition should invalidate Requirement evaluation");
-  assert(plan.invalidated.includes("CHARACTER"), "Nutrition should invalidate Character projection");
+  assert(!plan.invalidated.includes("CHARACTER"), "Nutrition has no permanent Character provider in v0.1");
   assert(plan.invalidated.includes("HELM"), "Nutrition should invalidate Helm");
   assert(!plan.invalidated.includes("BEARING"), "Nutrition does not directly change current Direction evidence Bearing");
+});
+
+Deno.test("Training change invalidates both Requirements and Character", () => {
+  const plan = planRecomputation(changeRead({
+    changes: [{
+      id: "33333333-4444-4333-8333-333333333333",
+      module_id: "training",
+      change_type: "training.session_captured",
+      committed_at: "2026-09-19T22:02:30.000Z"
+    }],
+    matching_change_count: 1
+  }));
+  assert(plan.invalidated.includes("REQUIREMENTS"), "Training should invalidate weekly strength Requirement");
+  assert(plan.invalidated.includes("CHARACTER"), "Training should invalidate Might evidence projection");
+  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "both projections should recompute now");
 });
 
 Deno.test("partial ModuleChange window conservatively invalidates every projection", () => {
@@ -69,6 +84,7 @@ Deno.test("partial ModuleChange window conservatively invalidates every projecti
   }));
   assert(plan.reason === "COALESCED_PARTIAL_CHANGE_WINDOW", "partial windows should fail safely");
   assert(plan.invalidated.length === 6, "partial invalidation window should invalidate every projection target");
+  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "partial windows should recompute both new projections");
 });
 
 Deno.test("focus branch follows canonical SUPPORTS lineage and excludes unrelated actions", () => {

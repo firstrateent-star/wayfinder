@@ -370,6 +370,48 @@ export function createTrainingAdmissionPlanningPolicy(
   };
 }
 
+export function createTrainingStandardAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "training.strength-standard.admission-planning.v0.1",
+    version: "0.1",
+    owner: "training",
+    claimTypes: ["TRAINING_STRENGTH_STANDARD"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") {
+        return { disposition: "SESSION_ONLY", reason: `TRAINING_STANDARD_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      }
+      if (!["INTENTION", "CLAIM", "STATE", "PLAN"].includes(node.nodeType)) {
+        return { disposition: "SESSION_ONLY", reason: `TRAINING_STANDARD_NODE_NOT_NORMATIVE:${node.nodeType}` };
+      }
+      if (!["INTENDED", "CURRENT_STATE"].includes(node.realityMode)) {
+        return { disposition: "SESSION_ONLY", reason: `TRAINING_STANDARD_REALITY_NOT_NORMATIVE:${node.realityMode}` };
+      }
+      return { disposition: "ELIGIBLE", reason: "PLAYER_TRAINING_STANDARD_ELIGIBLE_FOR_DOMAIN_ADMISSION" };
+    }
+  };
+}
+
+export function createNutritionStandardAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "nutrition.protein-standard.admission-planning.v0.1",
+    version: "0.1",
+    owner: "nutrition",
+    claimTypes: ["NUTRITION_PROTEIN_STANDARD"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") {
+        return { disposition: "SESSION_ONLY", reason: `PROTEIN_STANDARD_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      }
+      if (!["INTENTION", "CLAIM", "STATE", "PLAN"].includes(node.nodeType)) {
+        return { disposition: "SESSION_ONLY", reason: `PROTEIN_STANDARD_NODE_NOT_NORMATIVE:${node.nodeType}` };
+      }
+      if (!["INTENDED", "CURRENT_STATE"].includes(node.realityMode)) {
+        return { disposition: "SESSION_ONLY", reason: `PROTEIN_STANDARD_REALITY_NOT_NORMATIVE:${node.realityMode}` };
+      }
+      return { disposition: "ELIGIBLE", reason: "PLAYER_PROTEIN_STANDARD_ELIGIBLE_FOR_DOMAIN_ADMISSION" };
+    }
+  };
+}
+
 export function createDirectionAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
   return {
     id: "direction.admission-planning.v0.1",
@@ -423,7 +465,9 @@ export function createNutritionAdmissionPlanningPolicy(): DomainAdmissionPlannin
 export function createWayfinderAdmissionPlanningRegistryV0() {
   return new AdmissionPlanningPolicyRegistry()
     .register(createTrainingAdmissionPlanningPolicy())
+    .register(createTrainingStandardAdmissionPlanningPolicy())
     .register(createDirectionAdmissionPlanningPolicy())
     .register(createScheduleAdmissionPlanningPolicy())
-    .register(createNutritionAdmissionPlanningPolicy());
+    .register(createNutritionAdmissionPlanningPolicy())
+    .register(createNutritionStandardAdmissionPlanningPolicy());
 }

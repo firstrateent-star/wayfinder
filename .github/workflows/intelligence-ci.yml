@@ -27,6 +27,8 @@ on:
       - "lab/schedule-direction-fulfillment-v0.1.test.ts"
       - "lab/nutrition-v0.1.test.ts"
       - "lab/recomputation-loop-v0.1.test.ts"
+      - "lab/requirements-character-v0.1.test.ts"
+      - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -53,6 +55,8 @@ on:
       - "lab/schedule-direction-fulfillment-v0.1.test.ts"
       - "lab/nutrition-v0.1.test.ts"
       - "lab/recomputation-loop-v0.1.test.ts"
+      - "lab/requirements-character-v0.1.test.ts"
+      - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -79,8 +83,10 @@ jobs:
         run: deno check supabase/functions/navigator-chat/index.ts
       - name: Type-check requirement evaluator
         run: deno check supabase/functions/_shared/intelligence/requirements.ts
+      - name: Type-check Requirement + Character projections
+        run: deno check supabase/functions/_shared/intelligence/requirement-providers.ts supabase/functions/_shared/intelligence/character-projection.ts
       - name: Type-check Semantic Compiler runtime
-        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/semantic-safety-normalization.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts supabase/functions/_shared/intelligence/semantic-episode.ts supabase/functions/_shared/intelligence/admission-planner.ts supabase/functions/_shared/intelligence/admission-fulfillment.ts supabase/functions/_shared/intelligence/direction-semantic.ts supabase/functions/_shared/intelligence/schedule-semantic.ts supabase/functions/_shared/intelligence/nutrition-semantic.ts supabase/functions/_shared/intelligence/training-exercises.ts
+        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/semantic-safety-normalization.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts supabase/functions/_shared/intelligence/semantic-episode.ts supabase/functions/_shared/intelligence/admission-planner.ts supabase/functions/_shared/intelligence/admission-fulfillment.ts supabase/functions/_shared/intelligence/direction-semantic.ts supabase/functions/_shared/intelligence/schedule-semantic.ts supabase/functions/_shared/intelligence/nutrition-semantic.ts supabase/functions/_shared/intelligence/standard-semantic.ts supabase/functions/_shared/intelligence/training-exercises.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
@@ -113,6 +119,10 @@ jobs:
         run: deno test lab/nutrition-v0.1.test.ts
       - name: Run recomputation loop tests
         run: deno test lab/recomputation-loop-v0.1.test.ts
+      - name: Run Requirements + Character tests
+        run: deno test lab/requirements-character-v0.1.test.ts
+      - name: Run governed domain Standard tests
+        run: deno test lab/domain-standards-v0.1.test.ts
       - name: Run semantic entity lifting tests
         run: deno test lab/semantic-entity-lifting-v0.1.test.ts
       - name: Run source-context reconciliation tests

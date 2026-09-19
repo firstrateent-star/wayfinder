@@ -368,7 +368,11 @@ async function executeAuthorizedDecision(authHeader: string, decision: Awaited<R
         ? "wf_schedule_create_allocation"
         : key === "nutrition:nutrition.capture_intake"
           ? "wf_nutrition_capture_intake"
-          : null;
+          : key === "training:training.set_strength_standard"
+            ? "wf_training_set_strength_standard_v0"
+            : key === "nutrition:nutrition.set_protein_standard"
+              ? "wf_nutrition_set_protein_standard_v0"
+              : null;
   if (!rpcName) throw new Error(`UNSUPPORTED_DOMAIN_COMMAND:${key}`);
   return await rpc<unknown>(authHeader, rpcName, decision.command.args);
 }

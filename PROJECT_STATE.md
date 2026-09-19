@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** ModuleChange-driven recomputation loop v0.1  
-**Current phase:** canonical writes now invalidate and reconstruct Position + Bearing + Helm through owner-scoped ModuleChange cursors; Requirements + Character are the next explicit recomputation targets  
+**Current milestone:** Requirements + Character recomputation v0.1  
+**Current phase:** domain-owned Standards now drive coverage-aware Requirements, Training evidence reconstructs qualitative Character/Might, and ModuleChange provider dependencies recompute both without creating projection truth  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -16,6 +16,7 @@
 **Schedule + Direction Fulfillment:** `docs/35-schedule-direction-admission-fulfillment-v0.1.md`  
 **Nutrition v0.1:** `docs/36-nutrition-v0.1.md`  
 **ModuleChange recomputation loop:** `docs/37-modulechange-recomputation-loop-v0.1.md`  
+**Requirements + Character recomputation:** `docs/38-requirements-character-recomputation-v0.1.md`  
 **Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
 
 ## Non-negotiable direction
@@ -584,19 +585,44 @@ Make Wayfinder work as my daily Life OS
 
 Helm walks those canonical SUPPORTS edges backward from the current Direction, so unrelated active Actions do not become inferred priorities.
 
+### Current Requirements + Character layer
+
+The next recomputation slice is now implemented:
+
+```text
+player-authored domain Standard
+ + domain-owned canonical observations
+ -> shared coverage-aware Requirement evaluator
+ -> Requirement projection / quiet guidance candidate
+
+Training canonical evidence
+ -> Might EXPOSURE
+ -> loaded-repetition CAPABILITY
+ -> GROWTH remains INSUFFICIENT_EVIDENCE
+```
+
+No Standard means no Requirement. Missing evidence stays unknown rather than zero. Requirement satisfaction does not mutate permanent Character.
+
+Projection invalidation is now registered by providers rather than assumed globally:
+
+```text
+Training  -> Requirements + Character
+Nutrition -> Requirements
+```
+
 ### Strongest next build
 
-The recomputation planner now exposes the remaining missing targets instead of hiding them:
+The next honest frontier is **growth evidence and broader Character providers**, not arbitrary stat points:
 
-1. define domain-owned Requirement specs/observations from Training + Nutrition;
-2. compose coverage-aware Requirement evaluation into `wayfinder-state`;
-3. build reconstructable Character projection inputs from canonical evidence;
-4. recompute Character after affected ModuleChanges;
-5. let Bearing/guidance use Position + Requirements + Character without manufacturing a score;
-6. keep Helm quiet and relevance-driven;
-7. add typed clarification planning over unresolved admission/requirement gaps.
+1. define comparable capability observations for one Training movement/skill;
+2. create a versioned longitudinal growth rule that can establish change without equating repetition with growth;
+3. emit the first governed Might GROWTH signal only when evidence clears that rule;
+4. decide whether/how verified growth translates into XP without making XP canonical life truth;
+5. add new Character facets only when an owning evidence provider exists;
+6. let Bearing/guidance consume Requirements + Character as evidence, never as an opaque score;
+7. add typed clarification planning over unresolved Standards, Requirements, and evidence gaps.
 
-**Law:** persistence without the relevant downstream recomputation is incomplete ingestion.
+**Law:** activity can evidence exposure; capability can evidence performance; only comparable longitudinal evidence may establish growth.
 
 ## Deferred until earned
 
@@ -625,4 +651,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-Navigator v0.4 is live as Supabase `navigator-chat` v22. The ModuleChange recomputation slice is also live in source and proven against production data: canonical writes invalidate reconstructable Position/Bearing/Helm state through `wf_module_changes_v0` and `wayfinder-state`. The immediate architectural target is now **Requirements + Character recomputation on top of this common invalidation seam**.
+The four-domain governed Navigator remains the canonical write spine. Domain-owned Training/Nutrition Standards and Requirement-input RPCs are live in the database with no player defaults installed. `wayfinder-state.v0.2` now reconstructs Position + Requirements + qualitative Character + Bearing + Helm; Character v0.1 can establish Might EXPOSURE/CAPABILITY from Training evidence but explicitly does not assert GROWTH, XP, or numeric stats. The immediate architectural target is **comparable longitudinal capability → governed growth evidence**, then only afterward RPG progression.

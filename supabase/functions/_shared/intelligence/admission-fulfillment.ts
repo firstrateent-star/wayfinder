@@ -22,6 +22,7 @@ import { resolveTrainingExercise } from "./training-exercises.ts";
 import { directionAdmissionContract, type DirectionNodeCandidatePayload, type DirectionNodeKind } from "./direction-semantic.ts";
 import { scheduleAdmissionContract, type ScheduleAllocationCandidatePayload, type ScheduleAllocationKind } from "./schedule-semantic.ts";
 import { nutritionAdmissionContract, type NutritionIntakeCandidatePayload, type NutritionItemCandidate, type NutritionPrecision, type NutritionTotalsCandidate } from "./nutrition-semantic.ts";
+import { trainingStrengthStandardAdmissionContract, nutritionProteinStandardAdmissionContract, type TrainingStrengthStandardPayload, type NutritionProteinStandardPayload } from "./standard-semantic.ts";
 
 export type FulfillmentDisposition =
   | "READY_FOR_CONFIRMATION"
@@ -842,6 +843,201 @@ async function lowerNutrition(input: FulfillmentAdapterInput): Promise<Admission
   };
 }
 
+
+function standardNumericValue(node: CandidateLifeNode, ...names: string[]) {
+  const semanticField = field(node, ...names);
+  const direct = numberValue(semanticField?.value);
+  if (direct != null) return direct;
+  const raw = semanticField?.value;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const row = raw as Record<string, unknown>;
+  for (const key of ["value", "count", "amount", "target", "minimum"]) {
+    const parsed = numberValue(row[key]);
+    if (parsed != null) return parsed;
+  }
+  return undefined;
+}
+
+async function lowerTrainingStrengthStandard(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const targetSessions = standardNumericValue(node, "targetSessions", "sessionsPerWeek", "weeklySessions", "sessionTarget", "target", "frequencyCount");
+  if (targetSessions == null || !Number.isInteger(targetSessions) || targetSessions < 1 || targetSessions > 21) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: "How many strength sessions per week do you want Wayfinder to use as your standard?",
+      reason: "STRENGTH_STANDARD_TARGET_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const payload: TrainingStrengthStandardPayload = {
+    targetSessions,
+    zoneId: compilation.source.zoneId ?? "UTC"
+  };
+  const candidate: SemanticCandidate<TrainingStrengthStandardPayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const registry = new AdmissionRegistry().register(trainingStrengthStandardAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    {
+      now: compilation.source.receivedAt,
+      source: { ...compilation.source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
+    }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "REJECT", reason: "TRAINING_STANDARD_ADMISSION_DECISION_MISSING", semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "The training standard needs one more detail.",
+      reason: decision.reason ?? "TRAINING_STANDARD_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? "TRAINING_STANDARD_NOT_ADMISSIBLE",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  const normalized = decision.normalized as TrainingStrengthStandardPayload;
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: "Training standard — at least " + normalized.targetSessions + " strength " + (normalized.targetSessions === 1 ? "session" : "sessions") + " per local week.",
+    reason: "TRAINING_STANDARD_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      zoneId: normalized.zoneId
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
+}
+
+async function lowerNutritionProteinStandard(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const targetGrams = standardNumericValue(node, "targetGrams", "proteinGrams", "dailyProteinGrams", "proteinTarget", "target", "minimum");
+  if (targetGrams == null || targetGrams <= 0 || targetGrams > 1000) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: "What daily protein target in grams do you want Wayfinder to use?",
+      reason: "PROTEIN_STANDARD_TARGET_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const payload: NutritionProteinStandardPayload = {
+    targetGrams,
+    zoneId: compilation.source.zoneId ?? "UTC"
+  };
+  const candidate: SemanticCandidate<NutritionProteinStandardPayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const registry = new AdmissionRegistry().register(nutritionProteinStandardAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    {
+      now: compilation.source.receivedAt,
+      source: { ...compilation.source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
+    }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "REJECT", reason: "PROTEIN_STANDARD_ADMISSION_DECISION_MISSING", semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "The protein standard needs one more detail.",
+      reason: decision.reason ?? "PROTEIN_STANDARD_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? "PROTEIN_STANDARD_NOT_ADMISSIBLE",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  const normalized = decision.normalized as NutritionProteinStandardPayload;
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: "Nutrition standard — at least " + normalized.targetGrams + " g protein per local day.",
+    reason: "PROTEIN_STANDARD_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      zoneId: normalized.zoneId
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
+}
+
+export function createTrainingStandardFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "training.strength-standard.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "training",
+    claimTypes: ["TRAINING_STRENGTH_STANDARD"],
+    lower: lowerTrainingStrengthStandard
+  };
+}
+
+export function createNutritionStandardFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "nutrition.protein-standard.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "nutrition",
+    claimTypes: ["NUTRITION_PROTEIN_STANDARD"],
+    lower: lowerNutritionProteinStandard
+  };
+}
+
 export function createNutritionFulfillmentAdapter(): DomainFulfillmentAdapter {
   return {
     id: "nutrition.admission-fulfillment.v0.1",
@@ -885,9 +1081,11 @@ export function createTrainingFulfillmentAdapter(): DomainFulfillmentAdapter {
 export function createWayfinderFulfillmentRegistryV0() {
   return new AdmissionFulfillmentRegistry()
     .register(createTrainingFulfillmentAdapter())
+    .register(createTrainingStandardFulfillmentAdapter())
     .register(createDirectionFulfillmentAdapter())
     .register(createScheduleFulfillmentAdapter())
-    .register(createNutritionFulfillmentAdapter());
+    .register(createNutritionFulfillmentAdapter())
+    .register(createNutritionStandardFulfillmentAdapter());
 }
 
 export async function fulfillAdmissionPlan(
@@ -981,9 +1179,11 @@ export async function authorizeStagedFulfillment(envelope: StagedAdmissionEnvelo
   };
   const registry = new AdmissionRegistry()
     .register(trainingAdmissionContract)
+    .register(trainingStrengthStandardAdmissionContract)
     .register(directionAdmissionContract)
     .register(scheduleAdmissionContract)
-    .register(nutritionAdmissionContract);
+    .register(nutritionAdmissionContract)
+    .register(nutritionProteinStandardAdmissionContract);
   const admitted = await runSemanticAdmission(
     { sourceId: source.sourceId, candidates: [candidate], relations: [] },
     registry,

@@ -60,6 +60,8 @@ export function HelmPage() {
   const currentFocus = position?.direction.current_focus ?? null;
   const primaryInsight = state?.helm.primary_insight ?? null;
   const focusActions = state?.helm.focus_branch.actions ?? [];
+  const requirementSignal = state?.guidance_candidates[0] ?? null;
+  const evidencedFacets = state?.character.evidenced_facets ?? [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -163,6 +165,32 @@ export function HelmPage() {
                   </div>
                   <p className="mt-2 text-[11px] leading-4 text-slate-600">
                     Shown because these Actions support the current Direction through canonical Direction edges—not because Wayfinder inferred a priority.
+                  </p>
+                </div>
+              ) : null}
+
+              {requirementSignal ? (
+                <div className="mb-5 rounded-2xl border border-amber-200/10 bg-amber-100/[0.02] px-4 py-3.5 sm:px-5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-amber-100/45">Worth noticing</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{requirementSignal.summary}</p>
+                  <p className="mt-2 text-[11px] leading-4 text-slate-600">
+                    This signal compares recorded evidence with a Standard you established. It does not assume unrecorded life is zero.
+                  </p>
+                </div>
+              ) : null}
+
+              {evidencedFacets.length > 0 ? (
+                <div className="mb-5 rounded-2xl border border-white/[0.06] bg-white/[0.018] px-4 py-3.5 sm:px-5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-slate-600">Character evidence</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {evidencedFacets.map((facet) => (
+                      <span key={facet} className="rounded-full border border-white/[0.07] bg-black/10 px-3 py-1.5 text-xs text-slate-300">
+                        {facet}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] leading-4 text-slate-600">
+                    Evidence is present for these facets. Wayfinder is not assigning numeric stats or claiming permanent growth yet.
                   </p>
                 </div>
               ) : null}

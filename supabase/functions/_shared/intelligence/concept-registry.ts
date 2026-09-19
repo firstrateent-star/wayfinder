@@ -80,5 +80,7 @@ export function createCoreLifeConceptRegistryV0() {
     .register({ id: "PERSON", label: "person", kind: "ENTITY" })
     .register({ id: "PROJECT", label: "project", kind: "ENTITY", aliases: ["job", "install", "edit", "wedding"] })
     .register({ id: "DIRECTION_INTENT", label: "direction intent", kind: "ABSTRACT", aliases: ["goal", "objective", "aim", "personal direction", "quest"] })
-    .register({ id: "SCHEDULE_ALLOCATION", label: "schedule allocation", kind: "ABSTRACT", aliases: ["calendar allocation", "time block", "calendar block", "appointment"] });
+    .register({ id: "SCHEDULE_ALLOCATION", label: "schedule allocation", kind: "ABSTRACT", aliases: ["calendar allocation", "time block", "calendar block", "appointment"] })
+    .register({ id: "STRENGTH_SESSION_STANDARD", label: "strength session standard", kind: "ABSTRACT", aliases: ["weekly lifting target", "strength frequency target", "strength training standard", "workout frequency target"] })
+    .register({ id: "PROTEIN_STANDARD", label: "protein standard", kind: "ABSTRACT", aliases: ["daily protein target", "protein target", "protein goal in grams"] });
 }
