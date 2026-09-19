@@ -276,8 +276,8 @@ async function lowerTraining(input: FulfillmentAdapterInput): Promise<AdmissionF
       owner: proposal.owner,
       claimType: proposal.claimType,
       disposition: "NEEDS_CLARIFICATION",
-      question: setResult.question,
-      reason: setResult.reason,
+      question: setResult.question ?? "Training needs one more detail before it can accept this.",
+      reason: setResult.reason ?? "TRAINING_NEEDS_CLARIFICATION",
       semanticContextRefs: proposal.contextRefs
     };
   }
