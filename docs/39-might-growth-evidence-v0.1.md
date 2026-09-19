@@ -1,6 +1,6 @@
 # Might growth evidence v0.1
 
-**Status:** WORK BRANCH / PRE-MERGE  
+**Status:** MERGED / PRODUCTION STATE DEPLOYED  
 **Date:** 2026-09-19
 
 ## Purpose
@@ -182,3 +182,22 @@ This slice intentionally does not decide:
 - growth providers for Craft, Vigor, Fortune, Insight, Bond, Flow, or Lore.
 
 Those require their own evidence contracts rather than being inferred from this one.
+
+
+## Production proof
+
+Closed on 2026-09-19.
+
+```text
+PR #14 merge             591c1bff
+Wayfinder Intelligence   PASS
+Might growth tests       PASS
+Wayfinder Web CI         PASS
+wayfinder-state          ACTIVE v4
+```
+
+The deployed `wayfinder-state/index.ts`, `character-projection.ts`, and `might-growth.ts` were verified byte-for-byte against merge `591c1bff`.
+
+No database migration was required. No XP, numeric Character score, or durable growth ledger was created.
+
+The frontend source contract for `character_v0.2` is merged and Web CI is green. Vercel production promotion remains externally blocked by the free-tier daily deployment quota; this is not treated as a Character/growth architecture failure.
