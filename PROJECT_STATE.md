@@ -587,7 +587,7 @@ Helm walks those canonical SUPPORTS edges backward from the current Direction, s
 
 ### Current Requirements + Character layer
 
-The next recomputation slice is now implemented:
+Requirements and Character now close through the first governed longitudinal growth proof:
 
 ```text
 player-authored domain Standard
@@ -598,12 +598,15 @@ player-authored domain Standard
 Training canonical evidence
  -> Might EXPOSURE
  -> loaded-repetition CAPABILITY
- -> GROWTH remains INSUFFICIENT_EVIDENCE
+ -> same-exercise longitudinal frontier comparison
+ -> repeatable governed GROWTH evidence
 ```
 
-No Standard means no Requirement. Missing evidence stays unknown rather than zero. Requirement satisfaction does not mutate permanent Character.
+Character is now `character_v0.2`. Might GROWTH can become `EVIDENCED` only under `might_growth_v0.1`: the bounded Training read must be COMPLETE, the canonical exercise must match, at least two strictly-earlier baseline sessions must exist, a later load/repetition Pareto-frontier expansion must occur, and a second strictly-later session must independently expand the same frozen historical frontier. A single PR, cross-exercise evidence, load/repetition tradeoffs, partial query coverage, Requirement satisfaction, or activity count cannot establish growth.
 
-Projection invalidation is now registered by providers rather than assumed globally:
+No Standard means no Requirement. Missing evidence stays unknown rather than zero. Requirement satisfaction does not mutate Character.
+
+Projection invalidation remains registered by actual providers:
 
 ```text
 Training  -> Requirements + Character
@@ -612,17 +615,17 @@ Nutrition -> Requirements
 
 ### Strongest next build
 
-The next honest frontier is **growth evidence and broader Character providers**, not arbitrary stat points:
+The next honest frontier is **RPG progression semantics after verified growth**, not automatic XP:
 
-1. define comparable capability observations for one Training movement/skill;
-2. create a versioned longitudinal growth rule that can establish change without equating repetition with growth;
-3. emit the first governed Might GROWTH signal only when evidence clears that rule;
-4. decide whether/how verified growth translates into XP without making XP canonical life truth;
-5. add new Character facets only when an owning evidence provider exists;
-6. let Bearing/guidance consume Requirements + Character as evidence, never as an opaque score;
-7. add typed clarification planning over unresolved Standards, Requirements, and evidence gaps.
+1. define what a governed growth signal is allowed to advance;
+2. decide whether progression is reconstructable, durably recognized, or a hybrid without turning XP into canonical life truth;
+3. define replay/idempotency so one growth proof cannot be awarded twice;
+4. define correction/supersession behavior when canonical Training evidence changes;
+5. keep lineage from any progression consequence back to the exact governed growth proof;
+6. add new Character facets only when an owning evidence provider exists;
+7. let Bearing/guidance consume Requirements + Character as evidence, never as an opaque score.
 
-**Law:** activity can evidence exposure; capability can evidence performance; only comparable longitudinal evidence may establish growth.
+**Law:** activity can evidence exposure; capability can evidence performance; only comparable longitudinal evidence may establish growth; growth does not automatically imply XP.
 
 ## Deferred until earned
 
@@ -678,4 +681,31 @@ The governed Training/Nutrition Standard commands and Requirement-input reads ar
 
 The Vercel web source is merged and Web CI is green, but the production web deployment is externally blocked by the Vercel free-tier daily deployment quota (`api-deployments-free-per-day`). That quota condition is not treated as a Wayfinder architecture or test failure.
 
-The four-domain governed Navigator remains the canonical write spine. `wayfinder-state.v0.2` reconstructs Position + Requirements + qualitative Character + Bearing + Helm; Character v0.1 can establish Might EXPOSURE/CAPABILITY from Training evidence but explicitly does not assert GROWTH, XP, or numeric stats. The immediate architectural target is **comparable longitudinal capability → governed growth evidence**, then only afterward RPG progression.
+The four-domain governed Navigator remains the canonical write spine. `wayfinder-state.v0.2` reconstructs Position + Requirements + qualitative Character + Bearing + Helm.
+
+### Might growth production closure — 2026-09-19
+
+PR #14 merged to `main` at code checkpoint `591c1bff`.
+
+Merged-main gates are green:
+
+```text
+Wayfinder Intelligence CI      PASS
+Might growth pressure suite    PASS
+Wayfinder Web CI               PASS
+```
+
+Production Supabase now runs:
+
+```text
+navigator-chat     ACTIVE v23   (unchanged by this slice)
+wayfinder-state    ACTIVE v4
+Character          character_v0.2
+Growth rule        might_growth_v0.1
+```
+
+The changed production `wayfinder-state` runtime files were verified byte-for-byte against merge `591c1bff`. No database migration, XP ledger, numeric Character stat, or new canonical write path was added.
+
+The Vercel frontend source is merged and Web CI is green, but production frontend deployment remains blocked by the Vercel free-tier daily deployment quota. The backend response remains structurally compatible; the source contract now recognizes `character_v0.2`.
+
+The immediate architectural target is now **governed RPG progression semantics after verified growth**. Growth is evidence; it does not automatically become XP.
