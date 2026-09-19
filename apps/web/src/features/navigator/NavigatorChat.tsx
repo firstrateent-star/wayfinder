@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, CornerDownLeft, Send, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { navigatorChat, type NavigatorChatResponse, type NavigatorEpisode, type NavigatorSuggestion } from "@/lib/navigator-api";
 
-const CACHE_KEY = "wayfinder.navigator.v0.2";
+const CACHE_KEY = "wayfinder.navigator.v0.3";
 const MAX_MESSAGES = 40;
 const MAX_REWIND_STATES = 16;
 

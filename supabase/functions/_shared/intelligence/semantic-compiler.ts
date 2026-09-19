@@ -224,6 +224,7 @@ export interface CompilerRoutingDecision {
   candidateId: string;
   route: CompilerRoute;
   owner?: string;
+  claimType?: string;
   reason: string;
   capacity: CapacityAssessment;
 }
@@ -294,21 +295,37 @@ export function routeCandidate(node: CandidateLifeNode, assessment: CapacityAsse
     };
   }
 
-  if (assessment.persistOwners.length === 1 && node.claimType) {
+  const declaredRoutes = assessment.declaredPersistRoutes;
+
+  // A model-supplied claim type may be checked for compatibility, but it may
+  // never break a tie between multiple canonical persistence routes.
+  if (declaredRoutes.length > 1) {
     return {
       candidateId: node.candidateId,
-      route: "ROUTE_TO_DOMAIN",
-      owner: assessment.persistOwners[0],
-      reason: "EXPLICIT_PERSIST_CAPACITY",
+      route: "CLARIFY",
+      reason: `MULTIPLE_PERSIST_ROUTES:${declaredRoutes.map((route) => `${route.owner}:${route.claimType}`).join(",")}`,
       capacity: assessment
     };
   }
 
-  if (assessment.persistOwners.length > 1) {
+  if (declaredRoutes.length === 1) {
+    const route = declaredRoutes[0];
+
+    if (node.claimType && node.claimType !== route.claimType) {
+      return {
+        candidateId: node.candidateId,
+        route: "SESSION_ONLY",
+        reason: `UNDECLARED_CLAIM_TYPE:${node.claimType}`,
+        capacity: assessment
+      };
+    }
+
     return {
       candidateId: node.candidateId,
-      route: "CLARIFY",
-      reason: `MULTIPLE_PERSIST_OWNERS:${assessment.persistOwners.join(",")}`,
+      route: "ROUTE_TO_DOMAIN",
+      owner: route.owner,
+      claimType: route.claimType,
+      reason: node.claimType ? "EXPLICIT_DECLARED_CLAIM_ROUTE" : "DETERMINISTIC_DECLARED_CLAIM_ROUTE",
       capacity: assessment
     };
   }

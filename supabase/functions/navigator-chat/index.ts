@@ -8,6 +8,11 @@ import { runSemanticEpisodeTurn, type SemanticEpisode } from "../_shared/intelli
 import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../_shared/intelligence/live-semantic-reasoner.ts";
 import { createWayfinderCapacityV0 } from "../_shared/intelligence/wayfinder-capacity.ts";
 import { createNavigatorCanonicalContextProvider } from "../_shared/intelligence/navigator-canonical-context.ts";
+import {
+  createWayfinderAdmissionPlanningRegistryV0,
+  planSemanticAdmission,
+  type AdmissionPlan
+} from "../_shared/intelligence/admission-planner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -246,12 +251,26 @@ function semanticEpisodeTextDigest(episode: SemanticEpisode) {
 }
 
 function semanticEpisodeSupportsTrainingCapture(episode: SemanticEpisode) {
-  if (episode.turns.some((turn) =>
-    turn.graph.nodes.some((node) =>
-      node.subject.kind === "SELF" &&
-      (node.concept === "STRENGTH_TRAINING" ||
-        node.parentConcepts?.includes("STRENGTH_TRAINING"))
-    )
+  const latest = episode.turns.at(-1);
+  if (!latest) return false;
+
+  const physical = latest.graph.nodes.filter((node) =>
+    node.concept === "STRENGTH_TRAINING" ||
+    node.concept === "PHYSICAL_ACTIVITY" ||
+    node.parentConcepts?.includes("STRENGTH_TRAINING") ||
+    node.parentConcepts?.includes("PHYSICAL_ACTIVITY")
+  );
+
+  if (physical.length === 0) return false;
+
+  const occurredForPlayer = physical.filter((node) =>
+    node.subject.kind === "SELF" && node.realityMode === "OCCURRED"
+  );
+  if (occurredForPlayer.length === 0) return false;
+
+  if (occurredForPlayer.some((node) =>
+    node.concept === "STRENGTH_TRAINING" ||
+    node.parentConcepts?.includes("STRENGTH_TRAINING")
   )) return true;
 
   return looksLikeWorkout(semanticEpisodeTextDigest(episode));
@@ -291,22 +310,18 @@ function localDateFromSemanticEpisode(episode: SemanticEpisode, zoneId: string):
   return null;
 }
 
-function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
+function summarizeSemanticResult(result: ReadOnlySemanticLoopResult, admissionPlan: AdmissionPlan) {
   const graph = result.compilation.graph;
   const meaningful = graph.nodes.filter((node) => node.nodeType !== "ENTITY");
   const labels = [...new Set(meaningful.map((node) => conceptLabel(node.concept)))].slice(0, 4);
   const blocking = meaningful
     .flatMap((node) => node.unresolved ?? [])
     .find((item) => item.blocking);
-  const training = meaningful.some((node) =>
-    node.concept === "STRENGTH_TRAINING" &&
-    node.subject.kind === "SELF" &&
-    node.realityMode === "OCCURRED"
-  );
 
-  const suggestions: Suggestion[] = training
-    ? [{ id: "START_TRAINING", label: "Log this as Training", tone: "primary" }]
-    : [];
+  // Persistence affordances and persistence wording are added only after
+  // Admission Planning. Compiler routing alone is not enough authority because
+  // a domain policy can still keep routed meaning session-only.
+  const suggestions: Suggestion[] = [];
 
   if (meaningful.length === 0) {
     return {
@@ -328,12 +343,22 @@ function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
     };
   }
 
-  const unsupported = result.compilation.routing.filter((route) => route.route !== "ROUTE_TO_DOMAIN").length;
-  return {
-    message: `${understood} I can carry that meaning forward in this conversation. ${unsupported > 0 ? "I won’t save the parts that do not yet have a proven canonical owner." : "Nothing becomes canonical until you explicitly confirm a domain write."}`,
-    suggestions,
-    disposition: training ? "UNDERSTOOD_TRAINING_AVAILABLE" : "SESSION_ONLY"
-  };
+  const admissionAvailable = admissionPlan.items.some((item) =>
+    item.disposition === "NEEDS_AUTHORIZATION" ||
+    item.disposition === "READY_FOR_DOMAIN_ADMISSION"
+  );
+
+  return admissionAvailable
+    ? {
+        message: `${understood} I can carry that meaning forward in this conversation. One or more parts are eligible to be considered by an owning domain, but nothing is saved until you explicitly choose that write.`,
+        suggestions,
+        disposition: "DOMAIN_ADMISSION_AVAILABLE"
+      }
+    : {
+        message: `${understood} I can carry that meaning forward in this conversation. This stays transient unless an owning domain can admit it; I won’t save it just because it was said.`,
+        suggestions,
+        disposition: "SESSION_ONLY"
+      };
 }
 
 async function runSemanticConversation(
@@ -383,13 +408,33 @@ async function runSemanticConversation(
     }
   });
 
-  const summary = summarizeSemanticResult(outcome.result);
+  const admissionPlan = planSemanticAdmission(
+    outcome.result.compilation,
+    createWayfinderAdmissionPlanningRegistryV0(),
+    now
+  );
+
+  const summary = summarizeSemanticResult(outcome.result, admissionPlan);
   const suggestions = [...summary.suggestions];
+
+  const plannedTraining = admissionPlan.items.some((item) =>
+    item.owner === "training" &&
+    item.claimType === "TRAINING_STRENGTH_SESSION" &&
+    (item.disposition === "NEEDS_AUTHORIZATION" || item.disposition === "READY_FOR_DOMAIN_ADMISSION")
+  );
+
   if (
+    plannedTraining &&
+    !suggestions.some((item) => item.id === "START_TRAINING")
+  ) {
+    suggestions.push({ id: "START_TRAINING", label: "Log this as Training", tone: "primary" });
+  }
+  if (
+    !plannedTraining &&
     semanticEpisodeSupportsTrainingCapture(outcome.episode) &&
     !suggestions.some((item) => item.id === "START_TRAINING")
   ) {
-    suggestions.push({ id: "START_TRAINING", label: "Log strength workout", tone: "secondary" });
+    suggestions.push({ id: "START_TRAINING", label: "Clarify & log workout", tone: "secondary" });
   }
 
   const wrapped: SemanticNavigatorEpisode = {
@@ -398,12 +443,12 @@ async function runSemanticConversation(
     semantic: outcome.episode
   };
 
-  return { ...summary, suggestions, episode: wrapped };
+  return { ...summary, suggestions, episode: wrapped, admissionPlan };
 }
 
 function respond(message: string, episode: NavigatorEpisode | null, suggestions: Suggestion[] = [], extra: Record<string, unknown> = {}) {
   return {
-    contract: "navigator-chat.v0.2",
+    contract: "navigator-chat.v0.3",
     message,
     episode,
     suggestions,
@@ -556,7 +601,11 @@ Deno.serve(async (req: Request) => {
           semantic.message,
           semantic.episode,
           semantic.suggestions,
-          { disposition: semantic.disposition, semantic_mode: "GENERAL_READ_ONLY" }
+          {
+            disposition: semantic.disposition,
+            semantic_mode: "GENERAL_READ_ONLY",
+            admission_plan: semantic.admissionPlan
+          }
         ));
       }
 

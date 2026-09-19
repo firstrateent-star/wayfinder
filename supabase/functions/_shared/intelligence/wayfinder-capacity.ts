@@ -21,12 +21,19 @@ export interface DomainCapability {
   emittedChanges?: readonly string[];
 }
 
+export interface DeclaredPersistRoute {
+  owner: string;
+  claimType: string;
+  viaConcept: string;
+}
+
 export interface CapacityAssessment {
   candidateId: string;
   concept: string;
   supportedFacets: CapacityFacet[];
   contributingDomains: string[];
   persistOwners: string[];
+  declaredPersistRoutes: DeclaredPersistRoute[];
   missingFacets: CapacityFacet[];
   notes: string[];
 }
@@ -50,6 +57,7 @@ export class WayfinderCapacityRegistry {
     const facets = new Set<CapacityFacet>();
     const contributingDomains = new Set<string>();
     const persistOwners = new Set<string>();
+    const declaredPersistRoutes = new Map<string, DeclaredPersistRoute>();
     const notes: string[] = [];
 
     for (const domain of this.domains.values()) {
@@ -60,9 +68,17 @@ export class WayfinderCapacityRegistry {
         capability.facets.forEach((facet) => facets.add(facet));
         if (capability.notes) notes.push(`${domain.domainId}:${capability.notes}`);
 
-        const claimOwned = Boolean(node.claimType && domain.claimTypesOwned?.includes(node.claimType));
-        const capabilityClaims = capability.claimTypes?.includes(node.claimType ?? "") ?? false;
-        if (capability.facets.includes("PERSIST") && (claimOwned || capabilityClaims)) persistOwners.add(domain.domainId);
+        if (capability.facets.includes("PERSIST")) {
+          for (const claimType of capability.claimTypes ?? []) {
+            if (!domain.claimTypesOwned?.includes(claimType)) {
+              notes.push(`${domain.domainId}:PERSIST_CLAIM_NOT_OWNED:${claimType}`);
+              continue;
+            }
+            const route = { owner: domain.domainId, claimType, viaConcept: capability.concept };
+            declaredPersistRoutes.set(`${route.owner}:${route.claimType}`, route);
+            persistOwners.add(domain.domainId);
+          }
+        }
       }
     }
 
@@ -72,6 +88,7 @@ export class WayfinderCapacityRegistry {
       supportedFacets: [...facets],
       contributingDomains: [...contributingDomains],
       persistOwners: [...persistOwners],
+      declaredPersistRoutes: [...declaredPersistRoutes.values()],
       missingFacets: ALL_FACETS.filter((facet) => !facets.has(facet)),
       notes
     };
