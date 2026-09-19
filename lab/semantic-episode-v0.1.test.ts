@@ -573,3 +573,156 @@ Deno.test("episode boundary converts dangling cross-turn edges into transient ep
   ), "cross-turn relation must resolve to the full transient episode ref");
   assert(second.result.compilation.validationErrors.length === 0, "normalized cross-turn relation graph must validate");
 });
+
+
+class EquivalentCorrectionReasoner implements SemanticReasoner {
+  readonly id = "equivalent-correction";
+  readonly version = "0.1";
+
+  propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+    if (/two miles earlier/i.test(input.source.content)) {
+      return {
+        graph: graph(input.source.sourceId, [{
+          candidateId: "prior-run",
+          nodeType: "EVENT",
+          concept: "RUNNING",
+          subject: { kind: "SELF" },
+          realityMode: "OCCURRED",
+          attributes: {
+            distance: {
+              value: 2,
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "HIGH",
+              sourceSpans: ["two miles"]
+            }
+          },
+          certainty: "HIGH"
+        }]),
+        contextRequests: []
+      };
+    }
+
+    const prior = input.context.items.find((item) =>
+      item.kind === "semantic_episode_candidate" && item.concepts?.includes("RUNNING")
+    );
+    if (!prior) return { graph: graph(input.source.sourceId, []), contextRequests: [] };
+
+    return {
+      graph: {
+        ...graph(input.source.sourceId, [
+          {
+            candidateId: "correction-a",
+            nodeType: "CLAIM",
+            concept: "RUNNING",
+            subject: { kind: "SELF" },
+            realityMode: "CORRECTION",
+            attributes: {
+              correctedDistance: {
+                value: 2.5,
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                sourceSpans: ["Actually 2.5."],
+                contextRefs: [prior.ref]
+              },
+              unit: {
+                value: "miles",
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                contextRefs: [prior.ref]
+              }
+            },
+            certainty: "HIGH"
+          },
+          {
+            candidateId: "correction-b",
+            nodeType: "CLAIM",
+            concept: "RUNNING",
+            subject: { kind: "SELF" },
+            realityMode: "CORRECTION",
+            attributes: {
+              distance: {
+                value: 2.5,
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                sourceSpans: ["Actually 2.5."],
+                contextRefs: [prior.ref]
+              },
+              unit: {
+                value: "miles",
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                contextRefs: [prior.ref]
+              }
+            },
+            certainty: "HIGH",
+            unresolved: [{
+              code: "CORRECTION_TARGET_UNRESOLVED",
+              description: "Target should resolve through episode context.",
+              blocking: true,
+              field: "correction_target"
+            }]
+          }
+        ]),
+        references: [{
+          referenceId: "r1",
+          phrase: "Actually",
+          candidateRefs: ["correction-b"],
+          status: "RESOLVED",
+          resolvedRef: prior.ref,
+          certainty: "HIGH"
+        }],
+        edges: [{
+          edgeId: "e1",
+          fromCandidateId: "correction-a",
+          relation: "CORRECTS",
+          toCandidateId: "correction-b",
+          certainty: "HIGH",
+          contextRefs: [prior.ref]
+        }]
+      },
+      contextRequests: []
+    };
+  }
+}
+
+Deno.test("episode boundary merges equivalent source-supported correction candidates for one prior target", async () => {
+  const reasoner = new EquivalentCorrectionReasoner();
+  const first = await runSemanticEpisodeTurn({
+    episodeId: "equivalent-correction",
+    source: source("equivalent-1", "I ran two miles earlier.", "2026-09-19T14:00:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+  const second = await runSemanticEpisodeTurn({
+    episode: first.episode,
+    source: source("equivalent-2", "Actually 2.5.", "2026-09-19T14:01:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const graphNow = second.result.compilation.graph;
+  const corrections = graphNow.nodes.filter((node) =>
+    node.concept === "RUNNING" && node.realityMode === "CORRECTION"
+  );
+  const expectedRef = semanticEpisodeNodeRef("equivalent-correction", 1, "prior-run");
+  assert(corrections.length === 1, "equivalent corrections for one target should merge into one node");
+  assert(corrections[0].attributes.distance?.value === 2.5, "merged correction should canonicalize correctedDistance to distance");
+  assert(corrections[0].attributes.distance?.contextRefs?.includes(expectedRef), "merged correction should retain the prior episode target");
+  assert(!(corrections[0].unresolved ?? []).some((item) => item.code === "CORRECTION_TARGET_UNRESOLVED"), "resolved episode target should clear target ambiguity");
+  assert(graphNow.edges.length === 0, "self-edge created by correction merge should be removed");
+  assert(graphNow.references.some((reference) =>
+    reference.resolvedRef === expectedRef && reference.candidateRefs.includes(corrections[0].candidateId)
+  ), "reference should be remapped to the surviving correction node");
+  assert(second.result.compilation.validationErrors.length === 0, "merged correction graph must validate");
+});

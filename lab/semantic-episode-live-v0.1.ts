@@ -181,19 +181,24 @@ const scenarios: EpisodeScenario[] = [
     const graph = current.compilation.graph;
     const run = find(current, "RUNNING");
     const distanceNode = graph.nodes.find((node) => node.concept.toLowerCase() === "distance");
-    if (!run) findings.push(loss("SHARED_RUN_REFINEMENT_MISSED", "Distance fragment did not resolve against the shared run."));
-    else if (run.subject.kind !== "SELF") findings.push(distortion("SHARED_RUN_SELF_LOST", "Shared run refinement lost SELF as the event subject."));
+    if (!run && !distanceNode) {
+      findings.push(loss("SHARED_RUN_REFINEMENT_MISSED", "Distance fragment was not represented as a run refinement or linked quantity."));
+      return findings;
+    }
+    if (run && run.subject.kind !== "SELF") findings.push(distortion("SHARED_RUN_SELF_LOST", "Shared run refinement lost SELF as the event subject."));
 
     const distance = run?.attributes.distance ?? distanceNode?.attributes.value;
     if (!distance) findings.push(loss("SHARED_RUN_DISTANCE_MISSED", "Approximate distance was not represented."));
     else if (distance.precision === "EXACT") findings.push(fabrication("APPROX_DISTANCE_UPGRADED", "About two miles became exact."));
 
-    if (run && distanceNode && !run.attributes.distance) {
-      const linked = graph.edges.some((edge) =>
-        (edge.fromCandidateId === run.candidateId && edge.toCandidateId === distanceNode.candidateId) ||
-        (edge.toCandidateId === run.candidateId && edge.fromCandidateId === distanceNode.candidateId)
+    if (distanceNode && !run?.attributes.distance) {
+      const linkedByReference = graph.references.some((reference) =>
+        reference.candidateRefs.includes(distanceNode.candidateId) &&
+        Boolean(reference.resolvedRef?.startsWith("episode:"))
       );
-      if (!linked) findings.push(loss("SHARED_RUN_DISTANCE_UNLINKED", "Distance was represented but not structurally linked to the prior run."));
+      if (!linkedByReference) {
+        findings.push(loss("SHARED_RUN_DISTANCE_UNLINKED", "Standalone distance quantity did not resolve to the prior transient run."));
+      }
     }
     if (!hasEpisodeRef(current)) findings.push(loss("SHARED_RUN_PRIOR_TURN_NOT_USED", "Distance refinement did not cite transient prior-turn context."));
     return findings;

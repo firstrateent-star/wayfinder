@@ -340,6 +340,17 @@ function normalizeEpisodeGraph(
     );
   }
 
+  const mergedCorrections = mergeEquivalentEpisodeCorrections(
+    nodes,
+    edges,
+    references,
+    trace,
+    episodeRefs
+  );
+  nodes = mergedCorrections.nodes;
+  edges = mergedCorrections.edges;
+  references = mergedCorrections.references;
+
   const currentIds = new Set(nodes.map((node) => node.candidateId));
   const normalizedEdges: CandidateLifeGraph["edges"] = [];
 
@@ -425,6 +436,174 @@ function normalizeEpisodeGraph(
     references,
     trace
   };
+}
+
+
+function mergeEquivalentEpisodeCorrections(
+  inputNodes: CandidateLifeNode[],
+  inputEdges: CandidateLifeGraph["edges"],
+  inputReferences: CandidateReference[],
+  trace: CandidateLifeGraph["trace"],
+  episodeRefs: Set<string>
+) {
+  let nodes = [...inputNodes];
+  let edges = [...inputEdges];
+  let references = [...inputReferences];
+  const groups = new Map<string, CandidateLifeNode[]>();
+
+  for (const node of nodes) {
+    if (node.realityMode !== "CORRECTION") continue;
+    const targets = episodeTargetsForNode(node, edges, references, episodeRefs);
+    if (targets.length === 0) continue;
+    const key = `${episodeNodeIdentity(node)}::${targets.slice().sort().join("|")}`;
+    const group = groups.get(key) ?? [];
+    group.push(node);
+    groups.set(key, group);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2 || !correctionFieldsCompatible(group)) continue;
+
+    const ordered = [...group].sort((a, b) => correctionMergeScore(b) - correctionMergeScore(a));
+    const primary = ordered[0];
+    const removed = new Set(ordered.slice(1).map((node) => node.candidateId));
+    const targets = episodeTargetsForNode(primary, edges, references, episodeRefs);
+    const merged = mergeCorrectionNodes(ordered, targets);
+    const remap = new Map([...removed].map((id) => [id, primary.candidateId]));
+
+    nodes = nodes
+      .filter((node) => !removed.has(node.candidateId))
+      .map((node) => node.candidateId === primary.candidateId ? merged : node);
+
+    const seenEdges = new Set<string>();
+    edges = edges.flatMap((edge) => {
+      const fromCandidateId = remap.get(edge.fromCandidateId) ?? edge.fromCandidateId;
+      const toCandidateId = remap.get(edge.toCandidateId) ?? edge.toCandidateId;
+      if (fromCandidateId === toCandidateId) return [];
+      const key = `${fromCandidateId}::${edge.relation}::${toCandidateId}`;
+      if (seenEdges.has(key)) return [];
+      seenEdges.add(key);
+      return [{ ...edge, fromCandidateId, toCandidateId }];
+    });
+
+    references = references.map((reference) => ({
+      ...reference,
+      candidateRefs: uniqueStrings(reference.candidateRefs.map((id) => remap.get(id) ?? id))
+    }));
+
+    trace.push({
+      traceId: `episode:merge-corrections:${primary.candidateId}`,
+      stage: "RELATION_RESOLUTION",
+      candidateId: primary.candidateId,
+      claim: primary.concept,
+      contextRefs: targets,
+      result: `Merged ${group.length} semantically equivalent correction candidates that expressed the same current-source correction against the same prior episode target.`
+    });
+  }
+
+  return { nodes, edges, references };
+}
+
+function episodeTargetsForNode(
+  node: CandidateLifeNode,
+  edges: CandidateLifeGraph["edges"],
+  references: CandidateReference[],
+  episodeRefs: Set<string>
+) {
+  return uniqueStrings([
+    ...collectEpisodeRefsFromNode(node, episodeRefs),
+    ...edges
+      .filter((edge) => edge.fromCandidateId === node.candidateId || edge.toCandidateId === node.candidateId)
+      .flatMap((edge) => (edge.contextRefs ?? []).filter((ref) => episodeRefs.has(ref))),
+    ...references
+      .filter((reference) => reference.candidateRefs.includes(node.candidateId))
+      .flatMap((reference) =>
+        reference.resolvedRef && episodeRefs.has(reference.resolvedRef)
+          ? [reference.resolvedRef]
+          : []
+      )
+  ]);
+}
+
+function correctionFieldsCompatible(nodes: CandidateLifeNode[]) {
+  const values = new Map<string, string>();
+  for (const node of nodes) {
+    for (const [name, field] of Object.entries(node.attributes)) {
+      if (field.value === undefined) continue;
+      const key = canonicalCorrectionFieldName(name);
+      const comparable = stableEpisodeValue(field.value);
+      const previous = values.get(key);
+      if (previous !== undefined && previous !== comparable) return false;
+      values.set(key, comparable);
+    }
+  }
+  return true;
+}
+
+function correctionMergeScore(node: CandidateLifeNode) {
+  const blocking = (node.unresolved ?? []).filter((item) => item.blocking).length;
+  const directFields = Object.entries(node.attributes).filter(([, field]) => field.sourceSpans?.length).length;
+  const canonicalFields = Object.keys(node.attributes).filter((name) => canonicalCorrectionFieldName(name) === name).length;
+  return directFields * 10 + canonicalFields * 2 - blocking * 20;
+}
+
+function mergeCorrectionNodes(nodes: CandidateLifeNode[], targets: string[]): CandidateLifeNode {
+  const primary = nodes[0];
+  const attributes: CandidateLifeNode["attributes"] = {};
+
+  for (const node of nodes) {
+    for (const [name, field] of Object.entries(node.attributes)) {
+      const key = canonicalCorrectionFieldName(name);
+      const existing = attributes[key];
+      if (!existing) {
+        attributes[key] = {
+          ...field,
+          contextRefs: uniqueStrings([...(field.contextRefs ?? []), ...targets])
+        };
+        continue;
+      }
+      attributes[key] = {
+        ...existing,
+        sourceSpans: uniqueStrings([...(existing.sourceSpans ?? []), ...(field.sourceSpans ?? [])]),
+        contextRefs: uniqueStrings([...(existing.contextRefs ?? []), ...(field.contextRefs ?? []), ...targets])
+      };
+    }
+  }
+
+  const unresolvedSeen = new Set<string>();
+  const unresolved = nodes.flatMap((node) => node.unresolved ?? [])
+    .filter((item) => !/target|antecedent|referent/i.test(`${item.code} ${item.description} ${item.field ?? ""}`))
+    .filter((item) => {
+      const key = `${item.code}::${item.field ?? ""}::${item.description}`;
+      if (unresolvedSeen.has(key)) return false;
+      unresolvedSeen.add(key);
+      return true;
+    });
+
+  return {
+    ...primary,
+    attributes,
+    sourceSpans: uniqueStrings(nodes.flatMap((node) => node.sourceSpans ?? [])),
+    parentConcepts: uniqueStrings(nodes.flatMap((node) => node.parentConcepts ?? [])),
+    unresolved
+  };
+}
+
+function canonicalCorrectionFieldName(name: string) {
+  return name
+    .replace(/^corrected[_-]?/i, "")
+    .replace(/^new[_-]?/i, "")
+    .replace(/^[A-Z]/, (letter) => letter.toLowerCase());
+}
+
+function stableEpisodeValue(value: unknown): string {
+  if (value === undefined) return "__undefined__";
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableEpisodeValue).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) =>
+    `${JSON.stringify(key)}:${stableEpisodeValue(record[key])}`
+  ).join(",")}}`;
 }
 
 function episodeNodeIdentity(node: CandidateLifeNode) {
