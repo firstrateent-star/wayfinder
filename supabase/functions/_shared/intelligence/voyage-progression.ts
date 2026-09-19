@@ -72,7 +72,7 @@ function validIso(value: unknown): value is string {
 }
 
 function recentTrainingEncounters(read: TrainingVoyageProgressionInputRead): VoyageEncounter[] {
-  const byKey = new Map<string, VoyageEncounter>();
+  const byKey = new Map<string, { encounter: VoyageEncounter; recordedAtMs: number }>();
 
   for (const item of read.recent_encounters ?? []) {
     if (!item?.id?.trim() || !item?.version?.trim()) continue;
@@ -101,24 +101,16 @@ function recentTrainingEncounters(read: TrainingVoyageProgressionInputRead): Voy
       ]
     };
 
-    const existing = byKey.get(encounterKey);
-    if (!existing) {
-      byKey.set(encounterKey, candidate);
-      continue;
-    }
-
-    const candidateRecorded = validIso(item.recorded_at) ? Date.parse(item.recorded_at) : Number.NEGATIVE_INFINITY;
-    const existingSourceItem = (read.recent_encounters ?? []).find((row) =>
-      row.id === existing.source.id && row.version === existing.source.version
-    );
-    const existingRecorded = validIso(existingSourceItem?.recorded_at)
-      ? Date.parse(existingSourceItem?.recorded_at)
+    const candidateRecorded = validIso(item.recorded_at)
+      ? Date.parse(item.recorded_at)
       : Number.NEGATIVE_INFINITY;
-
-    if (candidateRecorded >= existingRecorded) byKey.set(encounterKey, candidate);
+    const existing = byKey.get(encounterKey);
+    if (!existing || candidateRecorded >= existing.recordedAtMs) {
+      byKey.set(encounterKey, { encounter: candidate, recordedAtMs: candidateRecorded });
+    }
   }
 
-  return [...byKey.values()].sort((a, b) =>
+  return [...byKey.values()].map((value) => value.encounter).sort((a, b) =>
     Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
     a.encounterKey.localeCompare(b.encounterKey)
   );
