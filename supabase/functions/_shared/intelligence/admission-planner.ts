@@ -137,6 +137,31 @@ export function planSemanticAdmission(
   const validationErrors = [...compilation.validationErrors];
   const nodeById = new Map(compilation.graph.nodes.map((node) => [node.candidateId, node]));
 
+  // The semantic graph is the unit of meaning. If its structural validation
+  // failed, no subset of its nodes may independently cross into admission.
+  if (validationErrors.length > 0) {
+    return {
+      sourceId: compilation.source.sourceId,
+      generatedAt: now,
+      proposals: [],
+      items: compilation.routing.map((route) => ({
+        candidateId: route.candidateId,
+        concept: nodeById.get(route.candidateId)?.concept ?? route.capacity.concept,
+        route: route.route,
+        disposition: "REJECT" as const,
+        ...(route.owner ? { owner: route.owner } : {}),
+        ...(route.claimType ? { claimType: route.claimType } : {}),
+        reason: `INVALID_SEMANTIC_GRAPH:${validationErrors.join("|")}`
+      })),
+      validationErrors,
+      invariants: {
+        executesCommands: false,
+        persistsCandidates: false,
+        modelChoosesOwner: false
+      }
+    };
+  }
+
   for (const route of compilation.routing) {
     const node = nodeById.get(route.candidateId);
     if (!node) {
