@@ -76,6 +76,10 @@ Deno.test("two-session baseline plus two later repeated frontier expansions evid
   assert(result.proofs.length === 1, "one exercise proof should be emitted");
   assert(result.proofs[0].exerciseKey === "barbell_bench_press", "proof must remain exercise-specific");
   assert(result.proofs[0].baselineSessionCount === 2, "proof should record the bounded baseline session count");
+  assert(
+    result.proofs[0].baselineSessions.map((item) => item.sessionId).join(",") === "b1,b2",
+    "proof must preserve both canonical baseline sessions, not only the frontier anchor"
+  );
   assert(result.proofs[0].candidate.sessionId === "c1", "first frontier expansion should be the candidate");
   assert(result.proofs[0].confirmation.sessionId === "c2", "second independent later expansion should confirm it");
 });
@@ -141,4 +145,17 @@ Deno.test("unsupported or incomplete loaded sets are excluded rather than interp
   });
   assert(result.observations.length === 0, "incomplete or unsupported observations should not become capability facts");
   assert(result.excludedObservationCount === 2, "exclusions should stay visible to the evaluator");
+});
+
+Deno.test("same-time sessions cannot fake a later confirmation", () => {
+  const read: MightGrowthTrainingRead = {
+    sessions: [
+      session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
+      session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
+      session("c1", 6, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 8),
+      session("c2", 6, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 9)
+    ]
+  };
+  const result = evaluateMightGrowth(read);
+  assert(result.state === "INSUFFICIENT_EVIDENCE", "confirmation must occur strictly later than the candidate");
 });
