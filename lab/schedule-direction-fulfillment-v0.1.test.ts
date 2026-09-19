@@ -4,6 +4,7 @@ import { createWayfinderAdmissionPlanningRegistryV0, planSemanticAdmission } fro
 import { createWayfinderFulfillmentRegistryV0, fulfillAdmissionPlan, authorizeStagedFulfillment, type StagedAdmissionEnvelope } from "../supabase/functions/_shared/intelligence/admission-fulfillment.ts";
 import type { CandidateLifeGraph, CandidateLifeNode, SemanticCompilation } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
 import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
+import { recoverExplicitScheduleInterval } from "../supabase/functions/_shared/intelligence/schedule-temporal-reconciliation.ts";
 
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
 const concepts=createCoreLifeConceptRegistryV0(); const capacity=createWayfinderCapacityV0();
@@ -14,6 +15,22 @@ function compile(inputSource:SourceEnvelope,node:CandidateLifeNode):SemanticComp
  return{source:inputSource,graph,capacity:[assessment],routing:[routes.length===1?{candidateId:node.candidateId,route:"ROUTE_TO_DOMAIN",owner:routes[0].owner,claimType:routes[0].claimType,reason:"DETERMINISTIC_DECLARED_CLAIM_ROUTE",capacity:assessment}:{candidateId:node.candidateId,route:"SESSION_ONLY",reason:"NO_ROUTE",capacity:assessment}],contextRequests:[],validationErrors:[]};
 }
 async function run(inputSource:SourceEnvelope,node:CandidateLifeNode){const compilation=compile(inputSource,node);const plan=planSemanticAdmission(compilation,createWayfinderAdmissionPlanningRegistryV0());const fulfillment=await fulfillAdmissionPlan(compilation,plan,{asOf:inputSource.receivedAt,items:[]},createWayfinderFulfillmentRegistryV0());return{compilation,plan,fulfillment};}
+
+Deno.test("explicit relative schedule interval is recovered deterministically",()=>{
+ const recovered=recoverExplicitScheduleInterval(source("Block tomorrow from 1 to 3 PM for editing the wedding film."));
+ assert(recovered?.from==="2026-09-20T17:00:00.000Z","1 PM tomorrow should resolve through the player timezone");
+ assert(recovered?.to==="2026-09-20T19:00:00.000Z","3 PM tomorrow should resolve through the player timezone");
+ assert(recovered?.localDate==="2026-09-20","tomorrow local date should be preserved");
+});
+Deno.test("vague or meridiem-ambiguous schedule text is not upgraded",()=>{
+ assert(recoverExplicitScheduleInterval(source("Schedule editing tomorrow."))===null,"day-only timing must stay unresolved");
+ assert(recoverExplicitScheduleInterval(source("Block tomorrow from 11 to 1 PM for editing."))===null,"cross-meridiem shorthand must not be guessed");
+});
+Deno.test("explicit cross-noon meridiems resolve safely",()=>{
+ const recovered=recoverExplicitScheduleInterval(source("Block tomorrow from 11 AM to 1 PM for editing."));
+ assert(recovered?.from==="2026-09-20T15:00:00.000Z","explicit 11 AM should resolve");
+ assert(recovered?.to==="2026-09-20T17:00:00.000Z","explicit 1 PM should resolve");
+});
 
 Deno.test("new semantic concepts are explicitly registered",()=>{assert(concepts.get("DIRECTION_INTENT")?.kind==="ABSTRACT","Direction concept missing");assert(concepts.get("SCHEDULE_ALLOCATION")?.kind==="ABSTRACT","Schedule concept missing");});
 Deno.test("durable player intention routes only to Direction",async()=>{
