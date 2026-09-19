@@ -1,4 +1,5 @@
 import type { ConceptRegistry } from "./concept-registry.ts";
+import { resolveConceptPhrase } from "./concept-resolution.ts";
 import type {
   CandidateLifeGraph,
   ContextRequest
@@ -8,6 +9,7 @@ import type { SourceEnvelope } from "./semantic-admission.ts";
 const REPEAT_PATTERN = /\b(again|same as|same thing|like yesterday|yesterday|last time|like before|as before)\b/i;
 const USUAL_PATTERN = /\b(usual|normal|same as usual|what i normally|what I normally)\b/i;
 const ENTITY_REFERENCE_PATTERN = /\b(that|this)\s+(install|project|job|wedding|edit)\b/i;
+const PLAYER_ATTRIBUTED_EFFECT_CUE = /\b((?:that|this)\s+([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,3}))\s+(?:made|makes|helped|helps|caused|causes|left|leaves)\s+me\b/i;
 
 export function inferDeterministicContextRequests(
   source: SourceEnvelope,
@@ -38,6 +40,21 @@ export function inferDeterministicContextRequests(
       purpose: "Resolve a repeated/comparative reference against recent semantically compatible events.",
       limit: 8
     });
+  }
+
+  const attributedEffect = text.match(PLAYER_ATTRIBUTED_EFFECT_CUE);
+  if (attributedEffect) {
+    const resolved = resolveConceptPhrase(attributedEffect[2], concepts).conceptId;
+    if (resolved && concepts.get(resolved)?.kind === "ACTIVITY") {
+      requests.push({
+        requestId: "deterministic:attributed-effect-reference",
+        kind: "RECENT_EVENTS",
+        concepts: [resolved],
+        query: attributedEffect[1],
+        purpose: "Resolve the activity referenced by an explicit player-attributed effect without guessing its identity.",
+        limit: 8
+      });
+    }
   }
 
   if (ENTITY_REFERENCE_PATTERN.test(text)) {

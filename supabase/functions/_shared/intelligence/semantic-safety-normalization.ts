@@ -1,8 +1,12 @@
 import type { SourceEnvelope } from "./semantic-admission.ts";
+import type { ConceptRegistry } from "./concept-registry.ts";
+import { conceptMatchesRequested, resolveConceptPhrase } from "./concept-resolution.ts";
 import type {
   CandidateLifeEdge,
   CandidateLifeGraph,
   CandidateLifeNode,
+  CandidateReference,
+  SemanticContextBundle,
   SemanticReasonerOutput,
   SemanticTraceEntry
 } from "./semantic-compiler.ts";
@@ -13,6 +17,7 @@ const INLINE_CORRECTION = /\b(actually|i mean|rather|correction|wait)\b|\bnot\b[
 const CONSUMPTION_UNCLEAR = /consumption[_\s-]*unclear|not.*(?:eat|eaten|consum)|does not establish.*(?:eat|consum)|unclear.*(?:eat|consum)/i;
 const FOOD_ACQUISITION_CUE = /\b(grabbed|picked\s+up|got|bought|ordered)\b/i;
 const FOOD_CONSUMPTION_CUE = /\b(ate|eaten|eating|consumed|finished|drank|drunk|had)\b/i;
+const PLAYER_ATTRIBUTED_EFFECT_CUE = /\b((?:that|this)\s+([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,3}))\s+(?:made|makes|helped|helps|caused|causes|left|leaves)\s+me\b/i;
 
 export function applySemanticSafetyNormalization(
   output: SemanticReasonerOutput,
@@ -22,6 +27,129 @@ export function applySemanticSafetyNormalization(
   graph = normalizeInlineCorrections(graph, source.content);
   graph = normalizeFoodAcquisitionVsConsumption(graph, source.content);
   return { ...output, graph };
+}
+
+export function preserveExplicitPlayerAttributedEffect(
+  output: SemanticReasonerOutput,
+  source: SourceEnvelope,
+  context: SemanticContextBundle,
+  concepts: ConceptRegistry
+): SemanticReasonerOutput {
+  const match = source.content.match(PLAYER_ATTRIBUTED_EFFECT_CUE);
+  if (!match) return output;
+
+  const referencePhrase = match[1];
+  const rawReferent = match[2];
+  const resolved = resolveConceptPhrase(rawReferent, concepts).conceptId;
+  if (!resolved || concepts.get(resolved)?.kind !== "ACTIVITY") return output;
+
+  const graph = output.graph;
+  const targets = graph.nodes.filter((node) =>
+    node.subject.kind === "SELF" &&
+    (
+      node.nodeType === "STATE" ||
+      node.concept === "EMOTIONAL_STATE" ||
+      node.concept === "ENERGY_STATE"
+    ) &&
+    !["QUESTION", "HYPOTHETICAL", "POSSIBLE", "NEGATED"].includes(node.realityMode)
+  );
+  if (targets.length !== 1) return output;
+
+  const target = targets[0];
+  if (graph.edges.some((edge) =>
+    edge.toCandidateId === target.candidateId &&
+    (edge.relation === "PLAYER_ATTRIBUTES_EFFECT" || edge.relation === "RELATED_TO")
+  )) return output;
+
+  const matchingNodes = graph.nodes.filter((node) =>
+    node.candidateId !== target.candidateId &&
+    conceptMatchesRequested(node.concept, resolved, concepts)
+  );
+  const contextRefs = context.items
+    .filter((item) => item.concepts?.some((concept) =>
+      conceptMatchesRequested(concept, resolved, concepts)
+    ))
+    .map((item) => item.ref)
+    .slice(0, 8);
+
+  const nodes = [...graph.nodes];
+  const references = [...graph.references];
+  let referent = matchingNodes.length === 1 ? matchingNodes[0] : undefined;
+
+  if (!referent) {
+    const candidateId = uniqueId(nodes, `source-effect-reference:${target.candidateId}`);
+    const unresolved = [{
+      code: contextRefs.length > 1 ? "AMBIGUOUS_REFERENCE" : "REFERENCE_TARGET_UNRESOLVED",
+      description: contextRefs.length > 1
+        ? `The explicit reference "${referencePhrase}" has multiple semantically compatible context candidates; the attribution is preserved without choosing one.`
+        : `The explicit reference "${referencePhrase}" is preserved, but its unique real-world target is not established.`,
+      blocking: true,
+      field: "reference"
+    }];
+
+    referent = {
+      candidateId,
+      nodeType: "REFERENCE",
+      concept: resolved,
+      subject: { kind: "GENERAL" },
+      realityMode: "REFLECTION",
+      attributes: {
+        referencePhrase: {
+          value: referencePhrase,
+          state: contextRefs.length ? "PARTIAL" : "UNRESOLVED",
+          precision: "EXACT",
+          certainty: "HIGH",
+          sourceSpans: [referencePhrase],
+          ...(contextRefs.length ? { contextRefs } : {})
+        }
+      },
+      certainty: "HIGH",
+      sourceSpans: [referencePhrase],
+      unresolved,
+      parentConcepts: concepts.ancestors(resolved).map((item) => item.id)
+    };
+    nodes.push(referent);
+
+    const reference: CandidateReference = {
+      referenceId: `source-effect-reference:${target.candidateId}`,
+      phrase: referencePhrase,
+      candidateRefs: [candidateId],
+      status: "PARTIAL",
+      certainty: "HIGH"
+    };
+    references.push(reference);
+  }
+
+  const edge: CandidateLifeEdge = {
+    edgeId: `source-effect-edge:${referent.candidateId}:${target.candidateId}`,
+    fromCandidateId: referent.candidateId,
+    relation: "PLAYER_ATTRIBUTES_EFFECT",
+    toCandidateId: target.candidateId,
+    certainty: "HIGH",
+    sourceSpans: [source.content],
+    ...(contextRefs.length ? { contextRefs } : {})
+  };
+
+  const trace = [...graph.trace, {
+    traceId: `safety:player-attributed-effect:${target.candidateId}`,
+    stage: "RELATION_RESOLUTION" as const,
+    candidateId: target.candidateId,
+    claim: "PLAYER_ATTRIBUTES_EFFECT",
+    support: [source.content],
+    ...(contextRefs.length ? { contextRefs } : {}),
+    result: "Preserved the player's explicit attributed-effect relation without resolving an ambiguous referenced activity."
+  }];
+
+  return {
+    ...output,
+    graph: {
+      ...graph,
+      nodes,
+      edges: [...graph.edges, edge],
+      references,
+      trace
+    }
+  };
 }
 
 export function downgradeSarcasmRisk(graph: CandidateLifeGraph): CandidateLifeGraph {

@@ -97,3 +97,5 @@ jobs:
         run: deno test lab/source-context-reconciliation-v0.1.test.ts
       - name: Run semantic safety normalization tests
         run: deno test lab/semantic-safety-normalization-v0.1.test.ts
+      - name: Run player-attributed effect preservation tests
+        run: deno test lab/player-attributed-effect-v0.1.test.ts
