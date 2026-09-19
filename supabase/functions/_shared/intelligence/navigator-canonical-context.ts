@@ -314,7 +314,10 @@ export class NavigatorCanonicalContextProvider implements SemanticContextProvide
       p_limit: limit
     });
 
-    const items = (read.allocations ?? []).slice(0, limit).map<SemanticContextItem>((item) => {
+    const items = (read.allocations ?? [])
+      .filter((item) => item.state === "PLANNED")
+      .slice(0, limit)
+      .map<SemanticContextItem>((item) => {
       const timing = item.starts_at
         ? `starts ${item.starts_at}${item.ends_at ? `, ends ${item.ends_at}` : ""}`
         : item.window_starts_at
