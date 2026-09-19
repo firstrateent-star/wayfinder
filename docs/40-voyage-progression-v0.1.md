@@ -1,6 +1,6 @@
 # Wayfinder Voyage Progression v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — CI / LIVE DATABASE GATES PENDING  
+**Status:** MERGED / PRODUCTION STATE DEPLOYED  
 **Rule:** `voyage_progression_v0.1`  
 **First provider:** `training.strength-session-encounter.v0.1`
 
@@ -217,9 +217,25 @@ Pressure cases include:
 
 Recomputation tests also verify that Training invalidates Progression while Nutrition and Direction do not.
 
+## Production proof
+
+PR #15 merged at `e65eca9e22e3829033489c721b01ed9a8c22a0a4`.
+
+```text
+Wayfinder Intelligence CI    PASS
+Wayfinder Web CI             PASS
+wayfinder-state              ACTIVE v5
+state contract               wayfinder-state.v0.3
+progression rule             voyage_progression_v0.1
+```
+
+The production progression RPC is installed with authenticated execute permission and no anon/public execute permission. The changed deployed state runtime files match the merge checkpoint byte-for-byte.
+
+The Vercel web source is merged and Web CI is green; frontend production promotion remains quota-blocked independently of this backend deployment.
+
 ## Deferred next petals
 
-After this gate is green:
+With this gate green:
 
 1. add the next genuinely governed encounter provider rather than a universal activity table;
 2. recover dynamic Skill Experience + Sharpness over canonical encounters;
