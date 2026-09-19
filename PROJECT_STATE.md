@@ -3,7 +3,7 @@
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
 **Current milestone:** Semantic Episode + Navigator semantic cutover v0.2  
-**Current phase:** finish the live multi-turn semantic gate, deploy general read-only Navigator understanding, then add governed multi-domain admission planning  
+**Current phase:** Navigator v0.2 is live; add grounded canonical context providers, then governed multi-domain Admission Planning  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -558,4 +558,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-The immediate architectural target is **the generalized Navigator → Semantic Episode → Admission Planner seam**, followed by production context providers and downstream recomputation. Nutrition follows through that common seam rather than preceding it.
+Navigator v0.2 and the live Semantic Episode gate are now deployed. The immediate architectural target is **production canonical context providers → Admission Planner → downstream recomputation**. Nutrition follows through that common seam rather than preceding it.
