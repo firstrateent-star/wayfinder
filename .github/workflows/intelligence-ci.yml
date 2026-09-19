@@ -28,6 +28,7 @@ on:
       - "lab/nutrition-v0.1.test.ts"
       - "lab/recomputation-loop-v0.1.test.ts"
       - "lab/requirements-character-v0.1.test.ts"
+      - "lab/might-growth-evidence-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
@@ -56,6 +57,7 @@ on:
       - "lab/nutrition-v0.1.test.ts"
       - "lab/recomputation-loop-v0.1.test.ts"
       - "lab/requirements-character-v0.1.test.ts"
+      - "lab/might-growth-evidence-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
@@ -121,6 +123,8 @@ jobs:
         run: deno test lab/recomputation-loop-v0.1.test.ts
       - name: Run Requirements + Character tests
         run: deno test lab/requirements-character-v0.1.test.ts
+      - name: Run Might growth evidence tests
+        run: deno test lab/might-growth-evidence-v0.1.test.ts
       - name: Run governed domain Standard tests
         run: deno test lab/domain-standards-v0.1.test.ts
       - name: Run semantic entity lifting tests
