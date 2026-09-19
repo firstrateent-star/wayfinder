@@ -79,6 +79,25 @@ begin
 
   select * into v_existing
     from wf_system.admission_envelopes
+   where owner_id=v_owner
+     and planner_proposal_id=btrim(p_planner_proposal_id)
+     and semantic_fingerprint=btrim(p_semantic_fingerprint);
+
+  if found then
+    if v_existing.domain_owner is distinct from btrim(p_domain_owner) or
+       v_existing.claim_type is distinct from btrim(p_claim_type) or
+       v_existing.normalized_payload is distinct from p_normalized_payload or
+       v_existing.source_context is distinct from p_source_context then
+      raise exception using errcode='23505', message='ADMISSION_SEMANTIC_IDENTITY_CONFLICT';
+    end if;
+    return jsonb_build_object(
+      'proposal_id',v_existing.id,'status',v_existing.status,'expires_at',v_existing.expires_at,
+      'summary',v_existing.summary,'replayed',true
+    );
+  end if;
+
+  select * into v_existing
+    from wf_system.admission_envelopes
    where id=p_proposal_id and owner_id=v_owner;
 
   if found then
