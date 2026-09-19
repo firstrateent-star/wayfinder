@@ -1,4 +1,5 @@
 import type { ConceptRegistry } from "./concept-registry.ts";
+import { recoverExplicitScheduleInterval } from "./schedule-temporal-reconciliation.ts";
 import type {
   CandidateLifeGraph,
   CandidateLifeNode,
@@ -454,7 +455,7 @@ export class LiveSemanticReasoner implements SemanticReasoner {
       user: semanticUserPrompt(input.source.content, input.source.receivedAt, input.source.zoneId, input.context, input.concepts),
       maxOutputTokens: this.options.maxOutputTokens ?? 5000
     });
-    return normalizeWireProposal(input.source.sourceId, response.data);
+    return normalizeWireProposal(input.source, response.data);
   }
 }
 
@@ -505,7 +506,8 @@ function semanticUserPrompt(content: string, receivedAt: string, zoneId: string 
   });
 }
 
-function normalizeWireProposal(sourceId: string, wire: WireProposal): SemanticReasonerOutput {
+function normalizeWireProposal(source: SemanticReasonerInput["source"], wire: WireProposal): SemanticReasonerOutput {
+  const sourceId = source.sourceId;
   const nodes: CandidateLifeNode[] = wire.nodes.map((item) => {
     const attributes: Record<string, SemanticField> = {};
     for (const field of item.attributes) {
@@ -551,6 +553,23 @@ function normalizeWireProposal(sourceId: string, wire: WireProposal): SemanticRe
       ...(item.parentConcepts.length ? { parentConcepts: item.parentConcepts } : {})
     };
   });
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (node.concept !== "SCHEDULE_ALLOCATION" || node.temporal?.interval?.from && node.temporal?.interval?.to) continue;
+    const recovered = recoverExplicitScheduleInterval(source);
+    if (!recovered) continue;
+    nodes[index] = {
+      ...node,
+      temporal: {
+        interval: { from: recovered.from, to: recovered.to },
+        localDate: recovered.localDate,
+        relativeText: recovered.relativeText,
+        precision: "EXACT",
+        certainty: "HIGH"
+      }
+    };
+  }
 
   return {
     graph: {
