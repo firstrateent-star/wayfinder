@@ -103,6 +103,18 @@ function fixtureRpc() {
         epistemic_coverage: { completeness: "UNKNOWN" }
       } as T;
     }
+    if (name === "wf_nutrition_recent_v0") {
+      return {
+        intakes: [{
+          id: "n1", version: "nv1", kind: "MEAL", label: "Breakfast",
+          occurrence: { from: "2026-09-18T12:30:00.000Z", to: null, precision: "INSTANT", zone_id: "America/New_York" },
+          nutrition: { calories_kcal: null, calories_precision: null, protein_g: 24, protein_precision: "EXACT", carbs_g: null, carbs_precision: null, fat_g: null, fat_precision: null },
+          items: [{ item_label: "three eggs", quantity_value: null, quantity_unit: null, quantity_precision: null }]
+        }],
+        result_coverage: { completeness: "COMPLETE" },
+        epistemic_coverage: { completeness: "UNKNOWN" }
+      } as T;
+    }
     throw new Error(`Unexpected RPC: ${name}`);
   };
   return { rpc, calls };
@@ -157,6 +169,24 @@ Deno.test("STRENGTH_TRAINING context returns canonical training session without 
   const training = result.items?.find((item) => item.kind === "canonical_training_session");
   assert(training?.summary.includes("185 LB"), "recorded load should survive context mapping");
   assert(training?.summary.includes("× 8"), "recorded reps should survive context mapping");
+});
+
+Deno.test("MEAL recent-event context returns canonical Nutrition without estimated macros", async () => {
+  const fixture = fixtureRpc();
+  const provider = createNavigatorCanonicalContextProvider({ rpc: fixture.rpc, concepts: createCoreLifeConceptRegistryV0() });
+  const result = await provider.resolve(
+    request("RECENT_EVENTS", { concepts: ["MEAL"], limit: 8 }),
+    { asOf: source.receivedAt, items: [] },
+    source
+  );
+  assert(result.items?.length === 1, "one canonical meal expected");
+  const intake = result.items[0];
+  assert(intake.kind === "canonical_nutrition_intake", "meal history should resolve through Nutrition");
+  assert(intake.summary.includes("three eggs"), "recorded food detail should survive");
+  assert(intake.summary.includes("24 g protein"), "explicit recorded protein should survive");
+  assert(!intake.summary.toLowerCase().includes("calories"), "unknown calories must not be estimated into context");
+  assert(fixture.calls.some((call) => call.name === "wf_nutrition_recent_v0"), "Nutrition RPC should supply meal context");
+  assert(!fixture.calls.some((call) => call.name === "wf_training_recent_v0"), "MEAL request must not query strength Training");
 });
 
 Deno.test("broad DOMAIN_READ without a concept fails closed", async () => {

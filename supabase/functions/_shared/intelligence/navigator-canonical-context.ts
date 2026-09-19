@@ -100,6 +100,41 @@ type TrainingRead = {
   epistemic_coverage?: unknown;
 };
 
+type NutritionRead = {
+  intakes?: Array<{
+    id: string;
+    version: string;
+    kind?: "MEAL" | "FOOD_INTAKE";
+    label?: string | null;
+    occurrence?: {
+      from?: string;
+      to?: string | null;
+      precision?: string;
+      zone_id?: string | null;
+    };
+    nutrition?: {
+      calories_kcal?: number | null;
+      calories_precision?: string | null;
+      protein_g?: number | null;
+      protein_precision?: string | null;
+      carbs_g?: number | null;
+      carbs_precision?: string | null;
+      fat_g?: number | null;
+      fat_precision?: string | null;
+    };
+    items?: Array<{
+      item_label?: string;
+      quantity_value?: number | null;
+      quantity_unit?: string | null;
+      quantity_precision?: string | null;
+    }>;
+    recorded_at?: string;
+  }>;
+  result_coverage?: unknown;
+  epistemic_coverage?: unknown;
+};
+
+
 const DAY = 86_400_000;
 
 function clampLimit(request: ContextRequest, fallback = 8) {
@@ -165,6 +200,25 @@ function trainingSetSummary(session: NonNullable<TrainingRead["sessions"]>[numbe
     if (unique.length >= 4) break;
   }
   return unique.join("; ");
+}
+
+
+function nutritionSummary(intake: NonNullable<NutritionRead["intakes"]>[number]) {
+  const items = (intake.items ?? []).map((item) => {
+    const quantity = item.quantity_value == null ? "" : `${item.quantity_value}${item.quantity_unit ? ` ${item.quantity_unit}` : ""}`;
+    return `${item.item_label ?? "food"}${quantity ? ` (${quantity})` : ""}`;
+  }).slice(0, 4);
+  const n = intake.nutrition ?? {};
+  const totals = [
+    n.calories_kcal == null ? null : `${n.calories_kcal} kcal${n.calories_precision ? ` ${n.calories_precision.toLowerCase()}` : ""}`,
+    n.protein_g == null ? null : `${n.protein_g} g protein${n.protein_precision ? ` ${n.protein_precision.toLowerCase()}` : ""}`,
+    n.carbs_g == null ? null : `${n.carbs_g} g carbs${n.carbs_precision ? ` ${n.carbs_precision.toLowerCase()}` : ""}`,
+    n.fat_g == null ? null : `${n.fat_g} g fat${n.fat_precision ? ` ${n.fat_precision.toLowerCase()}` : ""}`
+  ].filter((value): value is string => Boolean(value));
+  return {
+    detail: items.join("; "),
+    totals: totals.join("; ")
+  };
 }
 
 export class NavigatorCanonicalContextProvider implements SemanticContextProvider {
@@ -364,6 +418,9 @@ export class NavigatorCanonicalContextProvider implements SemanticContextProvide
       concept === "ACTIVITY" || concept === "PHYSICAL_ACTIVITY" || concept === "RUNNING" || concept === "WALKING" ||
       this.options.concepts.get(concept)?.kind === "ACTIVITY"
     );
+    const wantsNutrition = requested.length === 0 || requested.some((concept) =>
+      ["ACTIVITY", "FOOD_EVENT", "FOOD_INTAKE", "MEAL"].includes(concept)
+    );
 
     const items: SemanticContextItem[] = [];
 
@@ -390,6 +447,40 @@ export class NavigatorCanonicalContextProvider implements SemanticContextProvide
             session_kind: session.kind ?? "STRENGTH",
             occurrence: session.occurrence ?? null,
             sets: session.sets ?? [],
+            result_coverage: read.result_coverage ?? null,
+            epistemic_coverage: read.epistemic_coverage ?? null
+          }
+        });
+      }
+    }
+
+    if (wantsNutrition) {
+      const read = await this.read<NutritionRead>("wf_nutrition_recent_v0", {
+        p_from: from,
+        p_to: to,
+        p_limit: Math.min(limit, 20)
+      });
+      for (const intake of read.intakes ?? []) {
+        const itemConcepts = intake.kind === "MEAL"
+          ? ["MEAL", "FOOD_INTAKE", "FOOD_EVENT", "ACTIVITY"]
+          : ["FOOD_INTAKE", "FOOD_EVENT", "ACTIVITY"];
+        if (!matchesRequestedConcepts(itemConcepts, request, this.options.concepts)) continue;
+        const summary = nutritionSummary(intake);
+        items.push({
+          ref: contextRef("nutrition", "intake", intake.id, intake.version),
+          kind: "canonical_nutrition_intake",
+          summary: `${compact(intake.label) || (intake.kind === "MEAL" ? "Meal" : "Food intake")}${summary.detail ? `: ${summary.detail}` : ""}${summary.totals ? `; explicit nutrition: ${summary.totals}` : ""}`,
+          concepts: itemConcepts,
+          occurredAt: intake.occurrence?.from,
+          attributes: {
+            canonical: true,
+            id: intake.id,
+            version: intake.version,
+            intake_kind: intake.kind ?? "FOOD_INTAKE",
+            occurrence: intake.occurrence ?? null,
+            items: intake.items ?? [],
+            nutrition: intake.nutrition ?? null,
+            explicit_nutrition_only: true,
             result_coverage: read.result_coverage ?? null,
             epistemic_coverage: read.epistemic_coverage ?? null
           }

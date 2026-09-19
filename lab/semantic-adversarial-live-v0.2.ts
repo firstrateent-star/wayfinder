@@ -9,6 +9,7 @@ import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../supabase/funct
 import type { CandidateLifeNode, SemanticContextBundle } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
 import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
 import { createWayfinderCapacityV0 } from "../supabase/functions/_shared/intelligence/wayfinder-capacity.ts";
+import { createWayfinderAdmissionPlanningRegistryV0, planSemanticAdmission } from "../supabase/functions/_shared/intelligence/admission-planner.ts";
 
 const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
 if (!apiKey) {
@@ -219,6 +220,7 @@ const scenarios: Scenario[] = [
     const f:Finding[]=[]; const meals=findAll(r,"MEAL");
     if (meals.some(n=>n.realityMode==="OCCURRED")) f.push(fabrication("SKIPPED_MEAL_LOGGED","Skipped lunch became an eaten meal."));
     if (!meals.some(n=>n.realityMode==="NEGATED") && !r.compilation.graph.nodes.some(n=>n.unresolved?.length)) f.push(loss("SKIPPED_MEAL_SEMANTICS_MISSED","Skipped meal semantics were lost."));
+    if (admissionPlan(r).proposals.some(proposal=>proposal.owner==="nutrition")) f.push(fabrication("SKIPPED_MEAL_ADMITTED","A skipped meal became a canonical Nutrition admission proposal."));
     return f;
   }),
   scenario("shared-run", "Greg and I ran two miles together.", (r) => {
@@ -269,6 +271,7 @@ const scenarios: Scenario[] = [
     if (!acquisition && [intake,meal].some((node)=>node?.realityMode==="OCCURRED")) {
       f.push(fabrication("UNESTABLISHED_CONSUMPTION","Obtaining food was upgraded into eating without evidence of consumption."));
     }
+    if (admissionPlan(r).proposals.some(proposal=>proposal.owner==="nutrition")) f.push(fabrication("UNCERTAIN_ACQUISITION_ADMITTED","Ambiguous food acquisition became a Nutrition admission proposal without established consumption."));
     const s=JSON.stringify(food?.attributes??{}).toLowerCase();
     if ((s.includes("chipotle")&&!s.includes("cava"))||(s.includes("cava")&&!s.includes("chipotle"))) {
       if (!food?.unresolved?.length && r.compilation.graph.alternateInterpretations.length===0) f.push(fabrication("MERCHANT_AMBIGUITY_FORCED","One merchant was selected without preserving uncertainty."));
@@ -348,6 +351,9 @@ function source(content:string):SourceEnvelope {
     authorizesCanonicalWrite:false,
     zoneId:"America/New_York"
   };
+}
+function admissionPlan(r:ReadOnlySemanticLoopResult){
+  return planSemanticAdmission(r.compilation,createWayfinderAdmissionPlanningRegistryV0(),r.compilation.source.receivedAt);
 }
 function find(r:ReadOnlySemanticLoopResult,concept:string){return r.compilation.graph.nodes.find(n=>n.concept===concept);}
 function findAll(r:ReadOnlySemanticLoopResult,concept:string){return r.compilation.graph.nodes.filter(n=>n.concept===concept);}

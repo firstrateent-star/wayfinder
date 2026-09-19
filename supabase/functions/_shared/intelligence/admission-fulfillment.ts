@@ -21,6 +21,7 @@ import {
 import { resolveTrainingExercise } from "./training-exercises.ts";
 import { directionAdmissionContract, type DirectionNodeCandidatePayload, type DirectionNodeKind } from "./direction-semantic.ts";
 import { scheduleAdmissionContract, type ScheduleAllocationCandidatePayload, type ScheduleAllocationKind } from "./schedule-semantic.ts";
+import { nutritionAdmissionContract, type NutritionIntakeCandidatePayload, type NutritionItemCandidate, type NutritionPrecision, type NutritionTotalsCandidate } from "./nutrition-semantic.ts";
 
 export type FulfillmentDisposition =
   | "READY_FOR_CONFIRMATION"
@@ -654,6 +655,203 @@ async function lowerSchedule(input: FulfillmentAdapterInput): Promise<AdmissionF
   };
 }
 
+
+function nutritionPrecision(value: SemanticField["precision"] | undefined): NutritionPrecision {
+  if (value === "EXACT" || value === "APPROXIMATE") return value;
+  return "UNKNOWN";
+}
+
+function nutritionNumber(node: CandidateLifeNode, ...names: string[]) {
+  const semanticField = field(node, ...names);
+  const value = numberValue(semanticField?.value);
+  if (value == null || value < 0) return null;
+  return { value, precision: nutritionPrecision(semanticField?.precision) };
+}
+
+function nutritionItems(node: CandidateLifeNode): NutritionItemCandidate[] {
+  const semanticField = field(node, "items", "foods", "foodItems", "mealItems", "food", "item");
+  const raw = semanticField?.value;
+  const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+  const items: NutritionItemCandidate[] = [];
+
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      items.push({ itemLabel: value.trim().slice(0, 300) });
+      continue;
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const row = value as Record<string, unknown>;
+    const rawLabel = row.itemLabel ?? row.item_label ?? row.name ?? row.label ?? row.food ?? row.item;
+    if (typeof rawLabel !== "string" || !rawLabel.trim()) continue;
+
+    const q = numberValue(row.quantityValue ?? row.quantity_value ?? row.quantity ?? row.amount);
+    const rawUnit = row.quantityUnit ?? row.quantity_unit ?? row.unit;
+    const unit = typeof rawUnit === "string" && rawUnit.trim() ? rawUnit.trim() : undefined;
+    const rawPrecision = row.quantityPrecision ?? row.quantity_precision ?? row.precision;
+    const precision: NutritionPrecision =
+      typeof rawPrecision === "string" && ["EXACT", "APPROXIMATE", "UNKNOWN"].includes(rawPrecision.toUpperCase())
+        ? rawPrecision.toUpperCase() as NutritionPrecision
+        : "UNKNOWN";
+
+    items.push({
+      itemLabel: rawLabel.trim().slice(0, 300),
+      ...(q != null && q > 0 && unit ? { quantityValue: q, quantityUnit: unit.slice(0, 80), quantityPrecision: precision } : {})
+    });
+  }
+
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = JSON.stringify(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 50);
+}
+
+function nutritionTotals(node: CandidateLifeNode): NutritionTotalsCandidate {
+  const calories = nutritionNumber(node, "caloriesKcal", "calories_kcal", "calories", "calorieTotal");
+  const protein = nutritionNumber(node, "proteinG", "protein_g", "protein", "proteinGrams");
+  const carbs = nutritionNumber(node, "carbsG", "carbs_g", "carbs", "carbohydrates", "carbohydrateGrams");
+  const fat = nutritionNumber(node, "fatG", "fat_g", "fat", "fatGrams");
+
+  return {
+    ...(calories ? { caloriesKcal: calories.value, caloriesPrecision: calories.precision } : {}),
+    ...(protein ? { proteinG: protein.value, proteinPrecision: protein.precision } : {}),
+    ...(carbs ? { carbsG: carbs.value, carbsPrecision: carbs.precision } : {}),
+    ...(fat ? { fatG: fat.value, fatPrecision: fat.precision } : {})
+  };
+}
+
+function nutritionLabel(node: CandidateLifeNode, items: NutritionItemCandidate[]) {
+  const explicit = firstText(node, "mealType", "meal_type", "label", "name");
+  if (explicit) return explicit.trim().replace(/\b\w/g, (character) => character.toUpperCase()).slice(0, 300);
+  if (items.length === 1) return items[0].itemLabel;
+  return node.concept === "MEAL" ? "Meal" : "Food intake";
+}
+
+async function lowerNutrition(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const occurrence = trainingOccurrence(node, compilation.source);
+  if (!occurrence) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: "When did you eat or drink that? A day like “today” or “yesterday” is enough.",
+      reason: "NUTRITION_OCCURRENCE_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const items = nutritionItems(node);
+  const payload: NutritionIntakeCandidatePayload = {
+    intakeKind: node.concept === "MEAL" ? "MEAL" : "FOOD_INTAKE",
+    label: nutritionLabel(node, items),
+    ...(occurrence.occurrencePrecision === "DAY" ? { localDate: occurrence.localDate } : {}),
+    occurrencePrecision: occurrence.occurrencePrecision,
+    items,
+    nutrition: nutritionTotals(node),
+    ...(items.length === 0 ? { genericIntake: true } : {})
+  };
+
+  const candidate: SemanticCandidate<NutritionIntakeCandidatePayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const admissionSource: SourceEnvelope = {
+    ...compilation.source,
+    occurredAt: occurrence.occurrencePrecision === "DAY" ? undefined : occurrence.occurredAt,
+    interactionIntent: "RECORD",
+    authorizesCanonicalWrite: false
+  };
+  const registry = new AdmissionRegistry().register(nutritionAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    { now: compilation.source.receivedAt, source: admissionSource }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "REJECT",
+      reason: "NUTRITION_ADMISSION_DECISION_MISSING",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "Nutrition needs one more detail before it can accept this.",
+      reason: decision.reason ?? "NUTRITION_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? `NUTRITION_UNEXPECTED_ADMISSION_DISPOSITION:${decision.disposition}`,
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const normalized = decision.normalized as NutritionIntakeCandidatePayload;
+  const itemSummary = normalized.items.length
+    ? normalized.items.map((item) => item.itemLabel).join(", ")
+    : "item detail unknown";
+  const totals = [
+    normalized.nutrition.caloriesKcal != null ? `${normalized.nutrition.caloriesKcal} kcal (${normalized.nutrition.caloriesPrecision})` : null,
+    normalized.nutrition.proteinG != null ? `${normalized.nutrition.proteinG} g protein (${normalized.nutrition.proteinPrecision})` : null,
+    normalized.nutrition.carbsG != null ? `${normalized.nutrition.carbsG} g carbs (${normalized.nutrition.carbsPrecision})` : null,
+    normalized.nutrition.fatG != null ? `${normalized.nutrition.fatG} g fat (${normalized.nutrition.fatPrecision})` : null
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: `${normalized.label ?? "Nutrition intake"} — ${itemSummary}${totals.length ? `\n${totals.join(" · ")}` : "\nNutrition totals unknown."}`,
+    reason: "NUTRITION_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      ...(admissionSource.occurredAt ? { occurredAt: admissionSource.occurredAt } : {}),
+      zoneId: compilation.source.zoneId ?? "UTC"
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
+}
+
+export function createNutritionFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "nutrition.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "nutrition",
+    claimTypes: ["NUTRITION_INTAKE"],
+    lower: lowerNutrition
+  };
+}
+
 export function createDirectionFulfillmentAdapter(): DomainFulfillmentAdapter {
   return {
     id: "direction.admission-fulfillment.v0.1",
@@ -688,7 +886,8 @@ export function createWayfinderFulfillmentRegistryV0() {
   return new AdmissionFulfillmentRegistry()
     .register(createTrainingFulfillmentAdapter())
     .register(createDirectionFulfillmentAdapter())
-    .register(createScheduleFulfillmentAdapter());
+    .register(createScheduleFulfillmentAdapter())
+    .register(createNutritionFulfillmentAdapter());
 }
 
 export async function fulfillAdmissionPlan(
@@ -783,7 +982,8 @@ export async function authorizeStagedFulfillment(envelope: StagedAdmissionEnvelo
   const registry = new AdmissionRegistry()
     .register(trainingAdmissionContract)
     .register(directionAdmissionContract)
-    .register(scheduleAdmissionContract);
+    .register(scheduleAdmissionContract)
+    .register(nutritionAdmissionContract);
   const admitted = await runSemanticAdmission(
     { sourceId: source.sourceId, candidates: [candidate], relations: [] },
     registry,
