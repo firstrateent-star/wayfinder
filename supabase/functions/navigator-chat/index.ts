@@ -232,6 +232,47 @@ function joinNatural(values: string[]) {
   return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
 }
 
+function semanticEpisodeTextDigest(episode: SemanticEpisode) {
+  const parts: string[] = [];
+  for (const turn of episode.turns) {
+    for (const node of turn.graph.nodes) {
+      parts.push(...(node.sourceSpans ?? []));
+      for (const field of Object.values(node.attributes)) {
+        if (typeof field.value === "string") parts.push(field.value);
+      }
+    }
+  }
+  return parts.join(" ");
+}
+
+function semanticEpisodeSupportsTrainingCapture(episode: SemanticEpisode) {
+  if (episode.turns.some((turn) =>
+    turn.graph.nodes.some((node) =>
+      node.subject.kind === "SELF" &&
+      (node.concept === "STRENGTH_TRAINING" ||
+        node.parentConcepts?.includes("STRENGTH_TRAINING"))
+    )
+  )) return true;
+
+  return looksLikeWorkout(semanticEpisodeTextDigest(episode));
+}
+
+function focusFromSemanticEpisode(episode: SemanticEpisode): Focus | null {
+  const turns = [...episode.turns].reverse();
+  for (const turn of turns) {
+    const nodes = [...turn.graph.nodes].reverse();
+    for (const node of nodes) {
+      const parts = [...(node.sourceSpans ?? [])];
+      for (const field of Object.values(node.attributes)) {
+        if (typeof field.value === "string") parts.push(field.value);
+      }
+      const focus = focusFromText(parts.join(" "));
+      if (focus) return focus;
+    }
+  }
+  return null;
+}
+
 function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
   const graph = result.compilation.graph;
   const meaningful = graph.nodes.filter((node) => node.nodeType !== "ENTITY");
@@ -317,13 +358,21 @@ async function runSemanticConversation(
   });
 
   const summary = summarizeSemanticResult(outcome.result);
+  const suggestions = [...summary.suggestions];
+  if (
+    semanticEpisodeSupportsTrainingCapture(outcome.episode) &&
+    !suggestions.some((item) => item.id === "START_TRAINING")
+  ) {
+    suggestions.push({ id: "START_TRAINING", label: "Log strength workout", tone: "secondary" });
+  }
+
   const wrapped: SemanticNavigatorEpisode = {
     id: outcome.episode.episodeId,
     kind: "SEMANTIC",
     semantic: outcome.episode
   };
 
-  return { ...summary, episode: wrapped };
+  return { ...summary, suggestions, episode: wrapped };
 }
 
 function respond(message: string, episode: NavigatorEpisode | null, suggestions: Suggestion[] = [], extra: Record<string, unknown> = {}) {
@@ -455,6 +504,7 @@ Deno.serve(async (req: Request) => {
   const action = body.action?.trim().toUpperCase() ?? "";
   const today = localDateInZone(now, zoneId);
   let episode = body.episode ?? null;
+  let semanticTrainingFocus: Focus | null = null;
 
   try {
     if ((!episode || episode.kind === "SEMANTIC") && action !== "START_TRAINING") {
@@ -497,6 +547,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "START_TRAINING" && episode?.kind === "SEMANTIC") {
+      semanticTrainingFocus = focusFromSemanticEpisode(episode.semantic);
       episode = null;
     }
 
@@ -512,7 +563,7 @@ Deno.serve(async (req: Request) => {
         ));
       }
 
-      const focus = focusFromText(effectiveText);
+      const focus = semanticTrainingFocus ?? focusFromText(effectiveText);
       episode = {
         id: crypto.randomUUID(),
         kind: "TRAINING_CAPTURE",
