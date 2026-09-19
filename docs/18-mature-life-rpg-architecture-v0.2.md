@@ -600,11 +600,14 @@ Depth/reliability of a Skill projection.
 ### Role/Class
 Higher-order cluster over demonstrated skills and repeated behavior. Not chosen during onboarding by default.
 
-### XP
-RPG representation of evidence-backed growth, not a universal canonical points ledger.
+### Voyage XP
+RPG representation of governed meaningful participation encounters, not a universal canonical points ledger and not a Character capability claim.
+
+### Character growth
+Permanent Character development remains a separate evidence projection. Exposure can follow activity; capability requires demonstrated performance; growth requires comparable longitudinal evidence under an owning provider.
 
 ### Level
-Thresholded representation over growth/XP rules; recomputable if rules evolve.
+Thresholded game representation over Voyage XP rules; recomputable if rules evolve. Level does not substitute for Character capability or human worth.
 
 ### Stats / Attributes
 Broad player-facing synthesis over evidence-backed capabilities and patterns.
@@ -614,6 +617,25 @@ Current capacity/recovery projection from Body, Training, workload, sleep/recove
 
 ### Buffs / Debuffs
 Temporary player-facing representations of conditions/context; not permanent identity.
+
+## Experience vs Character growth
+
+The mature architecture now keeps two progression axes explicit:
+
+```text
+canonical encounter
+ -> Voyage Experience / XP
+
+canonical evidence
+ -> exposure
+ -> capability
+ -> longitudinal growth
+ -> Character
+```
+
+One lived event may contribute to both paths, but the consequences are not interchangeable. Requirement satisfaction and richer logging detail do not automatically create XP, and Voyage XP never mutates permanent Character facets.
+
+See ADR-044 and `docs/40-voyage-progression-v0.1.md`.
 
 ## Strength growth + nutrition interaction
 

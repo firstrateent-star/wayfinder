@@ -4,6 +4,7 @@ import { planRecomputation, type ModuleChangeRead } from "../_shared/intelligenc
 import { buildHelmState, type BearingRead, type DirectionGraphRead } from "../_shared/intelligence/wayfinder-state-service.ts";
 import { buildRequirementsProjection, type RequirementInputRead } from "../_shared/intelligence/requirement-providers.ts";
 import { buildCharacterProjection, type TrainingCharacterRead } from "../_shared/intelligence/character-projection.ts";
+import { buildVoyageProgression, type TrainingVoyageProgressionInputRead } from "../_shared/intelligence/voyage-progression.ts";
 import type { QuestionMode } from "../_shared/intelligence/contracts.ts";
 
 const corsHeaders = {
@@ -97,7 +98,7 @@ Deno.serve(async (req) => {
   try {
     const computedAt = new Date().toISOString();
     const characterFrom = new Date(Date.parse(computedAt) - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead] = await Promise.all([
+    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead, trainingVoyageRead] = await Promise.all([
       rpc<PersonRead>(authHeader, "wf_person_current_v0"),
       rpc<BodyRead>(authHeader, "wf_body_current_v0"),
       rpc<DirectionGraphRead>(authHeader, "wf_direction_current"),
@@ -114,6 +115,10 @@ Deno.serve(async (req) => {
         p_from: characterFrom,
         p_to: computedAt,
         p_limit: 100
+      }),
+      rpc<TrainingVoyageProgressionInputRead>(authHeader, "wf_training_voyage_progression_input_v0", {
+        p_as_of: computedAt,
+        p_recent_limit: 25
       })
     ]);
 
@@ -157,17 +162,22 @@ Deno.serve(async (req) => {
       training: trainingCharacterRead,
       computedAt
     });
+    const progression = buildVoyageProgression({
+      training: trainingVoyageRead,
+      computedAt
+    });
     const recomputation = planRecomputation(changeRead);
     const helm = buildHelmState({ position, bearing, direction: directionRead });
 
     return json({
-      contract: "wayfinder-state.v0.2",
+      contract: "wayfinder-state.v0.3",
       computed_at: computedAt,
       change_cursor: changeRead.cursor,
       recomputation,
       position,
       requirements,
       character,
+      progression,
       bearing,
       guidance_candidates: requirements.guidance_candidates,
       helm,
@@ -177,7 +187,10 @@ Deno.serve(async (req) => {
         moduleChangeIsInvalidationOnly: true,
         requirementsRecomputed: true,
         characterRecomputed: true,
+        progressionRecomputed: true,
+        progressionPersisted: false,
         characterGrowthAsserted: character.facets.some((facet) => facet.growth.state === "EVIDENCED"),
+        voyageXpDoesNotMutateCharacter: true,
         requirementDefaultsInvented: false
       }
     });

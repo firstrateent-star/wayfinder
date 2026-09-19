@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.2";
+  contract: "wayfinder-state.v0.3";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -90,6 +90,34 @@ export interface WayfinderStateRead {
       growth: { state: "EVIDENCED" | "INSUFFICIENT_EVIDENCE"; summary: string };
     }>;
   };
+  progression: {
+    projection_type: "voyage_progression";
+    rule_version: "voyage_progression_v0.1";
+    state: "AVAILABLE" | "UNKNOWN";
+    voyage_xp: number | null;
+    encounter_count: number | null;
+    xp_unit: "ONE_PER_UNIQUE_CANONICAL_ENCOUNTER";
+    configured_providers: Array<{
+      id: "training.strength-session-encounter.v0.1";
+      domain: "training";
+      encounterKind: "TRAINING_STRENGTH_SESSION";
+      xpPerEncounter: 1;
+      status: "AVAILABLE" | "UNKNOWN";
+    }>;
+    recent_encounters: Array<{
+      encounterKey: string;
+      encounterKind: "TRAINING_STRENGTH_SESSION";
+      providerId: "training.strength-session-encounter.v0.1";
+      domain: "training";
+      xp: 1;
+      occurredAt: string;
+      label: string | null;
+      source: { namespace: string; type: string; id: string; version: string };
+    }>;
+    count_coverage: "COMPLETE" | "UNKNOWN";
+    epistemic_coverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
+    does_not_assert: string[];
+  };
   bearing: WayfinderBearingRead;
   guidance_candidates: Array<{
     signalId: string;
@@ -124,7 +152,10 @@ export interface WayfinderStateRead {
     moduleChangeIsInvalidationOnly: true;
     requirementsRecomputed: true;
     characterRecomputed: true;
+    progressionRecomputed: true;
+    progressionPersisted: false;
     characterGrowthAsserted: boolean;
+    voyageXpDoesNotMutateCharacter: true;
     requirementDefaultsInvented: false;
   };
 }

@@ -19,7 +19,7 @@ function changeRead(input: Partial<ModuleChangeRead> = {}): ModuleChangeRead {
 Deno.test("initial state load recomputes live projections without persisting them", () => {
   const plan = planRecomputation(changeRead({ initial_cursor: true }));
   assert(plan.reason === "INITIAL_LOAD", "initial read should identify initial load");
-  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,REQUIREMENTS,CHARACTER,HELM", "all live projections should recompute");
+  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,REQUIREMENTS,CHARACTER,PROGRESSION,HELM", "all live projections should recompute");
   assert(plan.deferred.length === 0, "Requirements and Character are now live recomputation targets");
 });
 
@@ -38,6 +38,7 @@ Deno.test("Direction change invalidates only projections that actually depend on
   }
   assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction has no Requirement provider in v0.1");
   assert(!plan.invalidated.includes("CHARACTER"), "Direction has no Character provider in v0.1");
+  assert(!plan.invalidated.includes("PROGRESSION"), "Direction is not a Voyage encounter provider");
 });
 
 Deno.test("Nutrition change invalidates Requirements but not permanent Character v0.1", () => {
@@ -52,11 +53,12 @@ Deno.test("Nutrition change invalidates Requirements but not permanent Character
   }));
   assert(plan.invalidated.includes("REQUIREMENTS"), "Nutrition should invalidate Requirement evaluation");
   assert(!plan.invalidated.includes("CHARACTER"), "Nutrition has no permanent Character provider in v0.1");
+  assert(!plan.invalidated.includes("PROGRESSION"), "logging nutrition must not earn Voyage XP");
   assert(plan.invalidated.includes("HELM"), "Nutrition should invalidate Helm");
   assert(!plan.invalidated.includes("BEARING"), "Nutrition does not directly change current Direction evidence Bearing");
 });
 
-Deno.test("Training change invalidates both Requirements and Character", () => {
+Deno.test("Training change invalidates Requirements, Character, and Voyage Progression independently", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "33333333-4444-4333-8333-333333333333",
@@ -68,7 +70,13 @@ Deno.test("Training change invalidates both Requirements and Character", () => {
   }));
   assert(plan.invalidated.includes("REQUIREMENTS"), "Training should invalidate weekly strength Requirement");
   assert(plan.invalidated.includes("CHARACTER"), "Training should invalidate Might evidence projection");
-  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "both projections should recompute now");
+  assert(plan.invalidated.includes("PROGRESSION"), "Training is the first governed Voyage encounter provider");
+  assert(
+    plan.recomputeNow.includes("REQUIREMENTS") &&
+    plan.recomputeNow.includes("CHARACTER") &&
+    plan.recomputeNow.includes("PROGRESSION"),
+    "Training should recompute its three independent projection consequences"
+  );
 });
 
 Deno.test("partial ModuleChange window conservatively invalidates every projection", () => {
@@ -83,8 +91,13 @@ Deno.test("partial ModuleChange window conservatively invalidates every projecti
     result_coverage: { completeness: "PARTIAL", reason: "RESULT_LIMIT_COALESCED_BY_CURRENT_STATE_RECOMPUTE" }
   }));
   assert(plan.reason === "COALESCED_PARTIAL_CHANGE_WINDOW", "partial windows should fail safely");
-  assert(plan.invalidated.length === 6, "partial invalidation window should invalidate every projection target");
-  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "partial windows should recompute both new projections");
+  assert(plan.invalidated.length === 7, "partial invalidation window should invalidate every projection target");
+  assert(
+    plan.recomputeNow.includes("REQUIREMENTS") &&
+    plan.recomputeNow.includes("CHARACTER") &&
+    plan.recomputeNow.includes("PROGRESSION"),
+    "partial windows should conservatively recompute Requirements, Character, and Progression"
+  );
 });
 
 Deno.test("focus branch follows canonical SUPPORTS lineage and excludes unrelated actions", () => {
