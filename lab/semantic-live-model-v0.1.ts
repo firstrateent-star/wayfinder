@@ -9,6 +9,7 @@ import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../supabase/funct
 import type { SemanticContextBundle } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
 import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
 import { createWayfinderCapacityV0 } from "../supabase/functions/_shared/intelligence/wayfinder-capacity.ts";
+import { createWayfinderAdmissionPlanningRegistryV0, planSemanticAdmission } from "../supabase/functions/_shared/intelligence/admission-planner.ts";
 
 const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
 if (!apiKey) {
@@ -56,9 +57,9 @@ const scenarios: Scenario[] = [
       const findings: Finding[] = [];
       if (!intake) return [loss("CONSUMED_FOOD_MISSED", "Explicitly consumed food was not represented as MEAL or FOOD_INTAKE.")];
       if (intake.subject.kind !== "SELF" || intake.realityMode !== "OCCURRED") findings.push(distortion("CONSUMED_FOOD_REALITY", "Player consumption must remain SELF + OCCURRED."));
-      const route = result.compilation.routing.find((item) => item.candidateId === intake.candidateId);
-      if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "nutrition" || route.claimType !== "NUTRITION_INTAKE") {
-        findings.push(loss("CONSUMED_FOOD_NOT_ROUTED", "Explicit consumption did not reach the Nutrition owner."));
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) => proposal.candidateId === intake.candidateId && proposal.owner === "nutrition" && proposal.claimType === "NUTRITION_INTAKE")) {
+        findings.push(loss("CONSUMED_FOOD_NOT_ADMISSIBLE", "Explicit consumption did not become a Nutrition admission proposal."));
       }
       const nutritionKeys = Object.entries(intake.attributes).filter(([key, field]) =>
         /calor|protein|carb|fat/i.test(key) && field.value != null
@@ -77,8 +78,8 @@ const scenarios: Scenario[] = [
       if (findAll(result, "MEAL").some((node) => node.realityMode === "OCCURRED") || findAll(result, "FOOD_INTAKE").some((node) => node.realityMode === "OCCURRED")) {
         findings.push(fabrication("ACQUISITION_BECAME_CONSUMPTION", "Buying food was upgraded into eating it."));
       }
-      if (result.compilation.routing.some((route) => route.owner === "nutrition")) {
-        findings.push(fabrication("ACQUISITION_ROUTED_TO_NUTRITION", "Food acquisition reached canonical Nutrition without evidence of consumption."));
+      if (admissionPlan(result).proposals.some((proposal) => proposal.owner === "nutrition")) {
+        findings.push(fabrication("ACQUISITION_ADMITTED_TO_NUTRITION", "Food acquisition became a Nutrition admission proposal without evidence of consumption."));
       }
       return findings;
     }
@@ -90,8 +91,8 @@ const scenarios: Scenario[] = [
       const findings: Finding[] = [];
       const intake = find(result, "MEAL") ?? find(result, "FOOD_INTAKE");
       if (!intake || intake.realityMode !== "OCCURRED") return [loss("EXPLICIT_CONSUMPTION_MISSED", "Explicit eating after acquisition was not preserved as consumed intake.")];
-      const route = result.compilation.routing.find((item) => item.candidateId === intake.candidateId);
-      if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "nutrition") findings.push(loss("EXPLICIT_CONSUMPTION_NOT_ROUTED", "Explicitly eaten food did not route to Nutrition."));
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) => proposal.candidateId === intake.candidateId && proposal.owner === "nutrition")) findings.push(loss("EXPLICIT_CONSUMPTION_NOT_ADMISSIBLE", "Explicitly eaten food did not become a Nutrition admission proposal."));
       return findings;
     }
   },
@@ -304,6 +305,10 @@ function source(content: string): SourceEnvelope {
     authorizesCanonicalWrite: false,
     zoneId: "America/New_York"
   };
+}
+
+function admissionPlan(result: ReadOnlySemanticLoopResult) {
+  return planSemanticAdmission(result.compilation, createWayfinderAdmissionPlanningRegistryV0(), result.compilation.source.receivedAt);
 }
 
 function find(result: ReadOnlySemanticLoopResult, concept: string) {
