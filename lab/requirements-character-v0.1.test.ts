@@ -1,5 +1,6 @@
 import { buildRequirementsProjection, type RequirementInputRead } from "../supabase/functions/_shared/intelligence/requirement-providers.ts";
 import { buildCharacterProjection, type TrainingCharacterRead } from "../supabase/functions/_shared/intelligence/character-projection.ts";
+import { createWayfinderProjectionProviderRegistryV0 } from "../supabase/functions/_shared/intelligence/projection-provider-registry.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -36,6 +37,14 @@ function proteinRead(value: number | null, target = 150, coverage: "COMPLETE" | 
     does_not_assert: ["that missing protein is zero"]
   };
 }
+
+Deno.test("projection providers declare actual module dependencies", () => {
+  const registry = createWayfinderProjectionProviderRegistryV0();
+  const trainingTargets = registry.affectedProjectionTargets(["training"]).sort();
+  const nutritionTargets = registry.affectedProjectionTargets(["nutrition"]).sort();
+  assert(trainingTargets.join(",") === "CHARACTER,REQUIREMENTS", "Training should feed Requirements and Character");
+  assert(nutritionTargets.join(",") === "REQUIREMENTS", "Nutrition should feed Requirements only in Character v0.1");
+});
 
 Deno.test("no domain Standard means no Requirement is invented", () => {
   const empty: RequirementInputRead = { standard: null, spec: null, observation: null, lineage: [] };
