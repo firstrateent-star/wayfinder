@@ -219,6 +219,7 @@ const scenarios: Scenario[] = [
     const f:Finding[]=[]; const meals=findAll(r,"MEAL");
     if (meals.some(n=>n.realityMode==="OCCURRED")) f.push(fabrication("SKIPPED_MEAL_LOGGED","Skipped lunch became an eaten meal."));
     if (!meals.some(n=>n.realityMode==="NEGATED") && !r.compilation.graph.nodes.some(n=>n.unresolved?.length)) f.push(loss("SKIPPED_MEAL_SEMANTICS_MISSED","Skipped meal semantics were lost."));
+    if (r.compilation.routing.some(route=>route.owner==="nutrition")) f.push(fabrication("SKIPPED_MEAL_ROUTED","A skipped meal reached canonical Nutrition."));
     return f;
   }),
   scenario("shared-run", "Greg and I ran two miles together.", (r) => {
@@ -269,6 +270,7 @@ const scenarios: Scenario[] = [
     if (!acquisition && [intake,meal].some((node)=>node?.realityMode==="OCCURRED")) {
       f.push(fabrication("UNESTABLISHED_CONSUMPTION","Obtaining food was upgraded into eating without evidence of consumption."));
     }
+    if (r.compilation.routing.some(route=>route.owner==="nutrition")) f.push(fabrication("UNCERTAIN_ACQUISITION_ROUTED","Ambiguous food acquisition reached canonical Nutrition without established consumption."));
     const s=JSON.stringify(food?.attributes??{}).toLowerCase();
     if ((s.includes("chipotle")&&!s.includes("cava"))||(s.includes("cava")&&!s.includes("chipotle"))) {
       if (!food?.unresolved?.length && r.compilation.graph.alternateInterpretations.length===0) f.push(fabrication("MERCHANT_AMBIGUITY_FORCED","One merchant was selected without preserving uncertainty."));
