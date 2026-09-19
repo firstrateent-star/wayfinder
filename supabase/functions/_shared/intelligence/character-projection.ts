@@ -130,12 +130,12 @@ function trainingMightSignals(read: TrainingCharacterRead): CharacterSignal[] {
 
   const growthEvaluation = evaluateMightGrowth(read);
   const growthRefs = uniqueRefs(growthEvaluation.proofs.flatMap((proof) => [
-    {
+    ...proof.baselineSessions.map((session) => ({
       namespace: "training",
       type: "session",
-      id: proof.baselineAnchor.sessionId,
-      version: proof.baselineAnchor.sessionVersion
-    },
+      id: session.sessionId,
+      version: session.sessionVersion
+    })),
     {
       namespace: "training",
       type: "session",
