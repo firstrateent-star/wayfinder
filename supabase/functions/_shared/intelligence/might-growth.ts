@@ -1,6 +1,7 @@
 export type StrengthLoadUnit = "LB" | "KG";
 
 export interface MightGrowthTrainingRead {
+  result_coverage?: { completeness?: "COMPLETE" | "PARTIAL" };
   sessions?: Array<{
     id: string;
     version: string;
@@ -57,6 +58,7 @@ export interface MightGrowthEvaluation {
   ruleVersion: "might_growth_v0.1";
   state: "EVIDENCED" | "INSUFFICIENT_EVIDENCE";
   proofs: MightGrowthProof[];
+  resultCoverage: "COMPLETE" | "PARTIAL" | "UNKNOWN";
   comparableObservationCount: number;
   excludedObservationCount: number;
   doesNotAssert: string[];
@@ -221,6 +223,7 @@ function proofForExercise(observations: readonly StrengthCapabilityObservation[]
 
 export function evaluateMightGrowth(read: MightGrowthTrainingRead): MightGrowthEvaluation {
   const extracted = extractStrengthCapabilityObservations(read);
+  const resultCoverage = read.result_coverage?.completeness ?? "UNKNOWN";
   const byExercise = new Map<string, StrengthCapabilityObservation[]>();
 
   for (const observation of extracted.observations) {
@@ -230,9 +233,11 @@ export function evaluateMightGrowth(read: MightGrowthTrainingRead): MightGrowthE
   }
 
   const proofs: MightGrowthProof[] = [];
-  for (const observations of byExercise.values()) {
-    const proof = proofForExercise(observations);
-    if (proof) proofs.push(proof);
+  if (resultCoverage === "COMPLETE") {
+    for (const observations of byExercise.values()) {
+      const proof = proofForExercise(observations);
+      if (proof) proofs.push(proof);
+    }
   }
 
   proofs.sort((a, b) =>
@@ -244,9 +249,11 @@ export function evaluateMightGrowth(read: MightGrowthTrainingRead): MightGrowthE
     ruleVersion: "might_growth_v0.1",
     state: proofs.length > 0 ? "EVIDENCED" : "INSUFFICIENT_EVIDENCE",
     proofs,
+    resultCoverage,
     comparableObservationCount: extracted.observations.length,
     excludedObservationCount: extracted.excludedObservationCount,
     doesNotAssert: [
+      "that a partial or unknown bounded Training result can establish growth",
       "that exercise-specific performance growth is whole-body strength growth",
       "that the observed change was caused by training rather than another factor",
       "that the observations establish physiological adaptation",
