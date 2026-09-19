@@ -6,6 +6,7 @@ import type {
   SemanticCandidate,
   SourceEnvelope
 } from "./semantic-admission.ts";
+import { resolveTrainingExercise } from "./training-exercises.ts";
 
 export interface TrainingSetCandidate {
   exerciseText: string;
@@ -24,19 +25,6 @@ export interface TrainingSessionCandidatePayload {
   occurrencePrecision: "DAY" | "INSTANT" | "APPROXIMATE";
   sets: TrainingSetCandidate[];
   genericStrengthSession?: boolean;
-}
-
-const EXERCISES = [
-  {
-    key: "barbell_bench_press",
-    label: "Barbell Bench Press",
-    aliases: ["bench", "bench press", "barbell bench press", "benched"]
-  }
-] as const;
-
-function normalizeExercise(text: string) {
-  const needle = text.trim().toLowerCase();
-  return EXERCISES.find((item) => item.aliases.includes(needle as never)) ?? null;
 }
 
 function localDateInZone(instant: string, zoneId: string) {
@@ -179,7 +167,7 @@ function normalizePayload(payload: TrainingSessionCandidatePayload) {
   return {
     ...payload,
     sets: payload.sets.map((set) => {
-      const resolved = normalizeExercise(set.exerciseText);
+      const resolved = resolveTrainingExercise(set.exerciseText);
       return {
         ...set,
         exerciseKey: resolved?.key,

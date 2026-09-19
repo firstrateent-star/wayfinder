@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, CornerDownLeft, Send, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { navigatorChat, type NavigatorChatResponse, type NavigatorEpisode, type NavigatorSuggestion } from "@/lib/navigator-api";
 
-const CACHE_KEY = "wayfinder.navigator.v0.3";
+const CACHE_KEY = "wayfinder.navigator.v0.4";
 const MAX_MESSAGES = 40;
 const MAX_REWIND_STATES = 16;
 
@@ -112,7 +112,7 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
     setRewind((current) => [...current, snapshot].slice(-MAX_REWIND_STATES));
   }
 
-  async function sendTurn(input: { text?: string; action?: string; userLabel?: string }) {
+  async function sendTurn(input: { text?: string; action?: string; proposalId?: string; userLabel?: string }) {
     if (sending) return;
     const userText = input.userLabel ?? input.text?.trim() ?? "";
     if (!userText && !input.action) return;
@@ -134,10 +134,10 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
     setError(null);
 
     try {
-      const effectiveText = input.action === "START_TRAINING" && !input.text ? "I want to log a workout" : input.text;
       const response = await navigatorChat({
-        text: effectiveText,
+        text: input.text,
         action: input.action,
+        proposalId: input.proposalId,
         episode: before.episode,
         zoneId,
         sourceId: crypto.randomUUID()
@@ -184,7 +184,7 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
             <Sparkles className="h-4 w-4 text-emerald-300" />
             Navigator
           </div>
-          <p className="mt-1 text-xs text-slate-500">Conversation is transient semantic working state. Confirmed domain writes become history.</p>
+          <p className="mt-1 text-xs text-slate-500">Conversation is transient. Confirmed, server-staged domain writes become history.</p>
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" disabled={sending || rewind.length === 0} onClick={undoTurn} title="Rewind one unconfirmed turn">
@@ -233,7 +233,7 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
                 key={suggestion.id}
                 type="button"
                 className={`rounded-full border px-3.5 py-2 text-xs transition-colors ${suggestionClass(suggestion.tone)}`}
-                onClick={() => void sendTurn({ action: suggestion.id, userLabel: suggestion.label })}
+                onClick={() => void sendTurn({ action: suggestion.id, proposalId: suggestion.proposalId, userLabel: suggestion.label })}
               >
                 {suggestion.label}
               </button>
