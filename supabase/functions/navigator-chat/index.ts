@@ -8,7 +8,11 @@ import { runSemanticEpisodeTurn, type SemanticEpisode } from "../_shared/intelli
 import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../_shared/intelligence/live-semantic-reasoner.ts";
 import { createWayfinderCapacityV0 } from "../_shared/intelligence/wayfinder-capacity.ts";
 import { createNavigatorCanonicalContextProvider } from "../_shared/intelligence/navigator-canonical-context.ts";
-import { createWayfinderAdmissionPlanningRegistryV0, planSemanticAdmission } from "../_shared/intelligence/admission-planner.ts";
+import {
+  createWayfinderAdmissionPlanningRegistryV0,
+  planSemanticAdmission,
+  type AdmissionPlan
+} from "../_shared/intelligence/admission-planner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -306,21 +310,17 @@ function localDateFromSemanticEpisode(episode: SemanticEpisode, zoneId: string):
   return null;
 }
 
-function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
+function summarizeSemanticResult(result: ReadOnlySemanticLoopResult, admissionPlan: AdmissionPlan) {
   const graph = result.compilation.graph;
   const meaningful = graph.nodes.filter((node) => node.nodeType !== "ENTITY");
   const labels = [...new Set(meaningful.map((node) => conceptLabel(node.concept)))].slice(0, 4);
   const blocking = meaningful
     .flatMap((node) => node.unresolved ?? [])
     .find((item) => item.blocking);
-  const training = meaningful.some((node) =>
-    node.concept === "STRENGTH_TRAINING" &&
-    node.subject.kind === "SELF" &&
-    node.realityMode === "OCCURRED"
-  );
 
-  // Persistence affordances are added after Admission Planning. Semantic
-  // understanding alone is not authority to present a canonical-write path.
+  // Persistence affordances and persistence wording are added only after
+  // Admission Planning. Compiler routing alone is not enough authority because
+  // a domain policy can still keep routed meaning session-only.
   const suggestions: Suggestion[] = [];
 
   if (meaningful.length === 0) {
@@ -343,12 +343,22 @@ function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
     };
   }
 
-  const unsupported = result.compilation.routing.filter((route) => route.route !== "ROUTE_TO_DOMAIN").length;
-  return {
-    message: `${understood} I can carry that meaning forward in this conversation. ${unsupported > 0 ? "I won’t save the parts that do not yet have a proven canonical owner." : "Nothing becomes canonical until you explicitly confirm a domain write."}`,
-    suggestions,
-    disposition: training ? "UNDERSTOOD_TRAINING_AVAILABLE" : "SESSION_ONLY"
-  };
+  const admissionAvailable = admissionPlan.items.some((item) =>
+    item.disposition === "NEEDS_AUTHORIZATION" ||
+    item.disposition === "READY_FOR_DOMAIN_ADMISSION"
+  );
+
+  return admissionAvailable
+    ? {
+        message: `${understood} I can carry that meaning forward in this conversation. One or more parts are eligible to be considered by an owning domain, but nothing is saved until you explicitly choose that write.`,
+        suggestions,
+        disposition: "DOMAIN_ADMISSION_AVAILABLE"
+      }
+    : {
+        message: `${understood} I can carry that meaning forward in this conversation. This stays transient unless an owning domain can admit it; I won’t save it just because it was said.`,
+        suggestions,
+        disposition: "SESSION_ONLY"
+      };
 }
 
 async function runSemanticConversation(
@@ -404,7 +414,7 @@ async function runSemanticConversation(
     now
   );
 
-  const summary = summarizeSemanticResult(outcome.result);
+  const summary = summarizeSemanticResult(outcome.result, admissionPlan);
   const suggestions = [...summary.suggestions];
 
   const plannedTraining = admissionPlan.items.some((item) =>
