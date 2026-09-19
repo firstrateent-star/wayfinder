@@ -5,11 +5,13 @@ on:
     paths:
       - "supabase/functions/_shared/intelligence/live-semantic-reasoner.ts"
       - "supabase/functions/_shared/intelligence/context-assembler.ts"
+      - "supabase/functions/_shared/intelligence/semantic-episode.ts"
       - "supabase/functions/_shared/intelligence/semantic-compiler.ts"
       - "supabase/functions/_shared/intelligence/concept-registry.ts"
       - "supabase/functions/_shared/intelligence/wayfinder-capacity.ts"
       - "lab/semantic-live-model-v0.1.ts"
       - "lab/semantic-adversarial-live-v0.2.ts"
+      - "lab/semantic-episode-live-v0.1.ts"
       - ".github/workflows/semantic-live-eval.yml"
   workflow_dispatch:
 
@@ -34,3 +36,7 @@ jobs:
         run: deno check lab/semantic-adversarial-live-v0.2.ts
       - name: Run adversarial read-only semantic lab
         run: deno run --allow-env=OPENAI_API_KEY,WAYFINDER_SEMANTIC_MODEL --allow-net=api.openai.com lab/semantic-adversarial-live-v0.2.ts
+      - name: Type-check live semantic episode evaluator
+        run: deno check lab/semantic-episode-live-v0.1.ts
+      - name: Run live multi-turn semantic episode lab
+        run: deno run --allow-env=OPENAI_API_KEY,WAYFINDER_SEMANTIC_MODEL --allow-net=api.openai.com lab/semantic-episode-live-v0.1.ts
