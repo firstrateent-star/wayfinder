@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Requirements + Character recomputation v0.1  
-**Current phase:** domain-owned Standards now drive coverage-aware Requirements, Training evidence reconstructs qualitative Character/Might, and ModuleChange provider dependencies recompute both without creating projection truth  
+**Current milestone:** Voyage Progression v0.1  
+**Current phase:** governed canonical encounters now reconstruct Voyage Experience independently from evidence-backed Character growth; Training drives Requirements, Character, and Progression through separate provider semantics  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -17,7 +17,9 @@
 **Nutrition v0.1:** `docs/36-nutrition-v0.1.md`  
 **ModuleChange recomputation loop:** `docs/37-modulechange-recomputation-loop-v0.1.md`  
 **Requirements + Character recomputation:** `docs/38-requirements-character-recomputation-v0.1.md`  
-**Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
+**Might growth evidence:** `docs/39-might-growth-evidence-v0.1.md`  
+**Voyage Progression:** `docs/40-voyage-progression-v0.1.md`  
+**Latest ADR:** `decisions/ADR-044-voyage-experience-separate-from-character-growth.md`
 
 ## Non-negotiable direction
 
@@ -39,6 +41,8 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - complex underneath, quiet on the player surface;
 - the player should not have to manually model their life;
 - RPG mechanics are projections by default;
+- Voyage Experience recognizes governed participation; Character growth recognizes demonstrated development;
+- one logical governed encounter may award Voyage XP once, independent of internal logging detail;
 - Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
 - Navigator asks questions only when missing information materially matters;
@@ -532,7 +536,7 @@ natural language
  -> ModuleChange outbox
 ```
 
-Production `navigator-chat` is **v22 ACTIVE** with `verify_jwt=true`.
+Production `navigator-chat` is **v23 ACTIVE** with `verify_jwt=true`.
 
 Canonical write-capable Navigator owners:
 
@@ -609,23 +613,38 @@ No Standard means no Requirement. Missing evidence stays unknown rather than zer
 Projection invalidation remains registered by actual providers:
 
 ```text
-Training  -> Requirements + Character
+Training  -> Requirements + Character + Progression
 Nutrition -> Requirements
 ```
 
+### Current Voyage Progression layer
+
+The first governed game-progression slice is live:
+
+```text
+current canonical Training STRENGTH session
+ -> stable logical encounter identity
+ -> Voyage encounter
+ -> 1 Voyage XP
+```
+
+Voyage Progression is reconstructable under `voyage_progression_v0.1`. One logical session counts once regardless of set count, command retry, or current session-version correction. Stored-record count coverage is explicit and lived-reality coverage remains UNKNOWN.
+
+Voyage XP does not mutate Might or any other Character facet. Requirement satisfaction does not earn XP. No permanent XP award ledger, Level, Rank, Pillar XP, or Attribute XP exists yet.
+
 ### Strongest next build
 
-The next honest frontier is **RPG progression semantics after verified growth**, not automatic XP:
+The next honest frontier is **dynamic Skill Experience + Sharpness over governed encounters**:
 
-1. define what a governed growth signal is allowed to advance;
-2. decide whether progression is reconstructable, durably recognized, or a hybrid without turning XP into canonical life truth;
-3. define replay/idempotency so one growth proof cannot be awarded twice;
-4. define correction/supersession behavior when canonical Training evidence changes;
-5. keep lineage from any progression consequence back to the exact governed growth proof;
-6. add new Character facets only when an owning evidence provider exists;
-7. let Bearing/guidance consume Requirements + Character as evidence, never as an opaque score.
+1. define the smallest Skill evidence identity without creating a universal fixed skill taxonomy;
+2. let semantic discovery propose skill associations while governed code owns accepted progression semantics;
+3. separate Skill Experience (practice history), Capability (demonstrated performance), Mastery (depth/reliability), and Sharpness (recency);
+4. make Sharpness decay without erasing Experience or Capability history;
+5. preserve encounter lineage so one real encounter cannot mint duplicate Skill Experience through multiple labels;
+6. pressure-test cross-domain skills before adding encounter scale/challenge multipliers;
+7. only Flower Level/Rank thresholds after Voyage XP has enough real-world provider breadth to make the curve meaningful.
 
-**Law:** activity can evidence exposure; capability can evidence performance; only comparable longitudinal evidence may establish growth; growth does not automatically imply XP.
+**Law:** logging earns nothing; governed participation earns Experience; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
 ## Deferred until earned
 
@@ -709,3 +728,34 @@ The changed production `wayfinder-state` runtime files were verified byte-for-by
 The Vercel frontend source is merged and Web CI is green, but production frontend deployment remains blocked by the Vercel free-tier daily deployment quota. The backend response remains structurally compatible; the source contract now recognizes `character_v0.2`.
 
 The immediate architectural target is now **governed RPG progression semantics after verified growth**. Growth is evidence; it does not automatically become XP.
+
+
+### Voyage progression production closure — 2026-09-19
+
+PR #15 merged to `main` at code checkpoint `e65eca9e22e3829033489c721b01ed9a8c22a0a4`.
+
+Exact-head and merged-main gates are green:
+
+```text
+Wayfinder Intelligence CI      PASS
+Voyage progression suite       PASS
+Requirements + Character       PASS
+Might growth pressure suite    PASS
+Wayfinder Web CI               PASS
+```
+
+Production Supabase now runs:
+
+```text
+navigator-chat     ACTIVE v23   (unchanged by this slice)
+wayfinder-state    ACTIVE v5
+State contract     wayfinder-state.v0.3
+Progression rule   voyage_progression_v0.1
+First provider     training.strength-session-encounter.v0.1
+```
+
+Production migration `add_wayfinder_voyage_progression_input_v0` is applied. The authenticated read boundary exists, authenticated may execute it, and anon/public may not. The four changed `wayfinder-state` runtime files were verified byte-for-byte against merge `e65eca9`.
+
+No permanent XP ledger, Level/Rank, Attribute XP, or new canonical life-truth store was added. Voyage XP is a reconstructable game projection over current governed canonical encounters. Character remains independently evidence-governed.
+
+The Vercel source contract is merged and Web CI is green. Production frontend promotion remains externally blocked by the free-tier daily deployment quota; this does not block the production Supabase progression backend.
