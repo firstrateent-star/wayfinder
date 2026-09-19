@@ -150,6 +150,116 @@ Deno.test("semantic episode carries unresolved prior-turn meaning into the next 
   assert(node.attributes.focus.contextRefs?.includes(expectedRef), "refinement must cite the transient prior-turn candidate");
 });
 
+
+class LooseEllipsisEpisodeReasoner implements SemanticReasoner {
+  readonly id = "loose-ellipsis-episode";
+  readonly version = "0.1";
+
+  propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+    if (/worked out/i.test(input.source.content)) {
+      return {
+        graph: graph(input.source.sourceId, [{
+          candidateId: "activity",
+          nodeType: "EVENT",
+          concept: "PHYSICAL_ACTIVITY",
+          subject: { kind: "SELF" },
+          realityMode: "OCCURRED",
+          attributes: {
+            activityPhrase: {
+              value: "worked out",
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "HIGH",
+              sourceSpans: ["worked out"]
+            }
+          },
+          certainty: "HIGH",
+          sourceSpans: ["worked out"],
+          parentConcepts: ["ACTIVITY"]
+        }]),
+        contextRequests: []
+      };
+    }
+
+    const prior = input.context.items.find((item) =>
+      item.kind === "semantic_episode_candidate" &&
+      item.concepts?.includes("PHYSICAL_ACTIVITY")
+    );
+    if (!prior) return { graph: graph(input.source.sourceId, []), contextRequests: [] };
+
+    return {
+      graph: {
+        ...graph(input.source.sourceId, [{
+          candidateId: "fragment",
+          nodeType: "CLAIM",
+          concept: "legs",
+          subject: { kind: "SELF" },
+          realityMode: "REFLECTION",
+          attributes: {
+            referencedFocus: {
+              value: "legs",
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "MEDIUM",
+              sourceSpans: ["Legs."],
+              contextRefs: [prior.ref]
+            }
+          },
+          certainty: "MEDIUM",
+          sourceSpans: ["Legs."],
+          unresolved: [{
+            code: "ELLIPTICAL_REFERENCE",
+            description: "The fragment likely refines the referenced activity but was not lifted to its event concept.",
+            blocking: true,
+            field: "concept"
+          }]
+        }]),
+        references: [{
+          referenceId: "legs-ref",
+          phrase: "Legs",
+          candidateRefs: ["fragment"],
+          status: "PARTIAL",
+          resolvedRef: prior.ref,
+          certainty: "MEDIUM"
+        }]
+      },
+      contextRequests: []
+    };
+  }
+}
+
+Deno.test("single-target episode fragments lift onto the referenced prior event without inventing a new event", async () => {
+  const reasoner = new LooseEllipsisEpisodeReasoner();
+  const first = await runSemanticEpisodeTurn({
+    episodeId: "loose-workout-episode",
+    source: source("loose-turn-1", "I worked out today.", "2026-09-19T14:00:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const second = await runSemanticEpisodeTurn({
+    episode: first.episode,
+    source: source("loose-turn-2", "Legs.", "2026-09-19T14:01:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const node = second.result.compilation.graph.nodes[0];
+  const expectedRef = semanticEpisodeNodeRef("loose-workout-episode", 1, "activity");
+  assert(node.concept === "PHYSICAL_ACTIVITY", "single-target fragment should inherit the prior known event concept");
+  assert(node.nodeType === "EVENT", "lifted fragment should retain event semantics");
+  assert(node.realityMode === "OCCURRED", "refinement should preserve the prior event reality mode rather than invent a second occurrence");
+  assert(node.attributes.referencedFocus.value === "legs", "current-source refinement detail must be preserved");
+  assert(node.attributes.referencedFocus.contextRefs?.includes(expectedRef), "lifted detail must cite the transient prior event");
+  assert(!node.unresolved?.some((item) => item.code === "ELLIPTICAL_REFERENCE"), "resolved single-target ellipsis should not remain blocking");
+});
+
 class CorrectionEpisodeReasoner implements SemanticReasoner {
   readonly id = "correction-episode";
   readonly version = "0.1";
