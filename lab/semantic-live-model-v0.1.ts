@@ -125,7 +125,7 @@ const scenarios: Scenario[] = [
     id: "multi-domain-life-expression",
     text: "Worked late, ran about two miles after, grabbed Chipotle, and felt way less stressed by the time I got home.",
     evaluate: (result) => {
-      const expected = ["WORK_ACTIVITY", "RUNNING", "MEAL", "EMOTIONAL_STATE"];
+      const expected = ["WORK_ACTIVITY", "RUNNING", "FOOD_ACQUISITION", "EMOTIONAL_STATE"];
       const seen = new Set(result.compilation.graph.nodes.map((item) => item.concept));
       const findings: Finding[] = [];
       for (const concept of expected) if (!seen.has(concept)) findings.push(loss(`MULTI_${concept}_MISSED`, `${concept} was missing from multi-domain meaning.`));
