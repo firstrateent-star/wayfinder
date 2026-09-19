@@ -262,7 +262,7 @@ Deno.test("relative run statement preserves unresolved units and event-state chr
 Deno.test("one natural utterance can produce a cross-domain candidate life graph", async () => {
   const result = await compile("Worked late, ran about two miles after, grabbed Chipotle, and felt way less stressed by the time I got home.");
   const conceptsSeen = new Set(result.graph.nodes.map((item) => item.concept));
-  assert(conceptsSeen.has("WORK_ACTIVITY") && conceptsSeen.has("RUNNING") && conceptsSeen.has("MEAL") && conceptsSeen.has("EMOTIONAL_STATE"), "multi-domain meaning should decompose before ownership");
+  assert(conceptsSeen.has("WORK_ACTIVITY") && conceptsSeen.has("RUNNING") && conceptsSeen.has("FOOD_ACQUISITION") && conceptsSeen.has("EMOTIONAL_STATE"), "multi-domain meaning should decompose before ownership without upgrading food acquisition into consumption");
   assert(result.graph.edges.length >= 3, "cross-domain chronology should be represented relationally");
 });
 
