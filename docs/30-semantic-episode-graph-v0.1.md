@@ -49,6 +49,8 @@ Each episode turn retains the candidate graph, routing result, context requests,
 8. Canonical persistence still requires Semantic Admission + owning-domain authorization.
 9. Prior candidate meaning may resolve ellipsis, corrections, pronouns, references, and missing fields.
 10. A prior candidate remains an interpretation, not a fact, merely because a later turn refers to it.
+11. Prior-turn candidates are never replayed as fresh current-turn nodes solely to act as correction/reference targets.
+12. Candidate graph edges connect current-turn candidates only; cross-turn relations resolve through full transient episode refs and provenance.
 
 ## v0.1 data flow
 
@@ -90,6 +92,7 @@ The deterministic lab proves:
 - execute domain writes;
 - merge every turn into one canonical-looking graph;
 - decide which clarification question Navigator should ask;
-- prove live-model multi-turn performance.
+- replace the current bounded episode-reference normalization with durable server-side episode storage;
+- prove broader live-model multi-turn performance beyond the first torture corpus.
 
 The next pressure test is a real-model Semantic Episode suite. Only after that is stable should Navigator chat be generalized from its Training-only episode shape onto this semantic episode spine.

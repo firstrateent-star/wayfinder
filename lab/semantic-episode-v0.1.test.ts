@@ -339,3 +339,238 @@ Deno.test("closed episodes and write-authorizing sources fail closed", async () 
   }
   assert(closedError === "SEMANTIC_EPISODE_CLOSED", "closed transient episodes must not accept new turns");
 });
+
+
+class EpisodeBoundaryArtifactReasoner implements SemanticReasoner {
+  readonly id = "episode-boundary-artifact";
+  readonly version = "0.1";
+
+  propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+    if (/two miles earlier/i.test(input.source.content)) {
+      return {
+        graph: graph(input.source.sourceId, [{
+          candidateId: "c1",
+          nodeType: "EVENT",
+          concept: "RUNNING",
+          subject: { kind: "SELF" },
+          realityMode: "OCCURRED",
+          attributes: {
+            distance: {
+              value: 2,
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "HIGH",
+              sourceSpans: ["two miles"]
+            }
+          },
+          certainty: "HIGH",
+          sourceSpans: ["I ran two miles earlier."]
+        }]),
+        contextRequests: []
+      };
+    }
+
+    const prior = input.context.items.find((item) =>
+      item.kind === "semantic_episode_candidate" && item.concepts?.includes("RUNNING")
+    );
+    if (!prior) return { graph: graph(input.source.sourceId, []), contextRequests: [] };
+
+    return {
+      graph: {
+        ...graph(input.source.sourceId, [
+          {
+            candidateId: "c1",
+            nodeType: "EVENT",
+            concept: "RUNNING",
+            subject: { kind: "SELF" },
+            realityMode: "OCCURRED",
+            attributes: {
+              distance: {
+                value: 2,
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                contextRefs: [prior.ref]
+              }
+            },
+            certainty: "HIGH"
+          },
+          {
+            candidateId: "c2",
+            nodeType: "CLAIM",
+            concept: "RUNNING",
+            subject: { kind: "SELF" },
+            realityMode: "CORRECTION",
+            attributes: {
+              distance: {
+                value: 2.5,
+                state: "RESOLVED",
+                precision: "EXACT",
+                certainty: "HIGH",
+                sourceSpans: ["2.5"]
+              }
+            },
+            certainty: "HIGH",
+            sourceSpans: ["Actually 2.5."],
+            unresolved: [{
+              code: "CORRECTION_TARGET_UNRESOLVED",
+              description: "Prior target was represented as a local candidate id.",
+              blocking: true,
+              field: "correction_target"
+            }]
+          }
+        ]),
+        edges: [{
+          edgeId: "e1",
+          fromCandidateId: "c2",
+          relation: "CORRECTS",
+          toCandidateId: "c1",
+          certainty: "HIGH",
+          contextRefs: [prior.ref]
+        }]
+      },
+      contextRequests: []
+    };
+  }
+}
+
+Deno.test("episode boundary collapses context-only correction replays into one source-supported correction", async () => {
+  const reasoner = new EpisodeBoundaryArtifactReasoner();
+  const first = await runSemanticEpisodeTurn({
+    episodeId: "artifact-correction",
+    source: source("artifact-run-1", "I ran two miles earlier.", "2026-09-19T14:00:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const second = await runSemanticEpisodeTurn({
+    episode: first.episode,
+    source: source("artifact-run-2", "Actually 2.5.", "2026-09-19T14:01:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const runs = second.result.compilation.graph.nodes.filter((node) => node.concept === "RUNNING");
+  const expectedRef = semanticEpisodeNodeRef("artifact-correction", 1, "c1");
+  assert(runs.length === 1, "context-only replay should not survive as a second RUNNING correction");
+  assert(runs[0].realityMode === "CORRECTION", "remaining node must preserve correction semantics");
+  assert(runs[0].attributes.distance.value === 2.5, "remaining correction must preserve the current-source distance");
+  assert(runs[0].attributes.distance.contextRefs?.includes(expectedRef), "correction must retain the prior transient target ref");
+  assert(!(runs[0].unresolved ?? []).some((item) => item.code === "CORRECTION_TARGET_UNRESOLVED"), "exact episode target should resolve correction-target ambiguity");
+  assert(second.result.compilation.validationErrors.length === 0, "normalized correction graph must validate");
+});
+
+class CrossTurnRelationArtifactReasoner implements SemanticReasoner {
+  readonly id = "cross-turn-relation-artifact";
+  readonly version = "0.1";
+
+  propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+    if (/squats yesterday/i.test(input.source.content)) {
+      return {
+        graph: graph(input.source.sourceId, [{
+          candidateId: "c1",
+          nodeType: "EVENT",
+          concept: "STRENGTH_TRAINING",
+          subject: { kind: "SELF" },
+          realityMode: "OCCURRED",
+          attributes: {
+            exercises: {
+              value: ["squats"],
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "HIGH",
+              sourceSpans: ["squats"]
+            }
+          },
+          certainty: "HIGH",
+          sourceSpans: ["I did squats yesterday."]
+        }]),
+        contextRequests: []
+      };
+    }
+
+    const prior = input.context.items.find((item) =>
+      item.kind === "semantic_episode_candidate" && item.concepts?.includes("STRENGTH_TRAINING")
+    );
+    if (!prior) return { graph: graph(input.source.sourceId, []), contextRequests: [] };
+
+    return {
+      graph: {
+        ...graph(input.source.sourceId, [{
+          candidateId: "c2",
+          nodeType: "EVENT",
+          concept: "STRENGTH_TRAINING",
+          subject: { kind: "SELF" },
+          realityMode: "OCCURRED",
+          attributes: {
+            exercises: {
+              value: ["squats"],
+              state: "RESOLVED",
+              precision: "EXACT",
+              certainty: "HIGH",
+              sourceSpans: ["Same thing today."],
+              contextRefs: [prior.ref]
+            }
+          },
+          certainty: "HIGH",
+          sourceSpans: ["Same thing today."]
+        }]),
+        references: [{
+          referenceId: "r1",
+          phrase: "Same thing",
+          candidateRefs: ["c1"],
+          status: "RESOLVED",
+          resolvedRef: "c1",
+          certainty: "HIGH"
+        }],
+        edges: [{
+          edgeId: "e1",
+          fromCandidateId: "c2",
+          relation: "REPEATS",
+          toCandidateId: "c1",
+          certainty: "HIGH",
+          sourceSpans: ["Same thing"],
+          contextRefs: [prior.ref]
+        }]
+      },
+      contextRequests: []
+    };
+  }
+}
+
+Deno.test("episode boundary converts dangling cross-turn edges into transient episode references", async () => {
+  const reasoner = new CrossTurnRelationArtifactReasoner();
+  const first = await runSemanticEpisodeTurn({
+    episodeId: "artifact-repeat",
+    source: source("artifact-repeat-1", "I did squats yesterday.", "2026-09-19T14:00:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+  const second = await runSemanticEpisodeTurn({
+    episode: first.episode,
+    source: source("artifact-repeat-2", "Same thing today.", "2026-09-19T14:01:00.000Z"),
+    initialContext: emptyContext,
+    reasoner,
+    concepts,
+    capacity,
+    providers
+  });
+
+  const expectedRef = semanticEpisodeNodeRef("artifact-repeat", 1, "c1");
+  const currentGraph = second.result.compilation.graph;
+  assert(currentGraph.edges.length === 0, "cross-turn relation must not remain as a dangling current-graph edge");
+  assert(currentGraph.references.some((reference) =>
+    reference.resolvedRef === expectedRef && reference.candidateRefs.includes("c2")
+  ), "cross-turn relation must resolve to the full transient episode ref");
+  assert(currentGraph.validationErrors === undefined, "candidate graph does not carry validation errors");
+  assert(second.result.compilation.validationErrors.length === 0, "normalized cross-turn relation graph must validate");
+});

@@ -264,6 +264,15 @@ for (const s of scenarios) {
 
     if (!episode) throw new Error("EPISODE_NOT_CREATED");
     const findings = s.evaluate(results, episode);
+    const structuralErrors = results.flatMap((result, index) =>
+      result.compilation.validationErrors.map((error) => `turn ${index + 1}: ${error}`)
+    );
+    if (structuralErrors.length > 0) {
+      findings.push(distortion(
+        "EPISODE_GRAPH_INVALID",
+        `Episode output contained invalid graph structure: ${structuralErrors.join("; ")}`
+      ));
+    }
     if (findings.length === 0) report.summary.passed += 1;
     for (const finding of findings) {
       report.summary[finding.class.toLowerCase() as "loss" | "distortion" | "fabrication"] += 1;
