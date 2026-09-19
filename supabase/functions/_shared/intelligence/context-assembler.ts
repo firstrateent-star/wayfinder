@@ -3,7 +3,10 @@ import { conceptMatchesRequested, normalizeSemanticReasonerOutput } from "./conc
 import { inferDeterministicContextRequests } from "./context-needs.ts";
 import { liftExplicitPersonParticipantsInOutput } from "./entity-lifting.ts";
 import { reconcileSourceAuthority } from "./source-context-reconciliation.ts";
-import { applySemanticSafetyNormalization } from "./semantic-safety-normalization.ts";
+import {
+  applySemanticSafetyNormalization,
+  preserveExplicitPlayerAttributedEffect
+} from "./semantic-safety-normalization.ts";
 import type {
   ContextRequest,
   SemanticCompilation,
@@ -114,12 +117,17 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
   for (let pass = 1; pass <= limits.maxReasonerPasses; pass++) {
     reasonerPasses = pass;
     const rawOutput = await input.reasoner.propose({ source: input.source, context, concepts: input.concepts });
-    finalOutput = applySemanticSafetyNormalization(
-      liftExplicitPersonParticipantsInOutput(
-        normalizeSemanticReasonerOutput(rawOutput, input.concepts),
-        context
+    finalOutput = preserveExplicitPlayerAttributedEffect(
+      applySemanticSafetyNormalization(
+        liftExplicitPersonParticipantsInOutput(
+          normalizeSemanticReasonerOutput(rawOutput, input.concepts),
+          context
+        ),
+        input.source
       ),
-      input.source
+      input.source,
+      context,
+      input.concepts
     );
     if (pass === 1) {
       sourceBaseline = finalOutput;
