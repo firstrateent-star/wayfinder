@@ -197,10 +197,11 @@ Deno.test("negated Training meaning never becomes a Training admission proposal"
   const compilation = await compile(source("did-not-workout"));
   const plan = planSemanticAdmission(compilation, createWayfinderAdmissionPlanningRegistryV0());
 
-  assert(compilation.routing[0].route === "ROUTE_TO_DOMAIN", "capacity may route semantic ownership to Training");
+  assert(compilation.routing[0].route === "SESSION_ONLY", "negated meaning must be stopped before canonical ownership routing");
+  assert(compilation.routing[0].owner === undefined, "negated meaning must carry no canonical owner");
   assert(plan.proposals.length === 0, "negated event must not produce a persistence proposal");
-  assert(plan.items[0].disposition === "SESSION_ONLY", "negation should remain session-only at domain planning boundary");
-  assert(plan.items[0].reason === "TRAINING_REALITY_NOT_OCCURRED:NEGATED", "domain policy should explain why");
+  assert(plan.items[0].disposition === "SESSION_ONLY", "negation should remain session-only");
+  assert(plan.items[0].reason === "REALITY_MODE_NOT_CANONICAL_OCCURRENCE:NEGATED", "compiler should explain why canonical routing was blocked");
 });
 
 Deno.test("third-party Training report never becomes player Training reality", async () => {
