@@ -7,6 +7,7 @@ import { SemanticContextProviderRegistry, type ReadOnlySemanticLoopResult } from
 import { runSemanticEpisodeTurn, type SemanticEpisode } from "../_shared/intelligence/semantic-episode.ts";
 import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../_shared/intelligence/live-semantic-reasoner.ts";
 import { createWayfinderCapacityV0 } from "../_shared/intelligence/wayfinder-capacity.ts";
+import { createNavigatorCanonicalContextProvider } from "../_shared/intelligence/navigator-canonical-context.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -209,7 +210,6 @@ function modeSuggestions(hasLast: boolean): Suggestion[] {
 
 const semanticConcepts = createCoreLifeConceptRegistryV0();
 const semanticCapacity = createWayfinderCapacityV0();
-const semanticProviders = new SemanticContextProviderRegistry();
 
 function semanticReasoner() {
   const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
@@ -341,7 +341,8 @@ async function runSemanticConversation(
   episode: SemanticNavigatorEpisode | null,
   zoneId: string,
   sourceId: string,
-  now: string
+  now: string,
+  authHeader: string
 ) {
   const source: SourceEnvelope = {
     sourceId,
@@ -355,6 +356,13 @@ async function runSemanticConversation(
 
   const reasoner = semanticReasoner();
   if (!reasoner) return null;
+
+  const semanticProviders = new SemanticContextProviderRegistry().register(
+    createNavigatorCanonicalContextProvider({
+      concepts: semanticConcepts,
+      rpc: <T>(name: string, args: Record<string, unknown> = {}) => rpc<T>(authHeader, name, args)
+    })
+  );
 
   const outcome = await runSemanticEpisodeTurn({
     episode: episode?.semantic,
@@ -539,7 +547,8 @@ Deno.serve(async (req: Request) => {
         episode?.kind === "SEMANTIC" ? episode : null,
         zoneId,
         sourceId,
-        now
+        now,
+        authHeader
       );
 
       if (semantic) {
