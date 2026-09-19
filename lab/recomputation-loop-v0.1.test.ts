@@ -19,9 +19,8 @@ function changeRead(input: Partial<ModuleChangeRead> = {}): ModuleChangeRead {
 Deno.test("initial state load recomputes live projections without persisting them", () => {
   const plan = planRecomputation(changeRead({ initial_cursor: true }));
   assert(plan.reason === "INITIAL_LOAD", "initial read should identify initial load");
-  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,HELM", "live projections should recompute");
-  assert(plan.deferred.some((item) => item.target === "REQUIREMENTS"), "Requirements should be explicitly deferred");
-  assert(plan.deferred.some((item) => item.target === "CHARACTER"), "Character should be explicitly deferred");
+  assert(plan.recomputeNow.join(",") === "POSITION,BEARING,REQUIREMENTS,CHARACTER,HELM", "all live projections should recompute");
+  assert(plan.deferred.length === 0, "Requirements and Character are now live recomputation targets");
 });
 
 Deno.test("Direction change invalidates Position Bearing Helm Character and Navigator context", () => {
@@ -69,6 +68,7 @@ Deno.test("partial ModuleChange window conservatively invalidates every projecti
   }));
   assert(plan.reason === "COALESCED_PARTIAL_CHANGE_WINDOW", "partial windows should fail safely");
   assert(plan.invalidated.length === 6, "partial invalidation window should invalidate every projection target");
+  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "partial windows should recompute both new projections");
 });
 
 Deno.test("focus branch follows canonical SUPPORTS lineage and excludes unrelated actions", () => {
