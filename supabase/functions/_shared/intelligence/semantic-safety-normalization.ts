@@ -232,7 +232,7 @@ export function normalizeFoodAcquisitionVsConsumption(graph: CandidateLifeGraph,
 }
 
 export function preserveExplicitClauseFinalChronology(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
-  const cues = [...sourceText.matchAll(/\\b(after|before)\\s*(?=,|;|\\.|!|\\?|$)/gi)];
+  const cues = [...sourceText.matchAll(/\b(after|before)\s*(?=,|;|\.|!|\?|$)/gi)];
   if (!cues.length) return graph;
 
   const positioned = graph.nodes
