@@ -1,3 +1,5 @@
+import { createWayfinderProjectionProviderRegistryV0 } from "./projection-provider-registry.ts";
+
 export type RecomputeTarget =
   | "POSITION"
   | "BEARING"
@@ -45,15 +47,17 @@ export interface RecomputePlan {
 }
 
 const impactMap: Record<string, readonly RecomputeTarget[]> = {
-  person: ["POSITION", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-  body: ["POSITION", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-  direction: ["POSITION", "BEARING", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
+  person: ["POSITION", "HELM", "NAVIGATOR_CONTEXT"],
+  body: ["POSITION", "HELM", "NAVIGATOR_CONTEXT"],
+  direction: ["POSITION", "BEARING", "HELM", "NAVIGATOR_CONTEXT"],
   schedule: ["POSITION", "HELM", "NAVIGATOR_CONTEXT"],
-  training: ["REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-  nutrition: ["REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-  practice: ["BEARING", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"],
-  evidence: ["BEARING", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"]
+  training: ["HELM", "NAVIGATOR_CONTEXT"],
+  nutrition: ["HELM", "NAVIGATOR_CONTEXT"],
+  practice: ["BEARING", "HELM", "NAVIGATOR_CONTEXT"],
+  evidence: ["BEARING", "HELM", "NAVIGATOR_CONTEXT"]
 };
+
+const projectionProviders = createWayfinderProjectionProviderRegistryV0();
 
 const liveNow = new Set<RecomputeTarget>(["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM"]);
 
@@ -62,7 +66,10 @@ function uniqueTargets(values: RecomputeTarget[]) {
 }
 
 function impactsForModule(moduleId: string): readonly RecomputeTarget[] {
-  return impactMap[moduleId] ?? ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"];
+  const base = impactMap[moduleId];
+  if (!base) return ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "HELM", "NAVIGATOR_CONTEXT"];
+  const providerTargets = projectionProviders.affectedProjectionTargets([moduleId]);
+  return uniqueTargets([...base, ...providerTargets]);
 }
 
 export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
