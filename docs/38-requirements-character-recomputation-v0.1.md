@@ -214,6 +214,9 @@ A rollback-backed production test proved:
 - One synthetic 60g protein intake produced observation value 60 with UNKNOWN coverage.
 - Both Requirement Inputs preserved exact canonical lineage.
 - Transaction rollback left no synthetic Standard or evidence.
+- A separate target-change pressure test proved Training 3→4 and Nutrition 150→160 produce an immutable version 1 SUPERSEDED → version 2 ACTIVE chain without violating the one-active-version invariant.
+- The supersession ordering fix is recorded in `20260919235500_harden_domain_standard_supersession_v0_1.sql` and applied in production.
+- Cross-owner Requirement reads return no Standard/spec/observation for another authenticated owner.
 
 The migration itself creates no player Standard defaults.
 
