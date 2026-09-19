@@ -19,6 +19,8 @@ import {
   type TrainingSetCandidate
 } from "./training-semantic.ts";
 import { resolveTrainingExercise } from "./training-exercises.ts";
+import { directionAdmissionContract, type DirectionNodeCandidatePayload, type DirectionNodeKind } from "./direction-semantic.ts";
+import { scheduleAdmissionContract, type ScheduleAllocationCandidatePayload, type ScheduleAllocationKind } from "./schedule-semantic.ts";
 
 export type FulfillmentDisposition =
   | "READY_FOR_CONFIRMATION"
@@ -378,6 +380,300 @@ async function lowerTraining(input: FulfillmentAdapterInput): Promise<AdmissionF
   };
 }
 
+
+function firstText(node: CandidateLifeNode, ...names: string[]) {
+  return strings(field(node, ...names)?.value)[0];
+}
+
+function sourceTitle(node: CandidateLifeNode) {
+  const explicit = firstText(node, "title", "goal", "objective", "name", "label");
+  if (explicit) return explicit.trim().slice(0, 300);
+  const span = (node.sourceSpans ?? []).find((item) => item.trim());
+  return span?.trim().slice(0, 300);
+}
+
+function directionKind(node: CandidateLifeNode): DirectionNodeKind {
+  const explicit = firstText(node, "directionKind", "kind")?.trim().toLowerCase();
+  if (explicit && ["value", "direction", "outcome", "commitment", "quest", "plan", "action"].includes(explicit)) {
+    return explicit as DirectionNodeKind;
+  }
+  return node.nodeType === "PLAN" ? "plan" : "direction";
+}
+
+async function lowerDirection(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const title = sourceTitle(node);
+  if (!title) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: "What should this direction be called?",
+      reason: "DIRECTION_TITLE_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const description = firstText(node, "description", "details", "why");
+  const payload: DirectionNodeCandidatePayload = {
+    kind: directionKind(node),
+    title,
+    ...(description ? { description } : {}),
+    intentState: "ACTIVE"
+  };
+  const candidate: SemanticCandidate<DirectionNodeCandidatePayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const registry = new AdmissionRegistry().register(directionAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    {
+      now: compilation.source.receivedAt,
+      source: { ...compilation.source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
+    }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "REJECT", reason: "DIRECTION_ADMISSION_DECISION_MISSING", semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "Direction needs one more detail before it can accept this.",
+      reason: decision.reason ?? "DIRECTION_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? `DIRECTION_UNEXPECTED_ADMISSION_DISPOSITION:${decision.disposition}`,
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const normalized = decision.normalized as DirectionNodeCandidatePayload;
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: `${normalized.kind}: ${normalized.title}${normalized.description ? `\n${normalized.description}` : ""}`,
+    reason: "DIRECTION_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      zoneId: compilation.source.zoneId ?? "UTC"
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
+}
+
+function scheduleDurationSeconds(node: CandidateLifeNode) {
+  const seconds = integerValue(field(node, "expectedDurationSeconds", "durationSeconds")?.value);
+  if (seconds) return seconds;
+  const minutes = numberValue(field(node, "durationMinutes")?.value);
+  if (minutes != null && minutes > 0) return Math.round(minutes * 60);
+  const hours = numberValue(field(node, "durationHours")?.value);
+  if (hours != null && hours > 0) return Math.round(hours * 3600);
+  return undefined;
+}
+
+function validIso(value?: string) {
+  return Boolean(value && Number.isFinite(Date.parse(value)));
+}
+
+function explicitScheduleKind(node: CandidateLifeNode): ScheduleAllocationKind | undefined {
+  const raw = firstText(node, "allocationKind", "scheduleKind", "kind")?.trim().toUpperCase();
+  if (raw && ["HARD", "SOFT", "WINDOWED", "FLOATING"].includes(raw)) return raw as ScheduleAllocationKind;
+  return undefined;
+}
+
+async function lowerSchedule(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const label = sourceTitle(node);
+  if (!label) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION", question: "What should this scheduled item be called?",
+      reason: "SCHEDULE_LABEL_REQUIRED", semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const zoneId = compilation.source.zoneId ?? "UTC";
+  const explicitKind = explicitScheduleKind(node);
+  const interval = node.temporal?.interval;
+  const instant = node.temporal?.instant;
+  const dueAt = firstText(node, "dueAt", "due_at");
+  const duration = scheduleDurationSeconds(node);
+  let payload: ScheduleAllocationCandidatePayload;
+
+  if (interval?.from || interval?.to) {
+    if (!validIso(interval.from) || !validIso(interval.to)) {
+      return {
+        proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+        disposition: "NEEDS_CLARIFICATION",
+        question: "What exact start and end time should I use for that schedule block?",
+        reason: "SCHEDULE_INTERVAL_INCOMPLETE",
+        semanticContextRefs: proposal.contextRefs
+      };
+    }
+    payload = explicitKind === "WINDOWED"
+      ? {
+          label,
+          allocationKind: "WINDOWED",
+          windowStartsAt: interval.from!,
+          windowEndsAt: interval.to!,
+          zoneId,
+          ...(duration ? { expectedDurationSeconds: duration } : {})
+        }
+      : {
+          label,
+          allocationKind: explicitKind === "HARD" ? "HARD" : "SOFT",
+          startsAt: interval.from!,
+          endsAt: interval.to!,
+          zoneId,
+          ...(duration ? { expectedDurationSeconds: duration } : {})
+        };
+  } else if (instant && validIso(instant)) {
+    if (!duration) {
+      return {
+        proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+        disposition: "NEEDS_CLARIFICATION",
+        question: "How long should I block for that?",
+        reason: "SCHEDULE_DURATION_REQUIRED",
+        semanticContextRefs: proposal.contextRefs
+      };
+    }
+    payload = {
+      label,
+      allocationKind: explicitKind === "HARD" ? "HARD" : "SOFT",
+      startsAt: instant,
+      endsAt: new Date(Date.parse(instant) + duration * 1000).toISOString(),
+      expectedDurationSeconds: duration,
+      zoneId
+    };
+  } else if (node.temporal?.localDate || node.temporal?.daypart || node.temporal?.relativeText) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: "What time or time window should I use? I won’t turn a day-level plan into an exact calendar block by guessing.",
+      reason: "SCHEDULE_TIME_WINDOW_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  } else {
+    payload = {
+      label,
+      allocationKind: "FLOATING",
+      zoneId,
+      ...(dueAt && validIso(dueAt) ? { dueAt } : {}),
+      ...(duration ? { expectedDurationSeconds: duration } : {})
+    };
+  }
+
+  const candidate: SemanticCandidate<ScheduleAllocationCandidatePayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const registry = new AdmissionRegistry().register(scheduleAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    {
+      now: compilation.source.receivedAt,
+      source: { ...compilation.source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
+    }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "REJECT", reason: "SCHEDULE_ADMISSION_DECISION_MISSING", semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "Schedule needs one more detail before it can accept this.",
+      reason: decision.reason ?? "SCHEDULE_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId, candidateId: node.candidateId, owner: proposal.owner, claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? `SCHEDULE_UNEXPECTED_ADMISSION_DISPOSITION:${decision.disposition}`,
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const normalized = decision.normalized as ScheduleAllocationCandidatePayload;
+  const timing = normalized.startsAt
+    ? `${normalized.startsAt} → ${normalized.endsAt}`
+    : normalized.windowStartsAt
+      ? `window ${normalized.windowStartsAt} → ${normalized.windowEndsAt}`
+      : normalized.dueAt
+        ? `floating; due ${normalized.dueAt}`
+        : "floating";
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: `Schedule: ${normalized.label}\n${timing}`,
+    reason: "SCHEDULE_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      zoneId
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
+}
+
+export function createDirectionFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "direction.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "direction",
+    claimTypes: ["DIRECTION_NODE"],
+    lower: lowerDirection
+  };
+}
+
+export function createScheduleFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "schedule.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "schedule",
+    claimTypes: ["SCHEDULE_ALLOCATION"],
+    lower: lowerSchedule
+  };
+}
+
 export function createTrainingFulfillmentAdapter(): DomainFulfillmentAdapter {
   return {
     id: "training.admission-fulfillment.v0.1",
@@ -389,7 +685,10 @@ export function createTrainingFulfillmentAdapter(): DomainFulfillmentAdapter {
 }
 
 export function createWayfinderFulfillmentRegistryV0() {
-  return new AdmissionFulfillmentRegistry().register(createTrainingFulfillmentAdapter());
+  return new AdmissionFulfillmentRegistry()
+    .register(createTrainingFulfillmentAdapter())
+    .register(createDirectionFulfillmentAdapter())
+    .register(createScheduleFulfillmentAdapter());
 }
 
 export async function fulfillAdmissionPlan(
@@ -463,17 +762,6 @@ export interface StagedAdmissionEnvelope {
 }
 
 export async function authorizeStagedFulfillment(envelope: StagedAdmissionEnvelope): Promise<AdmissionDecision> {
-  if (envelope.owner !== "training" || envelope.claimType !== "TRAINING_STRENGTH_SESSION") {
-    return {
-      contractId: "admission-fulfillment-router.v0.1",
-      candidateId: envelope.candidateId,
-      claimType: envelope.claimType,
-      owner: envelope.owner,
-      disposition: "REJECT",
-      reason: "UNSUPPORTED_STAGED_FULFILLMENT"
-    };
-  }
-
   const source: SourceEnvelope = {
     sourceId: envelope.sourceContext.sourceId,
     sourceType: "PLAYER_TEXT",
@@ -492,7 +780,10 @@ export async function authorizeStagedFulfillment(envelope: StagedAdmissionEnvelo
     extractionConfidence: 1,
     payload: envelope.normalizedPayload
   };
-  const registry = new AdmissionRegistry().register(trainingAdmissionContract);
+  const registry = new AdmissionRegistry()
+    .register(trainingAdmissionContract)
+    .register(directionAdmissionContract)
+    .register(scheduleAdmissionContract);
   const admitted = await runSemanticAdmission(
     { sourceId: source.sourceId, candidates: [candidate], relations: [] },
     registry,
