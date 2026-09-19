@@ -78,5 +78,7 @@ export function createCoreLifeConceptRegistryV0() {
     .register({ id: "ENERGY_STATE", label: "energy state", kind: "STATE", aliases: ["tired", "exhausted", "drained", "energized", "felt like crap", "feel like crap", "felt awful", "feel awful", "felt terrible", "feel terrible"] })
     .register({ id: "COMMUNICATION", label: "communication", kind: "ACTIVITY", aliases: ["called", "texted", "emailed", "talked"] })
     .register({ id: "PERSON", label: "person", kind: "ENTITY" })
-    .register({ id: "PROJECT", label: "project", kind: "ENTITY", aliases: ["job", "install", "edit", "wedding"] });
+    .register({ id: "PROJECT", label: "project", kind: "ENTITY", aliases: ["job", "install", "edit", "wedding"] })
+    .register({ id: "DIRECTION_INTENT", label: "direction intent", kind: "ABSTRACT", aliases: ["goal", "objective", "aim", "personal direction", "quest"] })
+    .register({ id: "SCHEDULE_ALLOCATION", label: "schedule allocation", kind: "ABSTRACT", aliases: ["calendar allocation", "time block", "calendar block", "appointment"] });
 }

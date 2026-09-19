@@ -1,4 +1,5 @@
 import type { ConceptRegistry } from "./concept-registry.ts";
+import { recoverExplicitScheduleInterval } from "./schedule-temporal-reconciliation.ts";
 import type {
   CandidateLifeGraph,
   CandidateLifeNode,
@@ -454,7 +455,7 @@ export class LiveSemanticReasoner implements SemanticReasoner {
       user: semanticUserPrompt(input.source.content, input.source.receivedAt, input.source.zoneId, input.context, input.concepts),
       maxOutputTokens: this.options.maxOutputTokens ?? 5000
     });
-    return normalizeWireProposal(input.source.sourceId, response.data);
+    return normalizeWireProposal(input.source, response.data);
   }
 }
 
@@ -475,6 +476,9 @@ function semanticSystemPrompt() {
     "Prefer a supplied knownConcept id whenever it accurately describes the semantic class of the node. Keep specific people, merchants, places, foods, projects, or brands in attributes/references/entities rather than inventing them as the node concept when a known concept such as MEAL, EXPENSE, PERSON, PROJECT, RUNNING, or EMOTIONAL_STATE fits.",
     "Acquiring food is not the same as consuming it. Phrases such as grabbed, picked up, got, bought, or ordered food should use FOOD_ACQUISITION unless the source also establishes consumption; only use FOOD_INTAKE or MEAL as OCCURRED when eating/drinking is actually supported.",
     "Only when no supplied known concept describes the semantic class should you use the player's specific phrase as an unknown concept and include known broader parent concepts when defensible.",
+    "Use DIRECTION_INTENT for a durable player goal, objective, quest, or stated direction. Do not use it for a one-off calendar or time allocation.",
+    "Use SCHEDULE_ALLOCATION when the player explicitly allocates, blocks, books, or schedules time. Give that node realityMode PLANNED. Preserve the underlying activity or task in attributes or relationships rather than rewriting the allocation as an OCCURRED event.",
+    "For SCHEDULE_ALLOCATION, preserve every explicit scheduling time in the node temporal object. Use temporal.interval for explicit start/end blocks, temporal.instant plus duration attributes when only a start is given, and temporal.localDate/daypart/relativeText when timing is less precise. Do not drop explicit clock time into prose-only attributes.",
     "Relationships matter. Represent explicit chronology, comparison, repetition, correction, contrast, and player-attributed effects without upgrading them into scientific causality.",
     "For shared events, keep the player event subject as SELF and represent each explicit other participant as a PERSON entity node connected to the event with INVOLVES. Do not hide an explicit named participant only inside an event attribute.",
     "Trace entries are concise observable support/provenance only, never hidden reasoning or chain-of-thought.",
@@ -502,7 +506,8 @@ function semanticUserPrompt(content: string, receivedAt: string, zoneId: string 
   });
 }
 
-function normalizeWireProposal(sourceId: string, wire: WireProposal): SemanticReasonerOutput {
+function normalizeWireProposal(source: SemanticReasonerInput["source"], wire: WireProposal): SemanticReasonerOutput {
+  const sourceId = source.sourceId;
   const nodes: CandidateLifeNode[] = wire.nodes.map((item) => {
     const attributes: Record<string, SemanticField> = {};
     for (const field of item.attributes) {
@@ -548,6 +553,23 @@ function normalizeWireProposal(sourceId: string, wire: WireProposal): SemanticRe
       ...(item.parentConcepts.length ? { parentConcepts: item.parentConcepts } : {})
     };
   });
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (node.concept !== "SCHEDULE_ALLOCATION" || node.temporal?.interval?.from && node.temporal?.interval?.to) continue;
+    const recovered = recoverExplicitScheduleInterval(source);
+    if (!recovered) continue;
+    nodes[index] = {
+      ...node,
+      temporal: {
+        interval: { from: recovered.from, to: recovered.to },
+        localDate: recovered.localDate,
+        relativeText: recovered.relativeText,
+        precision: "EXACT",
+        certainty: "HIGH"
+      }
+    };
+  }
 
   return {
     graph: {

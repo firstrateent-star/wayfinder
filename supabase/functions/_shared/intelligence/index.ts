@@ -29,3 +29,6 @@ export * from "./admission-planner.ts";
 
 export * from "./admission-fulfillment.ts";
 export * from "./training-exercises.ts";
+
+export * from "./direction-semantic.ts";
+export * from "./schedule-semantic.ts";

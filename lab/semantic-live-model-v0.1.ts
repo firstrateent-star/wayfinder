@@ -49,6 +49,43 @@ type Scenario = { id: string; text: string; evaluate(result: ReadOnlySemanticLoo
 
 const scenarios: Scenario[] = [
   {
+    id: "durable-direction-intent",
+    text: "My long-term goal is to build a sustainable business.",
+    evaluate: (result) => {
+      const direction = find(result, "DIRECTION_INTENT");
+      const findings: Finding[] = [];
+      if (!direction) findings.push(loss("DIRECTION_INTENT_MISSED", "Durable player goal was not represented as DIRECTION_INTENT."));
+      else {
+        if (direction.subject.kind !== "SELF") findings.push(distortion("DIRECTION_SUBJECT", `Expected SELF, got ${direction.subject.kind}.`));
+        if (!["INTENDED", "CURRENT_STATE"].includes(direction.realityMode)) findings.push(distortion("DIRECTION_REALITY_MODE", `Expected durable intent, got ${direction.realityMode}.`));
+      }
+      if (find(result, "SCHEDULE_ALLOCATION")) findings.push(distortion("DIRECTION_BECAME_SCHEDULE", "Long-term direction was incorrectly represented as a calendar allocation."));
+      if (direction) {
+        const route = result.compilation.routing.find((item) => item.candidateId === direction.candidateId);
+        if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "direction") findings.push(loss("DIRECTION_NOT_ROUTED", "Durable direction did not reach the declared Direction owner."));
+      }
+      return findings;
+    }
+  },
+  {
+    id: "explicit-schedule-allocation",
+    text: "Block tomorrow from 1 to 3 PM for editing the wedding film.",
+    evaluate: (result) => {
+      const allocation = find(result, "SCHEDULE_ALLOCATION");
+      const findings: Finding[] = [];
+      if (!allocation) findings.push(loss("SCHEDULE_ALLOCATION_MISSED", "Explicit time block was not represented as SCHEDULE_ALLOCATION."));
+      else {
+        if (allocation.subject.kind !== "SELF") findings.push(distortion("SCHEDULE_SUBJECT", `Expected SELF, got ${allocation.subject.kind}.`));
+        if (allocation.realityMode !== "PLANNED") findings.push(distortion("SCHEDULE_REALITY_MODE", `Expected PLANNED, got ${allocation.realityMode}.`));
+        if (!allocation.temporal?.interval?.from || !allocation.temporal?.interval?.to) findings.push(loss("SCHEDULE_INTERVAL_MISSED", "Explicit start/end block did not survive as a semantic interval."));
+        const route = result.compilation.routing.find((item) => item.candidateId === allocation.candidateId);
+        if (route?.route !== "ROUTE_TO_DOMAIN" || route.owner !== "schedule") findings.push(loss("SCHEDULE_NOT_ROUTED", "Explicit schedule allocation did not reach the declared Schedule owner."));
+      }
+      if (find(result, "DIRECTION_INTENT")) findings.push(distortion("SCHEDULE_BECAME_DIRECTION", "One-off calendar allocation was incorrectly represented as durable Direction."));
+      return findings;
+    }
+  },
+  {
     id: "occurred-run",
     text: "I ran today.",
     evaluate: (result) => {

@@ -51,6 +51,25 @@ type Finding = { class: FailureClass; code: string; detail: string };
 type Scenario = { id: string; text: string; evaluate(result: ReadOnlySemanticLoopResult): Finding[] };
 
 const scenarios: Scenario[] = [
+  scenario("future-activity-is-not-calendar-allocation", "I'll run tomorrow morning.", (r) => {
+    const f:Finding[]=[];
+    if (find(r,"SCHEDULE_ALLOCATION")) f.push(distortion("FUTURE_ACTIVITY_BECAME_SCHEDULE","A normal future activity plan was upgraded into a calendar allocation without explicit scheduling language."));
+    const runs=findAll(r,"RUNNING");
+    if (!runs.some(n=>["PLANNED","INTENDED","EXPECTED"].includes(n.realityMode))) f.push(loss("FUTURE_RUN_INTENT_MISSED","Future run intent was not represented."));
+    return f;
+  }),
+  scenario("calendar-block-is-not-direction", "Block two hours tomorrow afternoon for the wedding edit.", (r) => {
+    const f:Finding[]=[];
+    if (!find(r,"SCHEDULE_ALLOCATION")) f.push(loss("EXPLICIT_BLOCK_MISSED","Explicit time blocking was not represented as SCHEDULE_ALLOCATION."));
+    if (find(r,"DIRECTION_INTENT")) f.push(distortion("CALENDAR_BLOCK_BECAME_DIRECTION","One-off time allocation was upgraded into durable Direction."));
+    return f;
+  }),
+  scenario("third-party-schedule-not-self", "Greg scheduled two hours tomorrow for the install.", (r) => {
+    const f:Finding[]=[];
+    const allocations=findAll(r,"SCHEDULE_ALLOCATION");
+    if (allocations.some(n=>n.subject.kind==="SELF")) f.push(fabrication("THIRD_PARTY_SCHEDULE_BECAME_SELF","Greg's schedule allocation was assigned to the player."));
+    return f;
+  }),
   scenario("double-negation-run", "I didn't not run today.", (r) => {
     const runs=findAll(r,"RUNNING"); const f:Finding[]=[];
     if (!runs.some(n=>n.subject.kind==="SELF" && n.realityMode==="OCCURRED")) f.push(loss("DOUBLE_NEGATION_LOST","Double negation should preserve an occurred run."));
