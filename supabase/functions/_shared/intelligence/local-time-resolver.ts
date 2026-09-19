@@ -147,6 +147,24 @@ function toResolved(utcMs: number, timeZone: string, localDateTime: string): Res
   };
 }
 
+export function resolveIntlLocalInstantValue(input: ResolveLocalInstantInput): ResolvedLocalInstant | null {
+  const date = parseDate(input?.localDate ?? "");
+  const time = parseTime(input?.localTime ?? "");
+  const zone = input?.timeZone?.trim();
+  if (!date || !time || !zone) return null;
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone }).format(new Date(0));
+  } catch {
+    return null;
+  }
+
+  const target: LocalParts = { ...date, ...time };
+  const matches = findMatchingInstants(target, zone);
+  if (matches.length !== 1) return null;
+  return toResolved(matches[0], zone, `${input.localDate}T${input.localTime}`);
+}
+
 export function createIntlLocalInstantProvider(): KnowledgeProvider {
   const version = "intl-local-instant-v1";
 
