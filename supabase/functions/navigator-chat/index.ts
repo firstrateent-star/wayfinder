@@ -247,12 +247,26 @@ function semanticEpisodeTextDigest(episode: SemanticEpisode) {
 }
 
 function semanticEpisodeSupportsTrainingCapture(episode: SemanticEpisode) {
-  if (episode.turns.some((turn) =>
-    turn.graph.nodes.some((node) =>
-      node.subject.kind === "SELF" &&
-      (node.concept === "STRENGTH_TRAINING" ||
-        node.parentConcepts?.includes("STRENGTH_TRAINING"))
-    )
+  const latest = episode.turns.at(-1);
+  if (!latest) return false;
+
+  const physical = latest.graph.nodes.filter((node) =>
+    node.concept === "STRENGTH_TRAINING" ||
+    node.concept === "PHYSICAL_ACTIVITY" ||
+    node.parentConcepts?.includes("STRENGTH_TRAINING") ||
+    node.parentConcepts?.includes("PHYSICAL_ACTIVITY")
+  );
+
+  if (physical.length === 0) return false;
+
+  const occurredForPlayer = physical.filter((node) =>
+    node.subject.kind === "SELF" && node.realityMode === "OCCURRED"
+  );
+  if (occurredForPlayer.length === 0) return false;
+
+  if (occurredForPlayer.some((node) =>
+    node.concept === "STRENGTH_TRAINING" ||
+    node.parentConcepts?.includes("STRENGTH_TRAINING")
   )) return true;
 
   return looksLikeWorkout(semanticEpisodeTextDigest(episode));
@@ -305,9 +319,9 @@ function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
     node.realityMode === "OCCURRED"
   );
 
-  const suggestions: Suggestion[] = training
-    ? [{ id: "START_TRAINING", label: "Log this as Training", tone: "primary" }]
-    : [];
+  // Persistence affordances are added after Admission Planning. Semantic
+  // understanding alone is not authority to present a canonical-write path.
+  const suggestions: Suggestion[] = [];
 
   if (meaningful.length === 0) {
     return {
