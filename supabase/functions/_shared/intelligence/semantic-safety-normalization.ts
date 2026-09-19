@@ -26,6 +26,7 @@ export function applySemanticSafetyNormalization(
   let graph = downgradeSarcasmRisk(output.graph);
   graph = normalizeInlineCorrections(graph, source.content);
   graph = normalizeFoodAcquisitionVsConsumption(graph, source.content);
+  graph = normalizeBareRunningQuantity(graph, source.content);
   graph = preserveExplicitClauseFinalChronology(graph, source.content);
   return { ...output, graph };
 }
@@ -229,6 +230,66 @@ export function normalizeFoodAcquisitionVsConsumption(graph: CandidateLifeGraph,
   });
 
   return changed ? { ...graph, nodes, trace } : graph;
+}
+
+export function normalizeBareRunningQuantity(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
+  const match = sourceText.match(/\b(?:i\s+)?ran\s+(\d+(?:\.\d+)?)\b/i);
+  if (!match) return graph;
+
+  const explicitUnit = /\b(?:mile|miles|mi|kilometer|kilometers|kilometre|kilometres|km|meter|meters|metre|metres|m|minute|minutes|min|hour|hours|hr|hrs|lap|laps)\b/i.test(sourceText);
+  if (explicitUnit) return graph;
+
+  const numericValue = Number(match[1]);
+  if (!Number.isFinite(numericValue)) return graph;
+
+  const nodes = graph.nodes.map((node) => {
+    if (node.concept !== "RUNNING" || node.subject.kind !== "SELF") return node;
+
+    const attributes = { ...node.attributes };
+    let changed = false;
+    for (const key of ["distance", "duration", "laps", "count"]) {
+      if (key in attributes) {
+        delete attributes[key];
+        changed = true;
+      }
+    }
+    if (!changed && attributes.unqualifiedQuantity) return node;
+
+    attributes.unqualifiedQuantity = {
+      value: numericValue,
+      state: "PARTIAL",
+      precision: "UNKNOWN",
+      certainty: node.certainty,
+      sourceSpans: [match[1]]
+    };
+
+    const unresolved = [
+      ...(node.unresolved ?? []).filter((item) => item.code !== "RUNNING_QUANTITY_MEANING_UNRESOLVED"),
+      {
+        code: "RUNNING_QUANTITY_MEANING_UNRESOLVED",
+        description: `The source gives the quantity ${match[1]} for the run but does not establish whether it means distance, duration, laps, or another measure.`,
+        blocking: true,
+        field: "unqualifiedQuantity"
+      }
+    ];
+
+    return { ...node, attributes, unresolved };
+  });
+
+  const changed = nodes.some((node, index) => node !== graph.nodes[index]);
+  if (!changed) return graph;
+
+  return {
+    ...graph,
+    nodes,
+    trace: [...graph.trace, {
+      traceId: "safety:bare-running-quantity",
+      stage: "CONCEPT_RESOLUTION",
+      claim: "RUNNING_QUANTITY_MEANING_UNRESOLVED",
+      support: [match[0]],
+      result: "Preserved the explicit numeric quantity while removing any unsupported inferred running unit or measurement type."
+    }]
+  };
 }
 
 export function preserveExplicitClauseFinalChronology(graph: CandidateLifeGraph, sourceText: string): CandidateLifeGraph {
