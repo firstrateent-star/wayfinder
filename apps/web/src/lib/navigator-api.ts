@@ -59,8 +59,60 @@ export type NavigatorSemanticEpisode = {
 
 export type NavigatorEpisode = NavigatorTrainingEpisode | NavigatorSemanticEpisode;
 
+export type NavigatorAdmissionProposal = {
+  proposalId: string;
+  sourceId: string;
+  candidateId: string;
+  owner: string;
+  claimType: string;
+  concept: string;
+  subject: {
+    kind: "SELF" | "KNOWN_OTHER" | "UNKNOWN_OTHER" | "GENERAL";
+    entityRef?: string;
+    label?: string;
+  };
+  realityMode: string;
+  certainty: string;
+  sourceSpans: string[];
+  contextRefs: string[];
+  authorization: "PRESENT" | "REQUIRED";
+  policyId: string;
+  policyVersion: string;
+  transient: true;
+};
+
+export type NavigatorAdmissionPlanItem = {
+  candidateId: string;
+  concept: string;
+  route: "ROUTE_TO_DOMAIN" | "CLARIFY" | "SESSION_ONLY" | "DROP";
+  disposition:
+    | "READY_FOR_DOMAIN_ADMISSION"
+    | "NEEDS_AUTHORIZATION"
+    | "NEEDS_CLARIFICATION"
+    | "SESSION_ONLY"
+    | "DROP"
+    | "REJECT";
+  owner?: string;
+  claimType?: string;
+  proposalId?: string;
+  reason: string;
+};
+
+export type NavigatorAdmissionPlan = {
+  sourceId: string;
+  generatedAt: string;
+  proposals: NavigatorAdmissionProposal[];
+  items: NavigatorAdmissionPlanItem[];
+  validationErrors: string[];
+  invariants: {
+    executesCommands: false;
+    persistsCandidates: false;
+    modelChoosesOwner: false;
+  };
+};
+
 export type NavigatorChatResponse = {
-  contract: "navigator-chat.v0.2";
+  contract: "navigator-chat.v0.3";
   message: string;
   episode: NavigatorEpisode | null;
   suggestions: NavigatorSuggestion[];
@@ -69,6 +121,7 @@ export type NavigatorChatResponse = {
   reason?: string;
   proposal?: { domain: string; disposition: string };
   semantic_mode?: "GENERAL_READ_ONLY" | "UNAVAILABLE";
+  admission_plan?: NavigatorAdmissionPlan;
   command_result?: unknown;
   retention?: {
     conversation_persisted_server_side: boolean;
