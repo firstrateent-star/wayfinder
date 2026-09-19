@@ -113,7 +113,9 @@ export function createWayfinderCapacityV0() {
         { concept: "COMMUNICATION", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "WORK_ACTIVITY", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "PERSON", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
-        { concept: "PROJECT", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] }
+        { concept: "PROJECT", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
+        { concept: "DIRECTION_INTENT", facets: ["RECOGNIZE", "REPRESENT"] },
+        { concept: "SCHEDULE_ALLOCATION", facets: ["RECOGNIZE", "REPRESENT"] }
       ]
     })
     .register({
@@ -130,5 +132,31 @@ export function createWayfinderCapacityV0() {
       claimTypesOwned: ["TRAINING_STRENGTH_SESSION"],
       contextReadsProvided: ["training.recent_strength_sessions"],
       emittedChanges: ["training.session.recorded"]
+    })
+    .register({
+      domainId: "direction",
+      version: "0.1",
+      concepts: [{
+        concept: "DIRECTION_INTENT",
+        facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+        claimTypes: ["DIRECTION_NODE"],
+        notes: "Durable player goals and directions only; time allocation remains Schedule-owned."
+      }],
+      claimTypesOwned: ["DIRECTION_NODE"],
+      contextReadsProvided: ["direction.active"],
+      emittedChanges: ["direction.node.created"]
+    })
+    .register({
+      domainId: "schedule",
+      version: "0.1",
+      concepts: [{
+        concept: "SCHEDULE_ALLOCATION",
+        facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+        claimTypes: ["SCHEDULE_ALLOCATION"],
+        notes: "Planned temporal allocation only; occurred reality remains owned by its activity domain."
+      }],
+      claimTypesOwned: ["SCHEDULE_ALLOCATION"],
+      contextReadsProvided: ["schedule.current"],
+      emittedChanges: ["schedule.allocation_created"]
     });
 }
