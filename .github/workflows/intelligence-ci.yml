@@ -19,6 +19,7 @@ on:
       - "lab/semantic-episode-v0.1.test.ts"
       - "lab/semantic-resolution-context-v0.2.test.ts"
       - "lab/model-provider-resilience-v0.1.test.ts"
+      - "lab/navigator-canonical-context-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
     paths:
@@ -37,6 +38,7 @@ on:
       - "lab/semantic-live-runtime-v0.1.test.ts"
       - "lab/semantic-episode-v0.1.test.ts"
       - "lab/semantic-resolution-context-v0.2.test.ts"
+      - "lab/navigator-canonical-context-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
 jobs:
@@ -83,6 +85,8 @@ jobs:
         run: deno test lab/semantic-episode-v0.1.test.ts
       - name: Run model provider resilience tests
         run: deno test lab/model-provider-resilience-v0.1.test.ts
+      - name: Run Navigator canonical context tests
+        run: deno test lab/navigator-canonical-context-v0.1.test.ts
       - name: Run semantic entity lifting tests
         run: deno test lab/semantic-entity-lifting-v0.1.test.ts
       - name: Run source-context reconciliation tests
