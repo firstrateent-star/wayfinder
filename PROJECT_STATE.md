@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Navigator v0.3 + Admission Planner v0.1  
-**Current phase:** governed admission proposals are implemented and gated; next build is owning-domain Admission Fulfillment + downstream recomputation  
+**Current milestone:** Navigator v0.4 + four-domain governed Admission Fulfillment  
+**Current phase:** Training, Direction, Schedule, and Nutrition now share one proven semantic → planner → fulfillment → confirmation → typed-command spine; next frontier is downstream recomputation and projection refresh after canonical writes  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -12,6 +12,9 @@
 **Navigator semantic cutover:** `docs/31-navigator-semantic-cutover-v0.2.md`  
 **Navigator canonical context:** `docs/32-navigator-canonical-context-v0.1.md`  
 **Admission Planner:** `docs/33-admission-planner-v0.1.md`  
+**Training Admission Fulfillment:** `docs/34-admission-fulfillment-training-v0.1.md`  
+**Schedule + Direction Fulfillment:** `docs/35-schedule-direction-admission-fulfillment-v0.1.md`  
+**Nutrition v0.1:** `docs/36-nutrition-v0.1.md`  
 **Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
 
 ## Non-negotiable direction
@@ -60,7 +63,10 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - conversational disclosure is not automatically canonical write authorization;
 - candidates are transient/runtime artifacts by default;
 - valid partial reality may be stored only when missing detail remains explicitly unknown;
-- persistence without downstream recomputation is incomplete ingestion.
+- persistence without downstream recomputation is incomplete ingestion;
+- model meaning, canonical claim type, domain acceptance, write authorization, and command execution are separate decisions;
+- explicit source-grounded relations survive unresolved referents without forcing referent resolution;
+- an explicit number never earns an unstated unit or measurement type.
 
 ## Mature architecture
 
@@ -121,6 +127,7 @@ wf_evidence
 wf_body
 wf_schedule
 wf_training
+wf_nutrition
 ```
 
 Authenticated clients and Edge Functions use narrow public typed RPCs. Private canonical schemas are not directly exposed to `anon` / `authenticated`.
@@ -501,37 +508,66 @@ Existing `vl_*` RLS-without-policy findings are separate from Wayfinder.
 
 `Leaked Password Protection Disabled` remains a production-hardening item.
 
-## Strongest next build — General Navigator + Admission Planner
+## Current production frontier — Four-domain Navigator → downstream recomputation
 
-The semantic architecture is now ahead of the production conversation layer. The immediate frontier is to finish the Semantic Episode live gate and cut Navigator over to the shared semantic runtime before adding another canonical domain.
-
-Current cutover:
+The generalized Navigator nervous system is now live in production:
 
 ```text
-natural conversation
- -> live semantic reasoner
+natural language
+ -> Live Semantic Reasoner
  -> bounded Semantic Episode
+ -> canonical context
  -> Candidate Life Graph
  -> Wayfinder Capacity
- -> SESSION_ONLY / CLARIFY / route eligibility
- -> explicit domain action
- -> existing Training confirmation boundary
- -> typed canonical command
+ -> Admission Planner
+ -> owning-domain Fulfillment adapter
+ -> owning AdmissionContract
+ -> short-lived server-staged proposal
+ -> explicit player confirmation
+ -> AdmissionContract rerun with authorization
+ -> typed owning-domain command
+ -> canonical reality
+ -> ModuleChange outbox
 ```
 
-Navigator v0.2 keeps general semantic conversation non-authoritative and transient. Training remains the only conversational canonical write path until the Admission Planner is proven.
+Production `navigator-chat` is **v22 ACTIVE** with `verify_jwt=true`.
 
-The next architecture steps are:
+Canonical write-capable Navigator owners:
 
-1. pass the live multi-turn Semantic Episode corpus with zero fabrication and no unresolved gate failures;
-2. deploy Navigator v0.2;
-3. register real canonical context providers for Training, Person, Direction, Schedule, Practice/Journey and other relevant reads;
-4. build the Admission Planner so one utterance can produce zero to many independently governed domain proposals;
-5. lower eligible semantic meaning into owning-domain admission without forcing the player to restate it;
-6. recompute Position, Requirements, Character projections and Bearing after accepted writes;
-7. then expand canonical capacity, including Nutrition, through the common Navigator/Admission spine.
+```text
+STRENGTH_TRAINING   -> Training  -> TRAINING_STRENGTH_SESSION
+DIRECTION_INTENT    -> Direction -> DIRECTION_NODE
+SCHEDULE_ALLOCATION -> Schedule  -> SCHEDULE_ALLOCATION
+MEAL / FOOD_INTAKE  -> Nutrition -> NUTRITION_INTAKE
+```
 
-Nutrition remains the next strong independent domain proof, but it should now enter through this generalized nervous system rather than become a second domain-specific conversation flow.
+Important negative boundaries remain explicit:
+
+```text
+FOOD_ACQUISITION != FOOD_INTAKE
+planned != occurred
+understood != admitted
+admitted != authorized
+unknown nutrition != zero
+unknown nutrition != model-estimated nutrition
+```
+
+The four-domain stack has passed exact-main Intelligence CI and the complete real-model semantic gate, including adversarial and multi-turn Episode suites. Direction, Schedule, and Nutrition command retry/idempotency have also been live-proven through rollback transactions.
+
+### Strongest next build
+
+Canonical ingestion is now ahead of downstream interpretation. The next architecture target is:
+
+1. consume `ModuleChange` after accepted domain writes;
+2. recompute Position from current canonical state;
+3. recompute requirement observations/coverage where affected;
+4. refresh Character projections without creating a second source of truth;
+5. derive Bearing/guidance from the new Position;
+6. surface the change through Helm/Navigator without turning Home into a dashboard;
+7. add a typed Question Planner over unresolved semantic/admission gaps;
+8. move transient Episode/proposal continuity to a bounded server-side TTL store when cross-refresh/device continuity is needed.
+
+**Law:** persistence without the relevant downstream recomputation is incomplete ingestion.
 
 ## Deferred until earned
 
@@ -560,4 +596,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-Navigator v0.2 is live, Canonical Context v0.1 supplies bounded owner-scoped reads, and Admission Planner v0.1 now creates governed transient domain proposals without executing writes. The immediate architectural target is **Admission Fulfillment → explicit confirmation → owning-domain commands → downstream recomputation**. Nutrition follows through that common seam rather than preceding it.
+Navigator v0.4 is live as Supabase `navigator-chat` v22. Training, Direction, Schedule, and Nutrition all use the same governed semantic → Admission Planner → Fulfillment → server-staged confirmation → owning AdmissionContract → typed command path. The immediate architectural target is **ModuleChange-driven downstream recomputation: canonical write → Position → Requirements → Character projection → Bearing → Helm/Navigator refresh**.
