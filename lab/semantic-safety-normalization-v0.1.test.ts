@@ -2,7 +2,8 @@ import {
   applySemanticSafetyNormalization,
   downgradeSarcasmRisk,
   normalizeFoodAcquisitionVsConsumption,
-  normalizeInlineCorrections
+  normalizeInlineCorrections,
+  preserveExplicitClauseFinalChronology
 } from "../supabase/functions/_shared/intelligence/semantic-safety-normalization.ts";
 import type { CandidateLifeGraph, CandidateLifeNode, SemanticReasonerOutput } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
 import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
@@ -52,6 +53,30 @@ Deno.test("inline correction emitted as only final event still retains correctio
   const result = normalizeInlineCorrections(graph, "I ran Monday — actually, Tuesday.");
   assert(result.nodes.some((node) => node.realityMode === "CORRECTION"), "correction claim should be synthesized");
   assert(result.edges.some((edge) => edge.relation === "CORRECTS"), "synthesized correction should connect to final event");
+});
+
+Deno.test("explicit clause-final after chronology is preserved between adjacent grounded events", () => {
+  const graph = baseGraph([
+    { ...event("work", "WORK_ACTIVITY", "OCCURRED"), sourceSpans: ["Worked late"] },
+    { ...event("run", "RUNNING", "OCCURRED"), sourceSpans: ["ran about two miles"] },
+    { ...event("food", "FOOD_ACQUISITION", "OCCURRED"), sourceSpans: ["grabbed Chipotle"] }
+  ]);
+  const result = preserveExplicitClauseFinalChronology(
+    graph,
+    "Worked late, ran about two miles after, grabbed Chipotle."
+  );
+  assert(
+    result.edges.some((edge) =>
+      edge.fromCandidateId === "run" &&
+      edge.toCandidateId === "work" &&
+      edge.relation === "AFTER"
+    ),
+    "clause-final 'after' should preserve RUNNING AFTER WORK_ACTIVITY"
+  );
+  assert(
+    !result.edges.some((edge) => edge.fromCandidateId === "food"),
+    "later listed food acquisition must not receive invented chronology"
+  );
 });
 
 Deno.test("food acquisition language cannot silently become consumed nutrition", () => {
