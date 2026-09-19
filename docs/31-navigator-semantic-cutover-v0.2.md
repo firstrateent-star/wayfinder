@@ -1,6 +1,6 @@
 # Navigator Semantic Cutover v0.2
 
-**Status:** IMPLEMENTED ON WORK BRANCH / CI GATED / PRODUCTION DEPLOY PENDING LIVE SEMANTIC GATE  
+**Status:** LIVE / MERGED / CI PASSED / SEMANTIC LIVE GATE PASSED  
 **Date:** 2026-09-19
 
 ## Purpose
@@ -143,12 +143,41 @@ Semantic Navigator
 
 ## Next build order
 
-1. Finish and pass the live Semantic Episode gate.
-2. Deploy Navigator v0.2 with general read-only semantic conversation.
-3. Register grounded production context providers for Training, Person, Direction, Schedule, Practice/Journey, and later other domains.
-4. Build the Admission Planner for multi-claim utterances.
-5. Lower eligible semantic candidates into domain admission proposals without forcing the player to restate the meaning.
-6. Recompute Position, Requirements, Character projections, and Bearing after confirmed writes.
-7. Resume domain expansion, including Nutrition, through this common nervous system.
+1. Register grounded production context providers for Training, Person, Direction, Schedule, Practice/Journey, and later other domains.
+2. Build the Admission Planner for multi-claim utterances.
+3. Lower eligible semantic candidates into domain admission proposals without forcing the player to restate the meaning.
+4. Recompute Position, Requirements, Character projections, and Bearing after confirmed writes.
+5. Resume domain expansion, including Nutrition, through this common nervous system.
 
 Nutrition remains important, but it is no longer the immediate architecture frontier. New domains should plug into the generalized Navigator/Admission spine rather than requiring another domain-specific chatbot.
+
+
+## Live checkpoint — 2026-09-19
+
+Merged production commit:
+
+```text
+e20d7d61dae359fa8b1ee6661027192ac47b976d
+```
+
+Semantic live episode gate:
+
+```text
+scenarios    9
+passed       9
+loss         0
+distortion   0
+fabrication  0
+```
+
+Production surfaces:
+
+```text
+GitHub main                 merged
+Wayfinder Intelligence CI  passed
+Wayfinder Web CI           passed
+Supabase navigator-chat    ACTIVE v17 / verify_jwt=true
+Vercel commit status       deployment success
+```
+
+The Supabase connector does not expose whether `OPENAI_API_KEY` is configured in Edge Function secrets. Navigator v0.2 therefore fails closed: if the provider credential is absent, broad semantic mode reports unavailable and the already-proven Training capture path remains usable. No provider failure can authorize a canonical write.
