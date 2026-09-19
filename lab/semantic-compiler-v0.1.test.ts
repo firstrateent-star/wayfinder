@@ -88,6 +88,7 @@ const fixtures: Record<string, (sourceId: string) => SemanticReasonerOutput> = {
   }),
   "I might run today.": (sourceId) => ({ graph: graph(sourceId, [node("run", "RUNNING", "POSSIBLE")]) }),
   "I didn't run today.": (sourceId) => ({ graph: graph(sourceId, [node("run", "RUNNING", "NEGATED")]) }),
+  "I skipped lunch today.": (sourceId) => ({ graph: graph(sourceId, [node("meal", "MEAL", "NEGATED")]) }),
   "I worked out today.": (sourceId) => ({
     graph: graph(sourceId, [node("training", "STRENGTH_TRAINING", "OCCURRED", { claimType: "TRAINING_STRENGTH_SESSION", proposedOwners: ["training"] })])
   }),
@@ -204,6 +205,14 @@ Deno.test("possible future activity is not treated as occurrence", async () => {
 Deno.test("negation survives semantic compilation", async () => {
   const result = await compile("I didn't run today.");
   assert(result.graph.nodes[0].realityMode === "NEGATED", "negation must not invert into a run occurrence");
+});
+
+Deno.test("negated claim with a canonical owner remains session-only and carries no owner route", async () => {
+  const result = await compile("I skipped lunch today.");
+  assert(result.graph.nodes[0].realityMode === "NEGATED", "skipped meal must remain negated");
+  assert(result.capacity[0].persistOwners.includes("nutrition"), "MEAL concept should still declare Nutrition capability");
+  assert(result.routing[0].route === "SESSION_ONLY", "negated meal must never route to canonical admission");
+  assert(result.routing[0].owner === undefined, "session-only negation must carry no canonical owner");
 });
 
 Deno.test("current strength Training capacity can route a supported canonical claim to Training", async () => {
