@@ -72,6 +72,7 @@ function compilation(inputSource: SourceEnvelope, node: CandidateLifeNode): Sema
       reason: "DETERMINISTIC_DECLARED_CLAIM_ROUTE",
       capacity: assessment
     }],
+    contextRequests: [],
     validationErrors: []
   };
 }
