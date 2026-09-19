@@ -60,7 +60,7 @@ jobs:
       - name: Type-check requirement evaluator
         run: deno check supabase/functions/_shared/intelligence/requirements.ts
       - name: Type-check Semantic Compiler runtime
-        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts
+        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/semantic-safety-normalization.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
@@ -83,3 +83,5 @@ jobs:
         run: deno test lab/semantic-entity-lifting-v0.1.test.ts
       - name: Run source-context reconciliation tests
         run: deno test lab/source-context-reconciliation-v0.1.test.ts
+      - name: Run semantic safety normalization tests
+        run: deno test lab/semantic-safety-normalization-v0.1.test.ts

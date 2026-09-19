@@ -3,6 +3,7 @@ import type { ConceptRegistry } from "./concept-registry.ts";
 import type { CapacityAssessment, WayfinderCapacityRegistry } from "./wayfinder-capacity.ts";
 import { normalizeSemanticReasonerOutput } from "./concept-resolution.ts";
 import { liftExplicitPersonParticipantsInOutput } from "./entity-lifting.ts";
+import { applySemanticSafetyNormalization } from "./semantic-safety-normalization.ts";
 
 export type RealityMode =
   | "OCCURRED"
@@ -335,9 +336,12 @@ export async function compileLifeExpression(input: CompileLifeExpressionInput): 
     context: input.context,
     concepts: input.concepts
   });
-  const proposed = liftExplicitPersonParticipantsInOutput(
-    normalizeSemanticReasonerOutput(rawProposed, input.concepts),
-    input.context
+  const proposed = applySemanticSafetyNormalization(
+    liftExplicitPersonParticipantsInOutput(
+      normalizeSemanticReasonerOutput(rawProposed, input.concepts),
+      input.context
+    ),
+    input.source
   );
 
   const validationErrors = validateCandidateLifeGraph(proposed.graph);

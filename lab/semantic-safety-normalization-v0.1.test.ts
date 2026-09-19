@@ -1,0 +1,90 @@
+import {
+  applySemanticSafetyNormalization,
+  downgradeSarcasmRisk,
+  normalizeInlineCorrections
+} from "../supabase/functions/_shared/intelligence/semantic-safety-normalization.ts";
+import type { CandidateLifeGraph, CandidateLifeNode, SemanticReasonerOutput } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
+import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+Deno.test("reasoner-flagged sarcasm cannot remain an OCCURRED canonical-looking event", () => {
+  const graph = baseGraph([{
+    ...event("workout", "STRENGTH_TRAINING", "OCCURRED"),
+    unresolved: [{
+      code: "POSSIBLE_SARCASM_OR_CONTRAST",
+      description: "The phrase may be sarcastic given the couch statement.",
+      blocking: false
+    }]
+  }]);
+  const result = downgradeSarcasmRisk(graph);
+  assert(result.nodes[0].realityMode === "POSSIBLE", "sarcasm-risk occurrence must downgrade to POSSIBLE");
+  assert(result.nodes[0].unresolved?.[0].blocking === true, "sarcasm ambiguity must block admission");
+});
+
+Deno.test("inline temporal self-correction prevents duplicate independent occurrences", () => {
+  const graph = baseGraph([
+    { ...event("monday", "RUNNING", "OCCURRED"), sourceSpans: ["I ran Monday"] },
+    { ...event("tuesday", "RUNNING", "OCCURRED"), sourceSpans: ["Tuesday"] }
+  ]);
+  const result = normalizeInlineCorrections(graph, "I ran Monday — actually, Tuesday.");
+  const runs = result.nodes.filter((node) => node.concept === "RUNNING");
+  assert(runs.some((node) => node.realityMode === "CORRECTION"), "earlier competing event should be marked CORRECTION");
+  assert(runs.filter((node) => node.realityMode === "OCCURRED").length === 1, "only final corrected event should remain OCCURRED");
+  assert(result.edges.some((edge) => edge.relation === "CORRECTS"), "correction relationship should be explicit");
+});
+
+Deno.test("leading correction fragment does not become a fresh occurrence", () => {
+  const output: SemanticReasonerOutput = {
+    graph: baseGraph([event("distance-fix", "RUNNING", "OCCURRED")]),
+    contextRequests: []
+  };
+  const result = applySemanticSafetyNormalization(output, source("Actually it was three miles, not two."));
+  assert(result.graph.nodes[0].realityMode === "CORRECTION", "leading correction should not remain OCCURRED");
+  assert(result.graph.nodes[0].unresolved?.some((item) => item.code === "CORRECTION_TARGET_UNRESOLVED"), "unresolved prior target should be explicit");
+});
+
+Deno.test("inline correction emitted as only final event still retains correction semantics", () => {
+  const graph = baseGraph([{ ...event("tuesday", "RUNNING", "OCCURRED"), sourceSpans: ["Tuesday"] }]);
+  const result = normalizeInlineCorrections(graph, "I ran Monday — actually, Tuesday.");
+  assert(result.nodes.some((node) => node.realityMode === "CORRECTION"), "correction claim should be synthesized");
+  assert(result.edges.some((edge) => edge.relation === "CORRECTS"), "synthesized correction should connect to final event");
+});
+
+function event(id: string, concept: string, realityMode: CandidateLifeNode["realityMode"]): CandidateLifeNode {
+  return {
+    candidateId: id,
+    nodeType: "EVENT",
+    concept,
+    subject: { kind: "SELF" },
+    realityMode,
+    attributes: {},
+    certainty: "HIGH",
+    sourceSpans: [id]
+  };
+}
+
+function baseGraph(nodes: CandidateLifeNode[]): CandidateLifeGraph {
+  return {
+    sourceId: "test",
+    nodes,
+    edges: [],
+    references: [],
+    alternateInterpretations: [],
+    trace: []
+  };
+}
+
+function source(content: string): SourceEnvelope {
+  return {
+    sourceId: "test-source",
+    sourceType: "PLAYER_TEXT",
+    content,
+    receivedAt: "2026-09-19T14:00:00.000Z",
+    interactionIntent: "CONVERSATION",
+    authorizesCanonicalWrite: false,
+    zoneId: "America/New_York"
+  };
+}
