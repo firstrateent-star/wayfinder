@@ -115,7 +115,9 @@ export function createWayfinderCapacityV0() {
         { concept: "PERSON", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
         { concept: "PROJECT", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
         { concept: "DIRECTION_INTENT", facets: ["RECOGNIZE", "REPRESENT"] },
-        { concept: "SCHEDULE_ALLOCATION", facets: ["RECOGNIZE", "REPRESENT"] }
+        { concept: "SCHEDULE_ALLOCATION", facets: ["RECOGNIZE", "REPRESENT"] },
+        { concept: "STRENGTH_SESSION_STANDARD", facets: ["RECOGNIZE", "REPRESENT"] },
+        { concept: "PROTEIN_STANDARD", facets: ["RECOGNIZE", "REPRESENT"] }
       ]
     })
     .register({
@@ -126,12 +128,20 @@ export function createWayfinderCapacityV0() {
           concept: "STRENGTH_TRAINING",
           facets: ["RECOGNIZE", "RESOLVE", "REPRESENT", "PERSIST", "SURFACE"],
           claimTypes: ["TRAINING_STRENGTH_SESSION"],
-          notes: "Current canonical Training v0.1 supports strength sessions only."
+          notes: "Canonical Training supports occurred strength sessions."
+        },
+        {
+          concept: "STRENGTH_SESSION_STANDARD",
+          facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "PROJECT", "SURFACE"],
+          claimTypes: ["TRAINING_STRENGTH_STANDARD"],
+          notes: "Player-authored recurring weekly strength-session minimum; not a Schedule event or occurred workout."
         }
       ],
-      claimTypesOwned: ["TRAINING_STRENGTH_SESSION"],
-      contextReadsProvided: ["training.recent_strength_sessions"],
-      emittedChanges: ["training.session.recorded"]
+      claimTypesOwned: ["TRAINING_STRENGTH_SESSION", "TRAINING_STRENGTH_STANDARD"],
+      contextReadsProvided: ["training.recent_strength_sessions", "training.strength_requirement_input"],
+      requirementMetricsProvided: ["strength_session_count"],
+      characterMappingsProvided: ["Might:EXPOSURE", "Might:CAPABILITY"],
+      emittedChanges: ["training.session.recorded", "training.standard_changed"]
     })
     .register({
       domainId: "direction",
@@ -162,14 +172,23 @@ export function createWayfinderCapacityV0() {
     .register({
       domainId: "nutrition",
       version: "0.1",
-      concepts: [{
-        concept: "FOOD_INTAKE",
-        facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
-        claimTypes: ["NUTRITION_INTAKE"],
-        notes: "Consumed food and drink only. Acquisition does not establish intake; nutrition totals remain unknown unless explicitly supplied."
-      }],
-      claimTypesOwned: ["NUTRITION_INTAKE"],
-      contextReadsProvided: ["nutrition.recent_intakes"],
-      emittedChanges: ["nutrition.intake_captured"]
+      concepts: [
+        {
+          concept: "FOOD_INTAKE",
+          facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+          claimTypes: ["NUTRITION_INTAKE"],
+          notes: "Consumed food and drink only. Acquisition does not establish intake; nutrition totals remain unknown unless explicitly supplied."
+        },
+        {
+          concept: "PROTEIN_STANDARD",
+          facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "PROJECT", "SURFACE"],
+          claimTypes: ["NUTRITION_PROTEIN_STANDARD"],
+          notes: "Player-authored recurring daily protein minimum; no default or model recommendation is implied."
+        }
+      ],
+      claimTypesOwned: ["NUTRITION_INTAKE", "NUTRITION_PROTEIN_STANDARD"],
+      contextReadsProvided: ["nutrition.recent_intakes", "nutrition.protein_requirement_input"],
+      requirementMetricsProvided: ["protein_g"],
+      emittedChanges: ["nutrition.intake_captured", "nutrition.standard_changed"]
     });
 }
