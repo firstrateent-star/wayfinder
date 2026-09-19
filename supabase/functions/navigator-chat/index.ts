@@ -366,7 +366,9 @@ async function executeAuthorizedDecision(authHeader: string, decision: Awaited<R
       ? "wf_direction_create_node"
       : key === "schedule:schedule.create_allocation"
         ? "wf_schedule_create_allocation"
-        : null;
+        : key === "nutrition:nutrition.capture_intake"
+          ? "wf_nutrition_capture_intake"
+          : null;
   if (!rpcName) throw new Error(`UNSUPPORTED_DOMAIN_COMMAND:${key}`);
   return await rpc<unknown>(authHeader, rpcName, decision.command.args);
 }
