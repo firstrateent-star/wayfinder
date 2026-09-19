@@ -273,6 +273,24 @@ function focusFromSemanticEpisode(episode: SemanticEpisode): Focus | null {
   return null;
 }
 
+function localDateFromSemanticEpisode(episode: SemanticEpisode, zoneId: string): string | null {
+  const turns = [...episode.turns].reverse();
+  for (const turn of turns) {
+    const nodes = [...turn.graph.nodes].reverse();
+    for (const node of nodes) {
+      if (node.subject.kind !== "SELF") continue;
+      if (node.temporal?.localDate) return node.temporal.localDate;
+
+      const relative = node.temporal?.relativeText?.trim().toLowerCase();
+      if (relative === "today") return localDateInZone(turn.receivedAt, zoneId);
+      if (relative === "yesterday") {
+        return localDateInZone(new Date(new Date(turn.receivedAt).getTime() - 86400000).toISOString(), zoneId);
+      }
+    }
+  }
+  return null;
+}
+
 function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
   const graph = result.compilation.graph;
   const meaningful = graph.nodes.filter((node) => node.nodeType !== "ENTITY");
@@ -505,6 +523,7 @@ Deno.serve(async (req: Request) => {
   const today = localDateInZone(now, zoneId);
   let episode = body.episode ?? null;
   let semanticTrainingFocus: Focus | null = null;
+  let semanticTrainingLocalDate: string | null = null;
 
   try {
     if ((!episode || episode.kind === "SEMANTIC") && action !== "START_TRAINING") {
@@ -548,6 +567,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "START_TRAINING" && episode?.kind === "SEMANTIC") {
       semanticTrainingFocus = focusFromSemanticEpisode(episode.semantic);
+      semanticTrainingLocalDate = localDateFromSemanticEpisode(episode.semantic, zoneId);
       episode = null;
     }
 
@@ -570,7 +590,7 @@ Deno.serve(async (req: Request) => {
         stage: focus ? "TRAINING_MODE" : "TRAINING_SCOPE",
         startedAt: now,
         focus: focus ?? undefined,
-        occurredLocalDate: /\byesterday\b/i.test(effectiveText) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today
+        occurredLocalDate: semanticTrainingLocalDate ?? (/\byesterday\b/i.test(effectiveText) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today)
       };
 
       if (!focus) {
