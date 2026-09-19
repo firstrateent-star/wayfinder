@@ -187,16 +187,25 @@ const scenarios: EpisodeScenario[] = [
     }
     if (run && run.subject.kind !== "SELF") findings.push(distortion("SHARED_RUN_SELF_LOST", "Shared run refinement lost SELF as the event subject."));
 
-    const distance = run?.attributes.distance ?? distanceNode?.attributes.value;
+    const distance =
+      run?.attributes.distance ??
+      distanceNode?.attributes.distance ??
+      distanceNode?.attributes.value;
     if (!distance) findings.push(loss("SHARED_RUN_DISTANCE_MISSED", "Approximate distance was not represented."));
     else if (distance.precision === "EXACT") findings.push(fabrication("APPROX_DISTANCE_UPGRADED", "About two miles became exact."));
 
     if (distanceNode && !run?.attributes.distance) {
-      const linkedByReference = graph.references.some((reference) =>
-        reference.candidateRefs.includes(distanceNode.candidateId) &&
-        Boolean(reference.resolvedRef?.startsWith("episode:"))
+      const linkedByField = Object.values(distanceNode.attributes).some((field) =>
+        field.contextRefs?.some((ref) => ref.startsWith("episode:"))
       );
-      if (!linkedByReference) {
+      const linkedByReference = graph.references.some((reference) =>
+        Boolean(reference.resolvedRef?.startsWith("episode:")) &&
+        (
+          reference.candidateRefs.includes(distanceNode.candidateId) ||
+          (reference.resolvedRef ? reference.candidateRefs.includes(reference.resolvedRef) : false)
+        )
+      );
+      if (!linkedByField && !linkedByReference) {
         findings.push(loss("SHARED_RUN_DISTANCE_UNLINKED", "Standalone distance quantity did not resolve to the prior transient run."));
       }
     }
