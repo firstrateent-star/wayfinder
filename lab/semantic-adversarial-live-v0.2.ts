@@ -52,6 +52,26 @@ type Finding = { class: FailureClass; code: string; detail: string };
 type Scenario = { id: string; text: string; evaluate(result: ReadOnlySemanticLoopResult): Finding[] };
 
 const scenarios: Scenario[] = [
+  scenario("protein-intake-is-not-standard", "I ate 150 grams of protein today.", (r) => {
+    const f:Finding[]=[];
+    if (find(r,"PROTEIN_STANDARD")) f.push(fabrication("INTAKE_BECAME_PROTEIN_STANDARD","Occurred protein intake was upgraded into a recurring Standard."));
+    if (admissionPlan(r).proposals.some((proposal)=>proposal.claimType==="NUTRITION_PROTEIN_STANDARD")) f.push(fabrication("INTAKE_STANDARD_ADMITTED","Occurred protein intake became a Nutrition Standard proposal."));
+    const intake=find(r,"FOOD_INTAKE")??find(r,"MEAL");
+    if (!intake || intake.realityMode!=="OCCURRED") f.push(loss("PROTEIN_INTAKE_MISSED","Explicit occurred protein intake was not preserved as consumed reality."));
+    return f;
+  }),
+  scenario("historical-training-count-is-not-standard", "I lifted three times last week.", (r) => {
+    const f:Finding[]=[];
+    if (find(r,"STRENGTH_SESSION_STANDARD")) f.push(fabrication("HISTORY_BECAME_TRAINING_STANDARD","Historical workout frequency was upgraded into a recurring Standard."));
+    if (admissionPlan(r).proposals.some((proposal)=>proposal.claimType==="TRAINING_STRENGTH_STANDARD")) f.push(fabrication("HISTORY_STANDARD_ADMITTED","Historical training frequency became a Training Standard proposal."));
+    return f;
+  }),
+  scenario("protein-recommendation-question-is-not-standard", "How much protein should I eat per day?", (r) => {
+    const f:Finding[]=[];
+    if (find(r,"PROTEIN_STANDARD")?.realityMode==="CURRENT_STATE" || find(r,"PROTEIN_STANDARD")?.realityMode==="INTENDED") f.push(fabrication("QUESTION_BECAME_PROTEIN_STANDARD","A recommendation question became a player-authored protein Standard."));
+    if (admissionPlan(r).proposals.some((proposal)=>proposal.claimType==="NUTRITION_PROTEIN_STANDARD")) f.push(fabrication("QUESTION_STANDARD_ADMITTED","A recommendation question became a canonical Standard proposal."));
+    return f;
+  }),
   scenario("future-activity-is-not-calendar-allocation", "I'll run tomorrow morning.", (r) => {
     const f:Finding[]=[];
     if (find(r,"SCHEDULE_ALLOCATION")) f.push(distortion("FUTURE_ACTIVITY_BECAME_SCHEDULE","A normal future activity plan was upgraded into a calendar allocation without explicit scheduling language."));
