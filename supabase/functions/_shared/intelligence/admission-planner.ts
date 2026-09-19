@@ -399,9 +399,31 @@ export function createScheduleAdmissionPlanningPolicy(): DomainAdmissionPlanning
     }
   };
 }
+export function createNutritionAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "nutrition.admission-planning.v0.1",
+    version: "0.1",
+    owner: "nutrition",
+    claimTypes: ["NUTRITION_INTAKE"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") {
+        return { disposition: "SESSION_ONLY", reason: `NUTRITION_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      }
+      if (node.nodeType !== "EVENT") {
+        return { disposition: "SESSION_ONLY", reason: `NUTRITION_NODE_NOT_EVENT:${node.nodeType}` };
+      }
+      if (node.realityMode !== "OCCURRED") {
+        return { disposition: "SESSION_ONLY", reason: `NUTRITION_REALITY_NOT_OCCURRED:${node.realityMode}` };
+      }
+      return { disposition: "ELIGIBLE", reason: "CONSUMED_NUTRITION_EVENT_ELIGIBLE_FOR_DOMAIN_ADMISSION" };
+    }
+  };
+}
+
 export function createWayfinderAdmissionPlanningRegistryV0() {
   return new AdmissionPlanningPolicyRegistry()
     .register(createTrainingAdmissionPlanningPolicy())
     .register(createDirectionAdmissionPlanningPolicy())
-    .register(createScheduleAdmissionPlanningPolicy());
+    .register(createScheduleAdmissionPlanningPolicy())
+    .register(createNutritionAdmissionPlanningPolicy());
 }
