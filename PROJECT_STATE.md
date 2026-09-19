@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Navigator v0.4 + four-domain governed Admission Fulfillment  
-**Current phase:** Training, Direction, Schedule, and Nutrition now share one proven semantic → planner → fulfillment → confirmation → typed-command spine; next frontier is downstream recomputation and projection refresh after canonical writes  
+**Current milestone:** ModuleChange-driven recomputation loop v0.1  
+**Current phase:** canonical writes now invalidate and reconstruct Position + Bearing + Helm through owner-scoped ModuleChange cursors; Requirements + Character are the next explicit recomputation targets  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -15,6 +15,7 @@
 **Training Admission Fulfillment:** `docs/34-admission-fulfillment-training-v0.1.md`  
 **Schedule + Direction Fulfillment:** `docs/35-schedule-direction-admission-fulfillment-v0.1.md`  
 **Nutrition v0.1:** `docs/36-nutrition-v0.1.md`  
+**ModuleChange recomputation loop:** `docs/37-modulechange-recomputation-loop-v0.1.md`  
 **Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
 
 ## Non-negotiable direction
@@ -554,18 +555,46 @@ unknown nutrition != model-estimated nutrition
 
 The four-domain stack has passed exact-main Intelligence CI and the complete real-model semantic gate, including adversarial and multi-turn Episode suites. Direction, Schedule, and Nutrition command retry/idempotency have also been live-proven through rollback transactions.
 
+### Current downstream loop
+
+The first recomputation slice is now implemented:
+
+```text
+canonical command
+ -> ModuleChange outbox
+ -> owner-scoped change cursor
+ -> recomputation impact planner
+ -> canonical reads
+ -> Position + Bearing
+ -> Helm State
+ -> frontend refresh
+```
+
+`wayfinder-state` is a reconstructable projection read. ModuleChange is invalidation only and never becomes canonical life truth.
+
+The current explicit Direction branch proving the loop is:
+
+```text
+Build ModuleChange-driven recomputation
+ -> SUPPORTS
+Close the living reality to guidance loop
+ -> SUPPORTS
+Make Wayfinder work as my daily Life OS
+```
+
+Helm walks those canonical SUPPORTS edges backward from the current Direction, so unrelated active Actions do not become inferred priorities.
+
 ### Strongest next build
 
-Canonical ingestion is now ahead of downstream interpretation. The next architecture target is:
+The recomputation planner now exposes the remaining missing targets instead of hiding them:
 
-1. consume `ModuleChange` after accepted domain writes;
-2. recompute Position from current canonical state;
-3. recompute requirement observations/coverage where affected;
-4. refresh Character projections without creating a second source of truth;
-5. derive Bearing/guidance from the new Position;
-6. surface the change through Helm/Navigator without turning Home into a dashboard;
-7. add a typed Question Planner over unresolved semantic/admission gaps;
-8. move transient Episode/proposal continuity to a bounded server-side TTL store when cross-refresh/device continuity is needed.
+1. define domain-owned Requirement specs/observations from Training + Nutrition;
+2. compose coverage-aware Requirement evaluation into `wayfinder-state`;
+3. build reconstructable Character projection inputs from canonical evidence;
+4. recompute Character after affected ModuleChanges;
+5. let Bearing/guidance use Position + Requirements + Character without manufacturing a score;
+6. keep Helm quiet and relevance-driven;
+7. add typed clarification planning over unresolved admission/requirement gaps.
 
 **Law:** persistence without the relevant downstream recomputation is incomplete ingestion.
 
@@ -596,4 +625,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-Navigator v0.4 is live as Supabase `navigator-chat` v22. Training, Direction, Schedule, and Nutrition all use the same governed semantic → Admission Planner → Fulfillment → server-staged confirmation → owning AdmissionContract → typed command path. The immediate architectural target is **ModuleChange-driven downstream recomputation: canonical write → Position → Requirements → Character projection → Bearing → Helm/Navigator refresh**.
+Navigator v0.4 is live as Supabase `navigator-chat` v22. The ModuleChange recomputation slice is also live in source and proven against production data: canonical writes invalidate reconstructable Position/Bearing/Helm state through `wf_module_changes_v0` and `wayfinder-state`. The immediate architectural target is now **Requirements + Character recomputation on top of this common invalidation seam**.
