@@ -42,7 +42,10 @@ Deno.test("projection providers declare actual module dependencies", () => {
   const registry = createWayfinderProjectionProviderRegistryV0();
   const trainingTargets = registry.affectedProjectionTargets(["training"]).sort();
   const nutritionTargets = registry.affectedProjectionTargets(["nutrition"]).sort();
-  assert(trainingTargets.join(",") === "CHARACTER,REQUIREMENTS", "Training should feed Requirements and Character");
+  assert(
+    trainingTargets.join(",") === "CHARACTER,PROGRESSION,REQUIREMENTS",
+    "Training should independently feed Requirements, Character, and Voyage Progression"
+  );
   assert(nutritionTargets.join(",") === "REQUIREMENTS", "Nutrition should feed Requirements only in Character v0.1");
 });
 
