@@ -3,6 +3,7 @@ import {
   extractStrengthCapabilityObservations,
   type MightGrowthTrainingRead
 } from "../supabase/functions/_shared/intelligence/might-growth.ts";
+import { buildCharacterProjection } from "../supabase/functions/_shared/intelligence/character-projection.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -158,4 +159,42 @@ Deno.test("same-time sessions cannot fake a later confirmation", () => {
   };
   const result = evaluateMightGrowth(read);
   assert(result.state === "INSUFFICIENT_EVIDENCE", "confirmation must occur strictly later than the candidate");
+});
+
+Deno.test("an older stronger frontier blocks a false comeback growth claim", () => {
+  const read: MightGrowthTrainingRead = {
+    sessions: [
+      session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 225, "LB", 8),
+      session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
+      session("c1", 6, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 8),
+      session("c2", 9, "barbell_bench_press", "Barbell Bench Press", 195, "LB", 8)
+    ]
+  };
+  assert(
+    evaluateMightGrowth(read).state === "INSUFFICIENT_EVIDENCE",
+    "later recovery below the historical frontier must not be called growth"
+  );
+});
+
+Deno.test("Character v0.2 surfaces bounded Might growth with complete proof lineage", () => {
+  const read: MightGrowthTrainingRead = {
+    sessions: [
+      session("b1", 1, "barbell_bench_press", "Barbell Bench Press", 180, "LB", 8),
+      session("b2", 3, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 8),
+      session("c1", 6, "barbell_bench_press", "Barbell Bench Press", 190, "LB", 8),
+      session("c2", 9, "barbell_bench_press", "Barbell Bench Press", 185, "LB", 9)
+    ]
+  };
+  const character = buildCharacterProjection({
+    training: read,
+    computedAt: "2026-09-19T18:00:00.000Z"
+  });
+  const might = character.facets.find((facet) => facet.facet === "Might")!;
+  assert(character.rule_version === "character_v0.2", "growth rule should advance the Character projection version");
+  assert(might.growth.state === "EVIDENCED", "governed proof should surface as Might growth evidence");
+  assert(might.growth.summary.includes("Barbell Bench Press"), "growth summary should remain exercise-bounded");
+  assert(
+    might.growth.lineage.map((ref) => ref.id).join(",") === "b1,b2,c1,c2",
+    "Character growth lineage must preserve both baseline sessions plus candidate and confirmation"
+  );
 });
