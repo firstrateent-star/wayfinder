@@ -98,7 +98,7 @@ export async function runSemanticEpisodeTurn(
     providers: input.providers,
     limits: input.semanticLimits
   });
-  const result = normalizeEpisodeTurnResult(rawResult, episodeContext, input.capacity);
+  const result = normalizeEpisodeTurnResult(rawResult, episodeContext, input.capacity, input.concepts);
 
   const sequence = (existing.turns.at(-1)?.sequence ?? 0) + 1;
   const turn: SemanticEpisodeTurn = {
@@ -234,11 +234,12 @@ function mergeEpisodeContext(
 function normalizeEpisodeTurnResult(
   result: ReadOnlySemanticLoopResult,
   episodeContext: SemanticContextItem[],
-  capacityRegistry: WayfinderCapacityRegistry
+  capacityRegistry: WayfinderCapacityRegistry,
+  concepts: ConceptRegistry
 ): ReadOnlySemanticLoopResult {
   if (episodeContext.length === 0) return result;
 
-  const graph = normalizeEpisodeGraph(result.compilation.graph, episodeContext);
+  const graph = normalizeEpisodeGraph(result.compilation.graph, episodeContext, concepts);
   const capacity = graph.nodes.map((node) => capacityRegistry.assessNode(node));
   const routing = graph.nodes.map((node, index) => routeCandidate(node, capacity[index]));
 
@@ -256,7 +257,8 @@ function normalizeEpisodeTurnResult(
 
 function normalizeEpisodeGraph(
   graph: CandidateLifeGraph,
-  episodeContext: SemanticContextItem[]
+  episodeContext: SemanticContextItem[],
+  concepts: ConceptRegistry
 ): CandidateLifeGraph {
   const episodeRefs = new Set(episodeContext.map((item) => item.ref));
   const contextByRef = new Map(episodeContext.map((item) => [item.ref, item]));
@@ -275,6 +277,16 @@ function normalizeEpisodeGraph(
   let references = [...graph.references];
   const trace = [...graph.trace];
   const removedIds = new Set<string>();
+
+  nodes = liftEpisodeRefinementConcepts(
+    nodes,
+    edges,
+    references,
+    trace,
+    episodeRefs,
+    contextByRef,
+    concepts
+  );
 
   const correctionGroups = new Map<string, CandidateLifeNode[]>();
   for (const node of nodes) {
@@ -438,6 +450,73 @@ function normalizeEpisodeGraph(
   };
 }
 
+
+function liftEpisodeRefinementConcepts(
+  nodes: CandidateLifeNode[],
+  edges: CandidateLifeGraph["edges"],
+  references: CandidateReference[],
+  trace: CandidateLifeGraph["trace"],
+  episodeRefs: Set<string>,
+  contextByRef: Map<string, SemanticContextItem>,
+  concepts: ConceptRegistry
+): CandidateLifeNode[] {
+  return nodes.map((node): CandidateLifeNode => {
+    if (concepts.get(node.concept) || concepts.resolveExact(node.concept).length > 0) return node;
+    if (node.nodeType === "ENTITY" || node.nodeType === "QUANTITY") return node;
+    if (!["REFLECTION", "CURRENT_STATE", "POSSIBLE"].includes(node.realityMode)) return node;
+    if (!hasDirectSourceEvidence(node)) return node;
+
+    const targets = episodeTargetsForNode(node, edges, references, episodeRefs);
+    if (targets.length !== 1) return node;
+
+    const prior = contextByRef.get(targets[0]);
+    if (!prior || prior.kind !== "semantic_episode_candidate") return node;
+
+    const priorConcept = prior.concepts?.[0];
+    const priorNodeType = prior.attributes?.node_type;
+    const priorRealityMode = prior.attributes?.reality_mode;
+    const priorSubject = prior.attributes?.subject as CandidateLifeNode["subject"] | undefined;
+
+    if (
+      !priorConcept ||
+      !concepts.get(priorConcept) ||
+      priorNodeType !== "EVENT" ||
+      typeof priorRealityMode !== "string" ||
+      !priorSubject ||
+      node.subject.kind !== priorSubject.kind
+    ) {
+      return node;
+    }
+
+    const unresolved = (node.unresolved ?? []).filter((item) =>
+      !/ELLIPTICAL_REFERENCE|CORRECTION_TARGET_UNRESOLVED|REFERENCE_TARGET|REFERENT|ANTECEDENT/i.test(
+        `${item.code} ${item.description} ${item.field ?? ""}`
+      )
+    );
+
+    trace.push({
+      traceId: `episode:lift-refinement:${node.candidateId}`,
+      stage: "RELATION_RESOLUTION",
+      candidateId: node.candidateId,
+      claim: priorConcept,
+      support: node.sourceSpans,
+      contextRefs: targets,
+      result: `Lifted an otherwise-unowned conversational fragment onto the single referenced prior event concept ${priorConcept}; the current source remains the only source of new detail.`
+    });
+
+    return {
+      ...node,
+      nodeType: "EVENT" as const,
+      concept: priorConcept,
+      realityMode: priorRealityMode as CandidateLifeNode["realityMode"],
+      parentConcepts: uniqueStrings([
+        ...(node.parentConcepts ?? []),
+        ...(prior.concepts?.slice(1) ?? [])
+      ]),
+      ...(unresolved.length ? { unresolved } : { unresolved: [] })
+    };
+  });
+}
 
 function mergeEquivalentEpisodeCorrections(
   inputNodes: CandidateLifeNode[],
