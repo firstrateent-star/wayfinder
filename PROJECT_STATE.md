@@ -651,4 +651,31 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-The four-domain governed Navigator remains the canonical write spine. Domain-owned Training/Nutrition Standards and Requirement-input RPCs are live in the database with no player defaults installed. `wayfinder-state.v0.2` now reconstructs Position + Requirements + qualitative Character + Bearing + Helm; Character v0.1 can establish Might EXPOSURE/CAPABILITY from Training evidence but explicitly does not assert GROWTH, XP, or numeric stats. The immediate architectural target is **comparable longitudinal capability → governed growth evidence**, then only afterward RPG progression.
+### Production closure — 2026-09-19
+
+PR #13 merged to `main` at code checkpoint `9b253851`.
+
+Merged-main gates are green:
+
+```text
+Wayfinder Intelligence CI      PASS
+Wayfinder Web CI               PASS
+live semantic primary          PASS
+live semantic adversarial      PASS
+live Semantic Episode          PASS
+```
+
+Production Supabase is aligned to that merged runtime:
+
+```text
+navigator-chat     ACTIVE v23
+wayfinder-state    ACTIVE v3
+Training Standards            0
+Nutrition Standards           0
+```
+
+The governed Training/Nutrition Standard commands and Requirement-input reads are present in production. No default Standard was installed for the player.
+
+The Vercel web source is merged and Web CI is green, but the production web deployment is externally blocked by the Vercel free-tier daily deployment quota (`api-deployments-free-per-day`). That quota condition is not treated as a Wayfinder architecture or test failure.
+
+The four-domain governed Navigator remains the canonical write spine. `wayfinder-state.v0.2` reconstructs Position + Requirements + qualitative Character + Bearing + Helm; Character v0.1 can establish Might EXPOSURE/CAPABILITY from Training evidence but explicitly does not assert GROWTH, XP, or numeric stats. The immediate architectural target is **comparable longitudinal capability → governed growth evidence**, then only afterward RPG progression.
