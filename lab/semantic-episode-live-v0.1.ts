@@ -44,8 +44,8 @@ const scenarios: EpisodeScenario[] = [
   ], (results) => {
     const current = last(results);
     const findings: Finding[] = [];
-    const workout = find(current, "STRENGTH_TRAINING");
-    if (!workout) findings.push(loss("ELLIPSIS_WORKOUT_MISSED", "Legs did not resolve against the prior workout."));
+    const workout = find(current, "STRENGTH_TRAINING") ?? find(current, "PHYSICAL_ACTIVITY");
+    if (!workout) findings.push(loss("ELLIPSIS_WORKOUT_MISSED", "Legs did not resolve against the prior physical activity."));
     else {
       if (workout.subject.kind !== "SELF") findings.push(distortion("ELLIPSIS_SUBJECT_DRIFT", "Prior self workout changed subject."));
       if (!hasEpisodeRef(current)) findings.push(loss("ELLIPSIS_PRIOR_TURN_NOT_USED", "Workout refinement did not cite transient episode context."));
@@ -65,8 +65,12 @@ const scenarios: EpisodeScenario[] = [
     if (runs.some((node) => node.realityMode === "OCCURRED")) {
       findings.push(fabrication("CORRECTION_BECAME_NEW_RUN", "Distance correction became a fresh occurred run."));
     }
-    if (!runs.some((node) => node.realityMode === "CORRECTION") && !current.compilation.graph.nodes.some((node) => node.realityMode === "CORRECTION")) {
+    const corrections = runs.filter((node) => node.realityMode === "CORRECTION");
+    if (corrections.length === 0 && !current.compilation.graph.nodes.some((node) => node.realityMode === "CORRECTION")) {
       findings.push(loss("CORRECTION_SEMANTICS_MISSED", "Correction semantics were not preserved."));
+    }
+    if (corrections.length > 1) {
+      findings.push(distortion("DUPLICATE_CORRECTION_MEANING", "One correction was represented as multiple competing RUNNING correction candidates."));
     }
     if (!hasEpisodeRef(current)) findings.push(loss("CORRECTION_TARGET_NOT_LINKED", "Correction did not cite the prior transient run."));
     return findings;
@@ -133,8 +137,11 @@ const scenarios: EpisodeScenario[] = [
     const current = last(results);
     const findings: Finding[] = [];
     for (const node of current.compilation.graph.nodes) {
-      const payload = JSON.stringify(node.attributes).toLowerCase();
-      if (/(squat|bench|deadlift|curl|press|calf|rep|set)/i.test(payload)) {
+      const values = Object.values(node.attributes)
+        .map((field) => JSON.stringify(field.value ?? ""))
+        .join(" ")
+        .toLowerCase();
+      if (/\b(squat|squats|bench|deadlift|deadlifts|curl|curls|press|presses|calf|calves|rep|reps|set|sets)\b/i.test(values)) {
         findings.push(fabrication("MEMORY_GAP_FILLED_WITH_DETAIL", "Unremembered workout detail was invented."));
         break;
       }
@@ -171,15 +178,24 @@ const scenarios: EpisodeScenario[] = [
   ], (results) => {
     const current = last(results);
     const findings: Finding[] = [];
+    const graph = current.compilation.graph;
     const run = find(current, "RUNNING");
+    const distanceNode = graph.nodes.find((node) => node.concept.toLowerCase() === "distance");
     if (!run) findings.push(loss("SHARED_RUN_REFINEMENT_MISSED", "Distance fragment did not resolve against the shared run."));
-    else {
-      if (run.subject.kind !== "SELF") findings.push(distortion("SHARED_RUN_SELF_LOST", "Shared run refinement lost SELF as the event subject."));
-      const distance = run.attributes.distance;
-      if (!distance) findings.push(loss("SHARED_RUN_DISTANCE_MISSED", "Approximate distance was not attached to the prior run."));
-      else if (distance.precision === "EXACT") findings.push(fabrication("APPROX_DISTANCE_UPGRADED", "About two miles became exact."));
-      if (!hasEpisodeRef(current)) findings.push(loss("SHARED_RUN_PRIOR_TURN_NOT_USED", "Distance refinement did not cite transient prior-turn context."));
+    else if (run.subject.kind !== "SELF") findings.push(distortion("SHARED_RUN_SELF_LOST", "Shared run refinement lost SELF as the event subject."));
+
+    const distance = run?.attributes.distance ?? distanceNode?.attributes.value;
+    if (!distance) findings.push(loss("SHARED_RUN_DISTANCE_MISSED", "Approximate distance was not represented."));
+    else if (distance.precision === "EXACT") findings.push(fabrication("APPROX_DISTANCE_UPGRADED", "About two miles became exact."));
+
+    if (run && distanceNode && !run.attributes.distance) {
+      const linked = graph.edges.some((edge) =>
+        (edge.fromCandidateId === run.candidateId && edge.toCandidateId === distanceNode.candidateId) ||
+        (edge.toCandidateId === run.candidateId && edge.fromCandidateId === distanceNode.candidateId)
+      );
+      if (!linked) findings.push(loss("SHARED_RUN_DISTANCE_UNLINKED", "Distance was represented but not structurally linked to the prior run."));
     }
+    if (!hasEpisodeRef(current)) findings.push(loss("SHARED_RUN_PRIOR_TURN_NOT_USED", "Distance refinement did not cite transient prior-turn context."));
     return findings;
   }),
 
@@ -272,6 +288,13 @@ for (const s of scenarios) {
         })),
         references: result.compilation.graph.references,
         alternateInterpretations: result.compilation.graph.alternateInterpretations,
+        edges: result.compilation.graph.edges.map((edge) => ({
+          fromCandidateId: edge.fromCandidateId,
+          relation: edge.relation,
+          toCandidateId: edge.toCandidateId,
+          certainty: edge.certainty,
+          contextRefs: edge.contextRefs ?? []
+        })),
         routing: result.compilation.routing.map((route) => ({
           candidateId: route.candidateId,
           route: route.route,
@@ -292,7 +315,7 @@ for (const s of scenarios) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-if (report.summary.fabrication > 0) Deno.exit(2);
+if (report.summary.loss > 0 || report.summary.distortion > 0 || report.summary.fabrication > 0) Deno.exit(2);
 
 function scenario(id: string, turns: string[], evaluate: EpisodeScenario["evaluate"]): EpisodeScenario {
   return { id, turns, evaluate };

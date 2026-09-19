@@ -316,7 +316,7 @@ for (const s of scenarios) {
 }
 
 console.log(JSON.stringify(report,null,2));
-if (report.summary.fabrication>0) Deno.exit(2);
+if (report.summary.loss > 0 || report.summary.distortion > 0 || report.summary.fabrication > 0) Deno.exit(2);
 
 function scenario(id:string,text:string,evaluate:Scenario["evaluate"]):Scenario { return {id,text,evaluate}; }
 function source(content:string):SourceEnvelope {
