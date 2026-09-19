@@ -174,8 +174,9 @@ function trainingMightSignals(read: TrainingCharacterRead): CharacterSignal[] {
         evidenceClass: "GROWTH",
         state: "INSUFFICIENT_EVIDENCE",
         domain: "training",
-        summary:
-          "Might growth is not established in the current evidence window. Character v0.2 requires a same-exercise two-session baseline plus two later independently recorded Pareto-frontier expansions under might_growth_v0.1.",
+        summary: growthEvaluation.resultCoverage === "COMPLETE"
+          ? "Might growth is not established in the current evidence window. Character v0.2 requires a same-exercise two-session baseline plus two later independently recorded Pareto-frontier expansions under might_growth_v0.1."
+          : "Might growth is not asserted because the bounded Training result is partial or its result coverage is unknown. The historical performance frontier must be complete before might_growth_v0.1 can establish growth.",
         sourceCount: growthEvaluation.comparableObservationCount,
         lineage: capabilityRefs,
         doesNotAssert: [
