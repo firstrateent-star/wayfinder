@@ -2,14 +2,15 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Semantic Episode + Navigator semantic cutover v0.2  
-**Current phase:** Navigator v0.2 is live; add grounded canonical context providers, then governed multi-domain Admission Planning  
+**Current milestone:** Navigator v0.2 + Canonical Context v0.1  
+**Current phase:** grounded canonical context is implemented and gated; next build is governed multi-domain Admission Planning  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
 **Semantic Admission/Training:** `docs/26-semantic-admission-training-v0.1.md`  
 **Semantic Episode:** `docs/30-semantic-episode-graph-v0.1.md`  
 **Navigator semantic cutover:** `docs/31-navigator-semantic-cutover-v0.2.md`  
+**Navigator canonical context:** `docs/32-navigator-canonical-context-v0.1.md`  
 **Latest ADR:** `decisions/ADR-043-live-semantic-reasoning-is-provider-neutral-context-bounded-and-read-only.md`
 
 ## Non-negotiable direction
@@ -558,4 +559,4 @@ Do not prematurely build:
 
 Before editing, fetch latest `main` and current target files. Do not rely on this file's commit SHA as if no later commit can exist.
 
-Navigator v0.2 and the live Semantic Episode gate are now deployed. The immediate architectural target is **production canonical context providers → Admission Planner → downstream recomputation**. Nutrition follows through that common seam rather than preceding it.
+Navigator v0.2 is live and Canonical Context v0.1 now supplies bounded owner-scoped reads for Person, Direction, Schedule, Training and Practice. The immediate architectural target is **Admission Planner → owning-domain authorization/commands → downstream recomputation**. Nutrition follows through that common seam rather than preceding it.
