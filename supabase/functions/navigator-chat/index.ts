@@ -8,6 +8,7 @@ import { runSemanticEpisodeTurn, type SemanticEpisode } from "../_shared/intelli
 import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../_shared/intelligence/live-semantic-reasoner.ts";
 import { createWayfinderCapacityV0 } from "../_shared/intelligence/wayfinder-capacity.ts";
 import { createNavigatorCanonicalContextProvider } from "../_shared/intelligence/navigator-canonical-context.ts";
+import { createWayfinderAdmissionPlanningRegistryV0, planSemanticAdmission } from "../_shared/intelligence/admission-planner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -383,13 +384,33 @@ async function runSemanticConversation(
     }
   });
 
+  const admissionPlan = planSemanticAdmission(
+    outcome.result.compilation,
+    createWayfinderAdmissionPlanningRegistryV0(),
+    now
+  );
+
   const summary = summarizeSemanticResult(outcome.result);
   const suggestions = [...summary.suggestions];
+
+  const plannedTraining = admissionPlan.items.some((item) =>
+    item.owner === "training" &&
+    item.claimType === "TRAINING_STRENGTH_SESSION" &&
+    (item.disposition === "NEEDS_AUTHORIZATION" || item.disposition === "READY_FOR_DOMAIN_ADMISSION")
+  );
+
   if (
+    plannedTraining &&
+    !suggestions.some((item) => item.id === "START_TRAINING")
+  ) {
+    suggestions.push({ id: "START_TRAINING", label: "Log this as Training", tone: "primary" });
+  }
+  if (
+    !plannedTraining &&
     semanticEpisodeSupportsTrainingCapture(outcome.episode) &&
     !suggestions.some((item) => item.id === "START_TRAINING")
   ) {
-    suggestions.push({ id: "START_TRAINING", label: "Log strength workout", tone: "secondary" });
+    suggestions.push({ id: "START_TRAINING", label: "Clarify & log workout", tone: "secondary" });
   }
 
   const wrapped: SemanticNavigatorEpisode = {
@@ -398,12 +419,12 @@ async function runSemanticConversation(
     semantic: outcome.episode
   };
 
-  return { ...summary, suggestions, episode: wrapped };
+  return { ...summary, suggestions, episode: wrapped, admissionPlan };
 }
 
 function respond(message: string, episode: NavigatorEpisode | null, suggestions: Suggestion[] = [], extra: Record<string, unknown> = {}) {
   return {
-    contract: "navigator-chat.v0.2",
+    contract: "navigator-chat.v0.3",
     message,
     episode,
     suggestions,
@@ -556,7 +577,11 @@ Deno.serve(async (req: Request) => {
           semantic.message,
           semantic.episode,
           semantic.suggestions,
-          { disposition: semantic.disposition, semantic_mode: "GENERAL_READ_ONLY" }
+          {
+            disposition: semantic.disposition,
+            semantic_mode: "GENERAL_READ_ONLY",
+            admission_plan: semantic.admissionPlan
+          }
         ));
       }
 
