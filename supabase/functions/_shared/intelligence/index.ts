@@ -26,3 +26,6 @@ export * from "./semantic-episode.ts";
 export * from "./navigator-canonical-context.ts";
 
 export * from "./admission-planner.ts";
+
+export * from "./admission-fulfillment.ts";
+export * from "./training-exercises.ts";
