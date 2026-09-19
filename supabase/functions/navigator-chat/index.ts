@@ -213,7 +213,7 @@ const semanticProviders = new SemanticContextProviderRegistry();
 
 function semanticReasoner() {
   const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
-  if (!apiKey) throw new Error("OPENAI_API_KEY_NOT_CONFIGURED");
+  if (!apiKey) return null;
   return new LiveSemanticReasoner({
     provider: new OpenAIResponsesProvider({ apiKey }),
     model: Deno.env.get("WAYFINDER_SEMANTIC_MODEL")?.trim() || "gpt-5.6-luna",
@@ -294,12 +294,15 @@ async function runSemanticConversation(
     zoneId
   };
 
+  const reasoner = semanticReasoner();
+  if (!reasoner) return null;
+
   const outcome = await runSemanticEpisodeTurn({
     episode: episode?.semantic,
     episodeId: episode?.semantic.episodeId ?? `navigator:${crypto.randomUUID()}`,
     source,
     initialContext: { asOf: now, items: [] },
-    reasoner: semanticReasoner(),
+    reasoner,
     concepts: semanticConcepts,
     capacity: semanticCapacity,
     providers: semanticProviders,
@@ -469,12 +472,28 @@ Deno.serve(async (req: Request) => {
         sourceId,
         now
       );
-      return json(respond(
-        semantic.message,
-        semantic.episode,
-        semantic.suggestions,
-        { disposition: semantic.disposition, semantic_mode: "GENERAL_READ_ONLY" }
-      ));
+
+      if (semantic) {
+        return json(respond(
+          semantic.message,
+          semantic.episode,
+          semantic.suggestions,
+          { disposition: semantic.disposition, semantic_mode: "GENERAL_READ_ONLY" }
+        ));
+      }
+
+      if (!episode && looksLikeWorkout(text)) {
+        // Degrade to the already-proven Training flow when the live semantic
+        // provider is not configured. This preserves existing app capability
+        // without pretending broad semantic reasoning occurred.
+      } else {
+        return json(respond(
+          "Navigator’s broader semantic reasoning is not configured in this environment yet. I won’t guess or save this. Training capture remains available.",
+          null,
+          [{ id: "START_TRAINING", label: "Log a workout", tone: "secondary" }],
+          { disposition: "SESSION_ONLY", semantic_mode: "UNAVAILABLE" }
+        ));
+      }
     }
 
     if (action === "START_TRAINING" && episode?.kind === "SEMANTIC") {
