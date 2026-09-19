@@ -50,6 +50,48 @@ type Scenario = { id: string; text: string; evaluate(result: ReadOnlySemanticLoo
 
 const scenarios: Scenario[] = [
   {
+    id: "weekly-strength-standard",
+    text: "I want at least 3 strength sessions per week.",
+    evaluate: (result) => {
+      const standard = find(result, "STRENGTH_SESSION_STANDARD");
+      const findings: Finding[] = [];
+      if (!standard) return [loss("STRENGTH_STANDARD_MISSED", "Recurring weekly strength target was not represented as STRENGTH_SESSION_STANDARD.")];
+      if (standard.subject.kind !== "SELF") findings.push(distortion("STRENGTH_STANDARD_SUBJECT", "Player-authored Standard must remain SELF."));
+      if (!["INTENDED", "CURRENT_STATE"].includes(standard.realityMode)) findings.push(distortion("STRENGTH_STANDARD_MODE", "Recurring Standard must remain normative rather than occurred."));
+      const target = firstNumericAttribute(standard, ["targetSessions", "sessionsPerWeek", "weeklySessions", "sessionTarget", "target", "frequencyCount"]);
+      if (target !== 3) findings.push(loss("STRENGTH_STANDARD_TARGET_MISSED", "Explicit weekly target of 3 was not preserved."));
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) => proposal.candidateId === standard.candidateId && proposal.owner === "training" && proposal.claimType === "TRAINING_STRENGTH_STANDARD")) {
+        findings.push(loss("STRENGTH_STANDARD_NOT_ADMISSIBLE", "Recurring strength Standard did not reach Training admission."));
+      }
+      if (findAll(result, "STRENGTH_TRAINING").some((node) => node.realityMode === "OCCURRED")) {
+        findings.push(fabrication("STRENGTH_STANDARD_BECAME_WORKOUT", "A recurring strength Standard was converted into an occurred workout."));
+      }
+      return findings;
+    }
+  },
+  {
+    id: "daily-protein-standard",
+    text: "My daily protein target is 150 grams.",
+    evaluate: (result) => {
+      const standard = find(result, "PROTEIN_STANDARD");
+      const findings: Finding[] = [];
+      if (!standard) return [loss("PROTEIN_STANDARD_MISSED", "Recurring daily protein target was not represented as PROTEIN_STANDARD.")];
+      if (standard.subject.kind !== "SELF") findings.push(distortion("PROTEIN_STANDARD_SUBJECT", "Player-authored Standard must remain SELF."));
+      if (!["INTENDED", "CURRENT_STATE"].includes(standard.realityMode)) findings.push(distortion("PROTEIN_STANDARD_MODE", "Recurring Standard must remain normative rather than occurred."));
+      const target = firstNumericAttribute(standard, ["targetGrams", "proteinGrams", "dailyProteinGrams", "proteinTarget", "target", "minimum"]);
+      if (target !== 150) findings.push(loss("PROTEIN_STANDARD_TARGET_MISSED", "Explicit protein target of 150 grams was not preserved."));
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) => proposal.candidateId === standard.candidateId && proposal.owner === "nutrition" && proposal.claimType === "NUTRITION_PROTEIN_STANDARD")) {
+        findings.push(loss("PROTEIN_STANDARD_NOT_ADMISSIBLE", "Recurring protein Standard did not reach Nutrition admission."));
+      }
+      if (findAll(result, "FOOD_INTAKE").some((node) => node.realityMode === "OCCURRED") || findAll(result, "MEAL").some((node) => node.realityMode === "OCCURRED")) {
+        findings.push(fabrication("PROTEIN_STANDARD_BECAME_INTAKE", "A recurring protein Standard was converted into occurred intake."));
+      }
+      return findings;
+    }
+  },
+  {
     id: "consumed-food-routes-nutrition",
     text: "I ate a turkey sandwich today.",
     evaluate: (result) => {
@@ -309,6 +351,25 @@ function source(content: string): SourceEnvelope {
 
 function admissionPlan(result: ReadOnlySemanticLoopResult) {
   return planSemanticAdmission(result.compilation, createWayfinderAdmissionPlanningRegistryV0(), result.compilation.source.receivedAt);
+}
+
+function firstNumericAttribute(resultNode: ReadOnlySemanticLoopResult["compilation"]["graph"]["nodes"][number], names: string[]) {
+  const normalized = new Map(Object.entries(resultNode.attributes).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ""), value]));
+  for (const name of names) {
+    const field = resultNode.attributes[name] ?? normalized.get(name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    if (!field) continue;
+    if (typeof field.value === "number" && Number.isFinite(field.value)) return field.value;
+    if (typeof field.value === "string" && field.value.trim() && Number.isFinite(Number(field.value))) return Number(field.value);
+    if (field.value && typeof field.value === "object" && !Array.isArray(field.value)) {
+      const row = field.value as Record<string, unknown>;
+      for (const key of ["value", "count", "amount", "target", "minimum"]) {
+        const candidate = row[key];
+        if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
+        if (typeof candidate === "string" && candidate.trim() && Number.isFinite(Number(candidate))) return Number(candidate);
+      }
+    }
+  }
+  return undefined;
 }
 
 function find(result: ReadOnlySemanticLoopResult, concept: string) {
