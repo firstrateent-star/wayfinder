@@ -1,6 +1,13 @@
 import { createCoreLifeConceptRegistryV0 } from "../supabase/functions/_shared/intelligence/concept-registry.ts";
 import { createNavigatorCanonicalContextProvider } from "../supabase/functions/_shared/intelligence/navigator-canonical-context.ts";
-import type { ContextRequest } from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
+import { SemanticContextProviderRegistry, runReadOnlySemanticLoop } from "../supabase/functions/_shared/intelligence/context-assembler.ts";
+import type {
+  ContextRequest,
+  SemanticReasoner,
+  SemanticReasonerInput,
+  SemanticReasonerOutput
+} from "../supabase/functions/_shared/intelligence/semantic-compiler.ts";
+import { createWayfinderCapacityV0 } from "../supabase/functions/_shared/intelligence/wayfinder-capacity.ts";
 import type { SourceEnvelope } from "../supabase/functions/_shared/intelligence/semantic-admission.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -170,4 +177,83 @@ Deno.test("LIFE_GRAPH v0.1 is bounded to Person plus active Direction", async ()
   assert(result.items.some((item) => item.kind === "canonical_active_direction"), "active Direction should be present");
   assert(!fixture.calls.some((call) => call.name === "wf_schedule_current_v0"), "LIFE_GRAPH must not silently widen into Schedule");
   assert(!fixture.calls.some((call) => call.name === "wf_training_recent_v0"), "LIFE_GRAPH must not silently widen into Training");
+});
+
+
+Deno.test("repeat language deterministically retrieves canonical recent activity for a second semantic pass", async () => {
+  class RepeatReasoner implements SemanticReasoner {
+    readonly id = "navigator-context-repeat";
+    readonly version = "0.1";
+
+    propose(input: SemanticReasonerInput): SemanticReasonerOutput {
+      const recentRun = input.context.items.find((item) =>
+        item.kind === "canonical_practice_session" &&
+        item.concepts?.includes("RUNNING")
+      );
+
+      return {
+        graph: {
+          sourceId: input.source.sourceId,
+          nodes: [{
+            candidateId: "activity",
+            nodeType: "EVENT",
+            concept: recentRun ? "RUNNING" : "ACTIVITY",
+            subject: { kind: "SELF" },
+            realityMode: "OCCURRED",
+            attributes: recentRun ? {
+              repeatedFrom: {
+                value: recentRun.summary,
+                state: "RESOLVED",
+                certainty: "HIGH",
+                contextRefs: [recentRun.ref],
+                sourceSpans: ["same as yesterday"]
+              }
+            } : {},
+            certainty: "HIGH",
+            sourceSpans: ["same as yesterday"]
+          }],
+          edges: [],
+          references: recentRun ? [{
+            referenceId: "repeat-ref",
+            phrase: "same as yesterday",
+            candidateRefs: ["activity"],
+            status: "RESOLVED",
+            resolvedRef: recentRun.ref,
+            certainty: "HIGH"
+          }] : [],
+          alternateInterpretations: [],
+          trace: []
+        },
+        contextRequests: []
+      };
+    }
+  }
+
+  const fixture = fixtureRpc();
+  const provider = createNavigatorCanonicalContextProvider({
+    rpc: fixture.rpc,
+    concepts: createCoreLifeConceptRegistryV0()
+  });
+  const providers = new SemanticContextProviderRegistry().register(provider);
+  const repeatSource: SourceEnvelope = {
+    ...source,
+    sourceId: "repeat-source",
+    content: "I did basically the same thing as yesterday."
+  };
+
+  const result = await runReadOnlySemanticLoop({
+    source: repeatSource,
+    initialContext: { asOf: repeatSource.receivedAt, items: [] },
+    reasoner: new RepeatReasoner(),
+    concepts: createCoreLifeConceptRegistryV0(),
+    capacity: createWayfinderCapacityV0(),
+    providers
+  });
+
+  assert(result.reasonerPasses === 2, "repeat cue should force a context-informed second pass");
+  assert(result.executedRequests.some((item) => item.kind === "RECENT_EVENTS"), "repeat cue should execute RECENT_EVENTS");
+  assert(result.compilation.graph.nodes[0].concept === "RUNNING", "canonical Running history should resolve the broad repeated activity");
+  const canonicalRef = result.compilation.graph.references[0]?.resolvedRef ?? "";
+  assert(canonicalRef.startsWith("canonical:practice:session:r1@rv1"), "resolution must cite the exact canonical Practice version");
+  assert(fixture.calls.some((call) => call.name === "wf_practice_recent"), "canonical Practice read should supply the recent event");
 });
