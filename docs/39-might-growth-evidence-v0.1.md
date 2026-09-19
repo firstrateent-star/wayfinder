@@ -60,6 +60,8 @@ RPE is carried as context but is not used as a hidden multiplier or gate in v0.1
 
 Missing or unsupported loaded-set data is excluded rather than converted to zero.
 
+The bounded Training read must report `result_coverage.completeness = COMPLETE` before a growth proof can be emitted. A partial or unknown result set can hide a stronger historical frontier and therefore fails closed. Lived-reality epistemic coverage may remain `UNKNOWN`; the signal is explicitly about recorded capability evidence, not a claim that every workout was captured.
+
 ## Frozen-frontier proof
 
 For one exercise:
@@ -165,7 +167,8 @@ The implementation must prove:
 6. LB/KG normalization works without conversion-noise growth;
 7. incomplete/unsupported observations remain excluded rather than zero;
 8. same-time sessions cannot fake “later” confirmation;
-9. prior Character boundaries remain intact: Requirements do not mutate Character, and one loaded session remains CAPABILITY without GROWTH.
+9. partial or unknown bounded Training result coverage blocks growth even when visible rows would otherwise qualify;
+10. prior Character boundaries remain intact: Requirements do not mutate Character, and one loaded session remains CAPABILITY without GROWTH.
 
 ## Deferred
 
