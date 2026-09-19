@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
         moduleChangeIsInvalidationOnly: true,
         requirementsRecomputed: true,
         characterRecomputed: true,
-        characterGrowthAsserted: false,
+        characterGrowthAsserted: character.facets.some((facet) => facet.growth.state === "EVIDENCED"),
         requirementDefaultsInvented: false
       }
     });
