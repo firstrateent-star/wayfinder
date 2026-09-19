@@ -57,11 +57,18 @@ function fixtureRpc() {
     }
     if (name === "wf_schedule_current_v0") {
       return {
-        allocations: [{
-          id: "s1", version: "sv1", label: "Edit wedding film", kind: "HARD", state: "PLANNED",
-          starts_at: "2026-09-20T13:00:00.000Z", ends_at: "2026-09-20T15:00:00.000Z",
-          zone_id: "America/New_York", recorded_at: "2026-09-19T12:00:00.000Z"
-        }],
+        allocations: [
+          {
+            id: "s1", version: "sv1", label: "Edit wedding film", kind: "HARD", state: "PLANNED",
+            starts_at: "2026-09-20T13:00:00.000Z", ends_at: "2026-09-20T15:00:00.000Z",
+            zone_id: "America/New_York", recorded_at: "2026-09-19T12:00:00.000Z"
+          },
+          {
+            id: "s2", version: "sv2", label: "Cancelled old plan", kind: "SOFT", state: "CANCELLED",
+            starts_at: "2026-09-20T16:00:00.000Z", ends_at: "2026-09-20T17:00:00.000Z",
+            zone_id: "America/New_York", recorded_at: "2026-09-19T12:10:00.000Z"
+          }
+        ],
         result_coverage: { completeness: "COMPLETE" },
         epistemic_coverage: { completeness: "UNKNOWN" }
       } as T;
@@ -108,7 +115,10 @@ Deno.test("schedule context remains explicitly planned and never becomes occurre
   const provider = createNavigatorCanonicalContextProvider({ rpc: fixture.rpc, concepts: createCoreLifeConceptRegistryV0() });
   const result = await provider.resolve(request("SCHEDULE"), { asOf: source.receivedAt, items: [] }, source);
   const item = result.items?.[0];
+  assert(result.items?.length === 1, "cancelled allocations must not enter current planning context");
   assert(item?.kind === "canonical_schedule_allocation", "schedule item should be typed");
+  assert(item.summary.includes("Edit wedding film"), "current planned allocation should remain available");
+  assert(!item.summary.includes("Cancelled old plan"), "cancelled allocation must be excluded");
   assert(item.occurredAt === undefined, "planned schedule must never expose occurredAt");
   assert(item.attributes?.planned_not_occurred === true, "planned-not-occurred boundary must be explicit");
   assert(item.summary.startsWith("Planned"), "schedule summary must say planned");
