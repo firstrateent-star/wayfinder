@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Compass, LogOut, RefreshCw, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NavigatorChat } from "@/features/navigator/NavigatorChat";
-import { getInitialPosition, nextLocalDayScope } from "@/lib/position-api";
-import type { InitialPositionRead, PositionScheduleAllocation } from "@/lib/position-api";
+import { nextLocalDayScope } from "@/lib/position-api";
+import type { PositionScheduleAllocation } from "@/lib/position-api";
+import { getWayfinderState } from "@/lib/wayfinder-state-api";
+import type { WayfinderStateRead } from "@/lib/wayfinder-state-api";
 import { supabase } from "@/lib/supabase";
 
 function greeting() {
@@ -28,30 +30,36 @@ function formatAllocationTime(item: PositionScheduleAllocation) {
 
 export function HelmPage() {
   const scope = useMemo(() => nextLocalDayScope(), []);
-  const [position, setPosition] = useState<InitialPositionRead | null>(null);
+  const [state, setState] = useState<WayfinderStateRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function refreshPosition() {
+  async function refreshState() {
     setError(null);
     try {
-      const next = await getInitialPosition({ questionMode: "TASK_DRIVEN", scheduleScope: scope });
-      setPosition(next);
+      const next = await getWayfinderState({
+        questionMode: "TASK_DRIVEN",
+        scheduleScope: scope,
+        changeCursor: state?.change_cursor ?? null
+      });
+      setState(next);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Wayfinder could not assemble your position.");
+      setError(cause instanceof Error ? cause.message : "Wayfinder could not recompute your current state.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    void refreshPosition();
+    void refreshState();
   }, []);
 
+  const position = state?.position ?? null;
   const displayName = position?.person?.display_name ?? "Player";
   const tomorrowLabel = position ? formatDay(position.schedule.scope.from) : formatDay(scope.from);
   const currentFocus = position?.direction.current_focus ?? null;
-  const primaryInsight = position?.insights[0] ?? null;
+  const primaryInsight = state?.helm.primary_insight ?? null;
+  const focusActions = state?.helm.focus_branch.actions ?? [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -83,17 +91,17 @@ export function HelmPage() {
             </div>
           ) : null}
 
-          {!loading && error && !position ? (
+          {!loading && error && !state ? (
             <div className="mx-auto max-w-md rounded-2xl border border-rose-400/20 bg-rose-400/5 p-6 text-center">
               <p className="text-sm font-medium text-rose-200">Wayfinder could not assemble your position.</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">{error}</p>
-              <Button variant="secondary" className="mt-5" onClick={() => void refreshPosition()}>
+              <Button variant="secondary" className="mt-5" onClick={() => void refreshState()}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Retry
               </Button>
             </div>
           ) : null}
 
-          {!loading && position ? (
+          {!loading && state && position ? (
             <>
               <div className="mb-7">
                 <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-300/60">Where am I?</p>
@@ -141,7 +149,25 @@ export function HelmPage() {
                 {primaryInsight ? <p className="mt-3 border-t border-white/[0.05] pt-3 text-xs leading-5 text-slate-500">{primaryInsight.headline}</p> : null}
               </div>
 
-              <NavigatorChat displayName={displayName} onCanonicalChange={refreshPosition} />
+              {focusActions.length > 0 ? (
+                <div className="mb-5 rounded-2xl border border-emerald-300/10 bg-emerald-300/[0.025] px-4 py-3.5 sm:px-5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-emerald-300/50">
+                    Supporting {focusActions.length === 1 ? "action" : "actions"}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {focusActions.slice(0, 4).map((action) => (
+                      <span key={action.id} className="rounded-full border border-emerald-300/10 bg-black/10 px-3 py-1.5 text-xs text-slate-300">
+                        {action.title}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] leading-4 text-slate-600">
+                    Shown because these Actions support the current Direction through canonical Direction edges—not because Wayfinder inferred a priority.
+                  </p>
+                </div>
+              ) : null}
+
+              <NavigatorChat displayName={displayName} onCanonicalChange={refreshState} />
 
               {error ? <p className="mt-4 px-1 text-sm text-rose-300">{error}</p> : null}
             </>

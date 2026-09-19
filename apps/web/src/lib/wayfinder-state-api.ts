@@ -1,0 +1,102 @@
+import { supabase } from "@/lib/supabase";
+import type { InitialPositionRead, PositionQuestionMode, PositionScheduleScope } from "@/lib/position-api";
+
+export interface WayfinderChangeCursor {
+  committed_at: string;
+  id: string;
+}
+
+export interface WayfinderBearingAction {
+  id: string;
+  version: string;
+  title: string;
+  intent_state: string;
+  evidence_state: "CURRENT_EVIDENCE_PRESENT" | "STALE_RECORDED_EVIDENCE_ONLY" | "NO_RECORDED_EVIDENCE";
+  current_qualifying_evidence_count: number;
+  stale_recorded_evidence_count: number;
+}
+
+export interface WayfinderBearingRead {
+  projection_type: "bearing";
+  rule_version: string;
+  computed_at: string;
+  state: "NO_ACTIVE_ACTIONS" | "RECORDED_EVIDENCE_OF_MOVEMENT" | "NO_RECORDED_EVIDENCE_OF_MOVEMENT";
+  active_action_count: number;
+  evidenced_active_action_count: number;
+  stale_evidence_only_action_count: number;
+  actions: WayfinderBearingAction[];
+}
+
+export interface FocusBranchNode {
+  id: string;
+  version: string;
+  kind: "value" | "direction" | "outcome" | "commitment" | "quest" | "plan" | "action";
+  title: string;
+  description: string | null;
+  intent_state: "ACTIVE" | "PAUSED" | "WITHDRAWN";
+  recorded_at: string;
+  depth_from_focus: number;
+}
+
+export interface WayfinderStateRead {
+  contract: "wayfinder-state.v0.1";
+  computed_at: string;
+  change_cursor: WayfinderChangeCursor | null;
+  recomputation: {
+    reason: "INITIAL_LOAD" | "NO_CHANGE" | "MODULE_CHANGE" | "COALESCED_PARTIAL_CHANGE_WINDOW";
+    changedModules: string[];
+    invalidated: string[];
+    recomputeNow: string[];
+    deferred: Array<{ target: "REQUIREMENTS" | "CHARACTER"; reason: string }>;
+    navigatorContextInvalidated: boolean;
+    sourceChangeCount: number;
+    resultCoverage: "COMPLETE" | "PARTIAL";
+  };
+  position: InitialPositionRead;
+  bearing: WayfinderBearingRead;
+  helm: {
+    projection_type: "helm_state";
+    rule_version: "helm_state_v0.1";
+    current_direction: InitialPositionRead["direction"]["current_focus"];
+    focus_branch: {
+      focus_id: string | null;
+      nodes: FocusBranchNode[];
+      actions: FocusBranchNode[];
+      outcomes: FocusBranchNode[];
+    };
+    bearing: {
+      state: WayfinderBearingRead["state"];
+      active_action_count: number;
+      focus_branch_action_count: number;
+      actions: WayfinderBearingAction[];
+    };
+    primary_insight: InitialPositionRead["insights"][number] | null;
+    note: string;
+    does_not_assert: string[];
+  };
+  invariants: {
+    projectionsPersisted: false;
+    canonicalSourceOfTruth: true;
+    moduleChangeIsInvalidationOnly: true;
+    requirementsRecomputed: false;
+    characterRecomputed: false;
+  };
+}
+
+export async function getWayfinderState(input: {
+  questionMode?: PositionQuestionMode;
+  scheduleScope: PositionScheduleScope;
+  changeCursor?: WayfinderChangeCursor | null;
+}) {
+  const { data, error } = await supabase.functions.invoke<WayfinderStateRead>("wayfinder-state", {
+    body: {
+      questionMode: input.questionMode ?? "TASK_DRIVEN",
+      scheduleScope: input.scheduleScope,
+      changeCursor: input.changeCursor ?? null
+    }
+  });
+
+  if (error) throw new Error(error.message || "Wayfinder could not recompute your current state.");
+  if (!data) throw new Error("Wayfinder returned no current-state data.");
+  return data;
+}

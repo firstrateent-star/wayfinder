@@ -34,3 +34,6 @@ export * from "./direction-semantic.ts";
 export * from "./schedule-semantic.ts";
 
 export * from "./nutrition-semantic.ts";
+
+export * from "./recomputation-planner.ts";
+export * from "./wayfinder-state-service.ts";
