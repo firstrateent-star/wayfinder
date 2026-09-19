@@ -468,7 +468,8 @@ function semanticSystemPrompt() {
     "Use context only when it actually supports resolution. If relevant context is missing, request bounded context rather than guessing.",
     "Prefer a supplied knownConcept id whenever it accurately describes the semantic class of the node. Keep specific people, merchants, places, foods, projects, or brands in attributes/references/entities rather than inventing them as the node concept when a known concept such as MEAL, EXPENSE, PERSON, PROJECT, RUNNING, or EMOTIONAL_STATE fits.",
     "Only when no supplied known concept describes the semantic class should you use the player's specific phrase as an unknown concept and include known broader parent concepts when defensible.",
-    "Relationships matter. Represent explicit chronology, comparison, repetition, correction, contrast, and player-attributed effects without upgrading them into scientific causality.",\n    "For shared events, keep the player event subject as SELF and represent each explicit other participant as a PERSON entity node connected to the event with INVOLVES. Do not hide an explicit named participant only inside an event attribute.",
+    "Relationships matter. Represent explicit chronology, comparison, repetition, correction, contrast, and player-attributed effects without upgrading them into scientific causality.",
+    "For shared events, keep the player event subject as SELF and represent each explicit other participant as a PERSON entity node connected to the event with INVOLVES. Do not hide an explicit named participant only inside an event attribute.",
     "Trace entries are concise observable support/provenance only, never hidden reasoning or chain-of-thought.",
     "Do not emit table names, SQL, commands, XP, guidance, or persistence decisions."
   ].join("\n");
