@@ -459,8 +459,8 @@ function liftEpisodeRefinementConcepts(
   episodeRefs: Set<string>,
   contextByRef: Map<string, SemanticContextItem>,
   concepts: ConceptRegistry
-) {
-  return nodes.map((node) => {
+): CandidateLifeNode[] {
+  return nodes.map((node): CandidateLifeNode => {
     if (concepts.get(node.concept) || concepts.resolveExact(node.concept).length > 0) return node;
     if (node.nodeType === "ENTITY" || node.nodeType === "QUANTITY") return node;
     if (!["REFLECTION", "CURRENT_STATE", "POSSIBLE"].includes(node.realityMode)) return node;
@@ -506,7 +506,7 @@ function liftEpisodeRefinementConcepts(
 
     return {
       ...node,
-      nodeType: "EVENT",
+      nodeType: "EVENT" as const,
       concept: priorConcept,
       realityMode: priorRealityMode as CandidateLifeNode["realityMode"],
       parentConcepts: uniqueStrings([
