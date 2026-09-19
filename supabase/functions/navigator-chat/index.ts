@@ -2,6 +2,11 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { AdmissionRegistry, runSemanticAdmission, type SourceEnvelope } from "../_shared/intelligence/semantic-admission.ts";
 import { recognizeTraining, trainingAdmissionContract, type TrainingSessionCandidatePayload } from "../_shared/intelligence/training-semantic.ts";
 import { createIntlLocalInstantProvider, type ResolvedLocalInstant } from "../_shared/intelligence/local-time-resolver.ts";
+import { createCoreLifeConceptRegistryV0 } from "../_shared/intelligence/concept-registry.ts";
+import { SemanticContextProviderRegistry, type ReadOnlySemanticLoopResult } from "../_shared/intelligence/context-assembler.ts";
+import { runSemanticEpisodeTurn, type SemanticEpisode } from "../_shared/intelligence/semantic-episode.ts";
+import { LiveSemanticReasoner, OpenAIResponsesProvider } from "../_shared/intelligence/live-semantic-reasoner.ts";
+import { createWayfinderCapacityV0 } from "../_shared/intelligence/wayfinder-capacity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +36,7 @@ type TrainingDraft = {
   partial: boolean;
 };
 
-type NavigatorEpisode = {
+type TrainingNavigatorEpisode = {
   id: string;
   kind: "TRAINING_CAPTURE";
   stage: Stage;
@@ -41,6 +46,14 @@ type NavigatorEpisode = {
   lastWorkout?: TrainingDraft;
   draft?: TrainingDraft;
 };
+
+type SemanticNavigatorEpisode = {
+  id: string;
+  kind: "SEMANTIC";
+  semantic: SemanticEpisode;
+};
+
+type NavigatorEpisode = TrainingNavigatorEpisode | SemanticNavigatorEpisode;
 
 type Suggestion = {
   id: string;
@@ -194,9 +207,195 @@ function modeSuggestions(hasLast: boolean): Suggestion[] {
   ];
 }
 
+const semanticConcepts = createCoreLifeConceptRegistryV0();
+const semanticCapacity = createWayfinderCapacityV0();
+const semanticProviders = new SemanticContextProviderRegistry();
+
+function semanticReasoner() {
+  const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim();
+  if (!apiKey) return null;
+  return new LiveSemanticReasoner({
+    provider: new OpenAIResponsesProvider({ apiKey }),
+    model: Deno.env.get("WAYFINDER_SEMANTIC_MODEL")?.trim() || "gpt-5.6-luna",
+    maxOutputTokens: 4500
+  });
+}
+
+function conceptLabel(concept: string) {
+  return semanticConcepts.get(concept)?.label ?? concept.toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function joinNatural(values: string[]) {
+  if (values.length === 0) return "";
+  if (values.length === 1) return values[0];
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
+}
+
+function semanticEpisodeTextDigest(episode: SemanticEpisode) {
+  const parts: string[] = [];
+  for (const turn of episode.turns) {
+    for (const node of turn.graph.nodes) {
+      parts.push(...(node.sourceSpans ?? []));
+      for (const field of Object.values(node.attributes)) {
+        if (typeof field.value === "string") parts.push(field.value);
+      }
+    }
+  }
+  return parts.join(" ");
+}
+
+function semanticEpisodeSupportsTrainingCapture(episode: SemanticEpisode) {
+  if (episode.turns.some((turn) =>
+    turn.graph.nodes.some((node) =>
+      node.subject.kind === "SELF" &&
+      (node.concept === "STRENGTH_TRAINING" ||
+        node.parentConcepts?.includes("STRENGTH_TRAINING"))
+    )
+  )) return true;
+
+  return looksLikeWorkout(semanticEpisodeTextDigest(episode));
+}
+
+function focusFromSemanticEpisode(episode: SemanticEpisode): Focus | null {
+  const turns = [...episode.turns].reverse();
+  for (const turn of turns) {
+    const nodes = [...turn.graph.nodes].reverse();
+    for (const node of nodes) {
+      const parts = [...(node.sourceSpans ?? [])];
+      for (const field of Object.values(node.attributes)) {
+        if (typeof field.value === "string") parts.push(field.value);
+      }
+      const focus = focusFromText(parts.join(" "));
+      if (focus) return focus;
+    }
+  }
+  return null;
+}
+
+function localDateFromSemanticEpisode(episode: SemanticEpisode, zoneId: string): string | null {
+  const turns = [...episode.turns].reverse();
+  for (const turn of turns) {
+    const nodes = [...turn.graph.nodes].reverse();
+    for (const node of nodes) {
+      if (node.subject.kind !== "SELF") continue;
+      if (node.temporal?.localDate) return node.temporal.localDate;
+
+      const relative = node.temporal?.relativeText?.trim().toLowerCase();
+      if (relative === "today") return localDateInZone(turn.receivedAt, zoneId);
+      if (relative === "yesterday") {
+        return localDateInZone(new Date(new Date(turn.receivedAt).getTime() - 86400000).toISOString(), zoneId);
+      }
+    }
+  }
+  return null;
+}
+
+function summarizeSemanticResult(result: ReadOnlySemanticLoopResult) {
+  const graph = result.compilation.graph;
+  const meaningful = graph.nodes.filter((node) => node.nodeType !== "ENTITY");
+  const labels = [...new Set(meaningful.map((node) => conceptLabel(node.concept)))].slice(0, 4);
+  const blocking = meaningful
+    .flatMap((node) => node.unresolved ?? [])
+    .find((item) => item.blocking);
+  const training = meaningful.some((node) =>
+    node.concept === "STRENGTH_TRAINING" &&
+    node.subject.kind === "SELF" &&
+    node.realityMode === "OCCURRED"
+  );
+
+  const suggestions: Suggestion[] = training
+    ? [{ id: "START_TRAINING", label: "Log this as Training", tone: "primary" }]
+    : [];
+
+  if (meaningful.length === 0) {
+    return {
+      message: "I don’t have enough grounded meaning to place that yet. I’ll leave it unresolved rather than guess.",
+      suggestions,
+      disposition: "UNRESOLVED"
+    };
+  }
+
+  const understood = labels.length
+    ? `I understood that as ${joinNatural(labels)}.`
+    : "I understood the main meaning.";
+
+  if (blocking) {
+    return {
+      message: `${understood} One part still needs resolution: ${blocking.description} I’ll keep that uncertainty instead of inventing an answer.`,
+      suggestions,
+      disposition: "CLARIFY"
+    };
+  }
+
+  const unsupported = result.compilation.routing.filter((route) => route.route !== "ROUTE_TO_DOMAIN").length;
+  return {
+    message: `${understood} I can carry that meaning forward in this conversation. ${unsupported > 0 ? "I won’t save the parts that do not yet have a proven canonical owner." : "Nothing becomes canonical until you explicitly confirm a domain write."}`,
+    suggestions,
+    disposition: training ? "UNDERSTOOD_TRAINING_AVAILABLE" : "SESSION_ONLY"
+  };
+}
+
+async function runSemanticConversation(
+  text: string,
+  episode: SemanticNavigatorEpisode | null,
+  zoneId: string,
+  sourceId: string,
+  now: string
+) {
+  const source: SourceEnvelope = {
+    sourceId,
+    sourceType: "PLAYER_TEXT",
+    content: text,
+    receivedAt: now,
+    interactionIntent: "CONVERSATION",
+    authorizesCanonicalWrite: false,
+    zoneId
+  };
+
+  const reasoner = semanticReasoner();
+  if (!reasoner) return null;
+
+  const outcome = await runSemanticEpisodeTurn({
+    episode: episode?.semantic,
+    episodeId: episode?.semantic.episodeId ?? `navigator:${crypto.randomUUID()}`,
+    source,
+    initialContext: { asOf: now, items: [] },
+    reasoner,
+    concepts: semanticConcepts,
+    capacity: semanticCapacity,
+    providers: semanticProviders,
+    episodeLimits: { maxTurns: 12, maxContextNodes: 12 },
+    semanticLimits: {
+      maxReasonerPasses: 2,
+      maxRequestsPerPass: 3,
+      maxContextItems: 24,
+      maxItemsPerRequest: 8,
+      maxPersonalAliases: 12
+    }
+  });
+
+  const summary = summarizeSemanticResult(outcome.result);
+  const suggestions = [...summary.suggestions];
+  if (
+    semanticEpisodeSupportsTrainingCapture(outcome.episode) &&
+    !suggestions.some((item) => item.id === "START_TRAINING")
+  ) {
+    suggestions.push({ id: "START_TRAINING", label: "Log strength workout", tone: "secondary" });
+  }
+
+  const wrapped: SemanticNavigatorEpisode = {
+    id: outcome.episode.episodeId,
+    kind: "SEMANTIC",
+    semantic: outcome.episode
+  };
+
+  return { ...summary, suggestions, episode: wrapped };
+}
+
 function respond(message: string, episode: NavigatorEpisode | null, suggestions: Suggestion[] = [], extra: Record<string, unknown> = {}) {
   return {
-    contract: "navigator-chat.v0.1",
+    contract: "navigator-chat.v0.2",
     message,
     episode,
     suggestions,
@@ -204,12 +403,12 @@ function respond(message: string, episode: NavigatorEpisode | null, suggestions:
     retention: {
       conversation_persisted_server_side: false,
       candidate_persistence: "TRANSIENT",
-      rule: "Conversation is working context. Canonical writes occur only after explicit confirmation."
+      rule: "Conversation is transient semantic working state. Canonical writes occur only through an owning domain after explicit confirmation."
     }
   };
 }
 
-async function understandWorkout(text: string, episode: NavigatorEpisode, zoneId: string, sourceId: string) {
+async function understandWorkout(text: string, episode: TrainingNavigatorEpisode, zoneId: string, sourceId: string) {
   const source: SourceEnvelope = {
     sourceId,
     sourceType: "PLAYER_TEXT",
@@ -280,7 +479,7 @@ async function resolveClock(localDate: string, localTime: string, zoneId: string
   return result.value as ResolvedLocalInstant;
 }
 
-async function persistTraining(authHeader: string, episode: NavigatorEpisode, zoneId: string) {
+async function persistTraining(authHeader: string, episode: TrainingNavigatorEpisode, zoneId: string) {
   const draft = episode.draft;
   if (!draft) throw new Error("TRAINING_DRAFT_REQUIRED");
   return await rpc<unknown>(authHeader, "wf_training_capture_strength_session", {
@@ -323,8 +522,55 @@ Deno.serve(async (req: Request) => {
   const action = body.action?.trim().toUpperCase() ?? "";
   const today = localDateInZone(now, zoneId);
   let episode = body.episode ?? null;
+  let semanticTrainingFocus: Focus | null = null;
+  let semanticTrainingLocalDate: string | null = null;
 
   try {
+    if ((!episode || episode.kind === "SEMANTIC") && action !== "START_TRAINING") {
+      if (!text) {
+        return json(respond(
+          "What’s going on? Tell me naturally. I’ll carry the meaning forward in this conversation, and I won’t save anything without a proven owner and explicit confirmation.",
+          episode
+        ));
+      }
+
+      const semantic = await runSemanticConversation(
+        text,
+        episode?.kind === "SEMANTIC" ? episode : null,
+        zoneId,
+        sourceId,
+        now
+      );
+
+      if (semantic) {
+        return json(respond(
+          semantic.message,
+          semantic.episode,
+          semantic.suggestions,
+          { disposition: semantic.disposition, semantic_mode: "GENERAL_READ_ONLY" }
+        ));
+      }
+
+      if (!episode && looksLikeWorkout(text)) {
+        // Degrade to the already-proven Training flow when the live semantic
+        // provider is not configured. This preserves existing app capability
+        // without pretending broad semantic reasoning occurred.
+      } else {
+        return json(respond(
+          "Navigator’s broader semantic reasoning is not configured in this environment yet. I won’t guess or save this. Training capture remains available.",
+          null,
+          [{ id: "START_TRAINING", label: "Log a workout", tone: "secondary" }],
+          { disposition: "SESSION_ONLY", semantic_mode: "UNAVAILABLE" }
+        ));
+      }
+    }
+
+    if (action === "START_TRAINING" && episode?.kind === "SEMANTIC") {
+      semanticTrainingFocus = focusFromSemanticEpisode(episode.semantic);
+      semanticTrainingLocalDate = localDateFromSemanticEpisode(episode.semantic, zoneId);
+      episode = null;
+    }
+
     if (!episode) {
       const effectiveText = action === "START_TRAINING" && !text ? "I want to log a workout" : text;
       if (!effectiveText) return json(respond("What’s going on? Tell me naturally — I’ll only keep what I can place safely in Wayfinder.", null));
@@ -337,14 +583,14 @@ Deno.serve(async (req: Request) => {
         ));
       }
 
-      const focus = focusFromText(effectiveText);
+      const focus = semanticTrainingFocus ?? focusFromText(effectiveText);
       episode = {
         id: crypto.randomUUID(),
         kind: "TRAINING_CAPTURE",
         stage: focus ? "TRAINING_MODE" : "TRAINING_SCOPE",
         startedAt: now,
         focus: focus ?? undefined,
-        occurredLocalDate: /\byesterday\b/i.test(effectiveText) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today
+        occurredLocalDate: semanticTrainingLocalDate ?? (/\byesterday\b/i.test(effectiveText) ? localDateInZone(new Date(Date.now() - 86400000).toISOString(), zoneId) : today)
       };
 
       if (!focus) {

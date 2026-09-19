@@ -20,3 +20,5 @@ export * from "./concept-resolution.ts";
 export * from "./context-needs.ts";
 export * from "./entity-lifting.ts";\nexport * from "./source-context-reconciliation.ts";
 export * from "./semantic-safety-normalization.ts";
+
+export * from "./semantic-episode.ts";

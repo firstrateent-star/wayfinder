@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, CornerDownLeft, Send, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { navigatorChat, type NavigatorChatResponse, type NavigatorEpisode, type NavigatorSuggestion } from "@/lib/navigator-api";
 
-const CACHE_KEY = "wayfinder.navigator.v0.1";
+const CACHE_KEY = "wayfinder.navigator.v0.2";
 const MAX_MESSAGES = 40;
 const MAX_REWIND_STATES = 16;
 
@@ -35,7 +35,7 @@ function initialState(displayName: string): ChatState {
       {
         id: crypto.randomUUID(),
         role: "NAV",
-        text: `What’s going on, ${displayName}? Tell me naturally. I’ll try to understand what you mean, ask only for what I still need, and I won’t save anything I can’t place safely.`
+        text: `What’s going on, ${displayName}? Tell me naturally. I’ll carry the meaning across turns, ask only when something materially needs resolving, and nothing becomes canonical unless a domain can own it and you confirm it.`
       }
     ],
     episode: null,
@@ -184,7 +184,7 @@ export function NavigatorChat({ displayName, onCanonicalChange }: Props) {
             <Sparkles className="h-4 w-4 text-emerald-300" />
             Navigator
           </div>
-          <p className="mt-1 text-xs text-slate-500">Conversation is a working cache. Confirmed logs become domain history.</p>
+          <p className="mt-1 text-xs text-slate-500">Conversation is transient semantic working state. Confirmed domain writes become history.</p>
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" disabled={sending || rewind.length === 0} onClick={undoTurn} title="Rewind one unconfirmed turn">
