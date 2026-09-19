@@ -224,6 +224,7 @@ export interface CompilerRoutingDecision {
   candidateId: string;
   route: CompilerRoute;
   owner?: string;
+  claimType?: string;
   reason: string;
   capacity: CapacityAssessment;
 }
@@ -294,21 +295,37 @@ export function routeCandidate(node: CandidateLifeNode, assessment: CapacityAsse
     };
   }
 
-  if (assessment.persistOwners.length === 1 && node.claimType) {
+  const declaredRoutes = assessment.declaredPersistRoutes;
+  const compatibleRoutes = node.claimType
+    ? declaredRoutes.filter((route) => route.claimType === node.claimType)
+    : declaredRoutes;
+
+  if (node.claimType && declaredRoutes.length > 0 && compatibleRoutes.length === 0) {
     return {
       candidateId: node.candidateId,
-      route: "ROUTE_TO_DOMAIN",
-      owner: assessment.persistOwners[0],
-      reason: "EXPLICIT_PERSIST_CAPACITY",
+      route: "SESSION_ONLY",
+      reason: `UNDECLARED_CLAIM_TYPE:${node.claimType}`,
       capacity: assessment
     };
   }
 
-  if (assessment.persistOwners.length > 1) {
+  if (compatibleRoutes.length === 1) {
+    const route = compatibleRoutes[0];
+    return {
+      candidateId: node.candidateId,
+      route: "ROUTE_TO_DOMAIN",
+      owner: route.owner,
+      claimType: route.claimType,
+      reason: node.claimType ? "EXPLICIT_DECLARED_CLAIM_ROUTE" : "DETERMINISTIC_DECLARED_CLAIM_ROUTE",
+      capacity: assessment
+    };
+  }
+
+  if (compatibleRoutes.length > 1) {
     return {
       candidateId: node.candidateId,
       route: "CLARIFY",
-      reason: `MULTIPLE_PERSIST_OWNERS:${assessment.persistOwners.join(",")}`,
+      reason: `MULTIPLE_PERSIST_ROUTES:${compatibleRoutes.map((route) => `${route.owner}:${route.claimType}`).join(",")}`,
       capacity: assessment
     };
   }
