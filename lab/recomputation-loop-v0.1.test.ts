@@ -23,7 +23,7 @@ Deno.test("initial state load recomputes live projections without persisting the
   assert(plan.deferred.length === 0, "Requirements and Character are now live recomputation targets");
 });
 
-Deno.test("Direction change invalidates Position Bearing Helm Character and Navigator context", () => {
+Deno.test("Direction change invalidates only projections that actually depend on Direction", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "22222222-2222-4222-8222-222222222222",
@@ -33,10 +33,11 @@ Deno.test("Direction change invalidates Position Bearing Helm Character and Navi
     }],
     matching_change_count: 1
   }));
-  for (const target of ["POSITION","BEARING","CHARACTER","HELM","NAVIGATOR_CONTEXT"] as const) {
+  for (const target of ["POSITION","BEARING","HELM","NAVIGATOR_CONTEXT"] as const) {
     assert(plan.invalidated.includes(target), `${target} should be invalidated by Direction`);
   }
-  assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction alone should not imply Requirement recomputation");
+  assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction has no Requirement provider in v0.1");
+  assert(!plan.invalidated.includes("CHARACTER"), "Direction has no Character provider in v0.1");
 });
 
 Deno.test("Nutrition change invalidates Requirements but not permanent Character v0.1", () => {
