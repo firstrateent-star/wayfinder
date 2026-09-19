@@ -52,6 +52,22 @@ export function inferDeterministicContextRequests(
     });
   }
 
+  for (const person of graph.nodes.filter((node) =>
+    node.concept === "PERSON" &&
+    node.subject.kind !== "SELF" &&
+    !node.subject.entityRef &&
+    Boolean(node.subject.label?.trim())
+  )) {
+    requests.push({
+      requestId: `deterministic:known-person:${safeRequestId(person.subject.label!)}`,
+      kind: "KNOWN_ENTITIES",
+      concepts: ["PERSON"],
+      query: person.subject.label!.trim(),
+      purpose: "Resolve an explicitly named participant against known people without guessing identity.",
+      limit: 6
+    });
+  }
+
   return requests;
 }
 
@@ -66,4 +82,8 @@ function canonicalGraphConcepts(graph: CandidateLifeGraph, concepts: ConceptRegi
     if (firstKnownParent) result.add(firstKnownParent);
   }
   return [...result];
+}
+
+function safeRequestId(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "person";
 }

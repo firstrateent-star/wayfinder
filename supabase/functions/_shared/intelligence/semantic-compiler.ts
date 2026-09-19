@@ -1,7 +1,7 @@
 import type { CandidateGraph, SemanticCandidate, SourceEnvelope } from "./semantic-admission.ts";
 import type { ConceptRegistry } from "./concept-registry.ts";
 import type { CapacityAssessment, WayfinderCapacityRegistry } from "./wayfinder-capacity.ts";
-import { normalizeSemanticReasonerOutput } from "./concept-resolution.ts";
+import { normalizeSemanticReasonerOutput } from "./concept-resolution.ts";\nimport { liftExplicitPersonParticipantsInOutput } from "./entity-lifting.ts";
 
 export type RealityMode =
   | "OCCURRED"
@@ -334,7 +334,7 @@ export async function compileLifeExpression(input: CompileLifeExpressionInput): 
     context: input.context,
     concepts: input.concepts
   });
-  const proposed = normalizeSemanticReasonerOutput(rawProposed, input.concepts);
+  const proposed = liftExplicitPersonParticipantsInOutput(\n    normalizeSemanticReasonerOutput(rawProposed, input.concepts),\n    input.context\n  );
 
   const validationErrors = validateCandidateLifeGraph(proposed.graph);
   const capacity = proposed.graph.nodes.map((node) => input.capacity.assessNode(node));

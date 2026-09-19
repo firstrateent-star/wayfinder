@@ -1,6 +1,6 @@
 import type { ConceptRegistry } from "./concept-registry.ts";
 import { conceptMatchesRequested, normalizeSemanticReasonerOutput } from "./concept-resolution.ts";
-import { inferDeterministicContextRequests } from "./context-needs.ts";
+import { inferDeterministicContextRequests } from "./context-needs.ts";\nimport { liftExplicitPersonParticipantsInOutput } from "./entity-lifting.ts";
 import type {
   ContextRequest,
   SemanticCompilation,
@@ -110,7 +110,7 @@ export async function runReadOnlySemanticLoop(input: RunReadOnlySemanticLoopInpu
   for (let pass = 1; pass <= limits.maxReasonerPasses; pass++) {
     reasonerPasses = pass;
     const rawOutput = await input.reasoner.propose({ source: input.source, context, concepts: input.concepts });
-    finalOutput = normalizeSemanticReasonerOutput(rawOutput, input.concepts);
+    finalOutput = liftExplicitPersonParticipantsInOutput(\n      normalizeSemanticReasonerOutput(rawOutput, input.concepts),\n      context\n    );
     const modelRequests = finalOutput.contextRequests ?? [];
     const deterministicRequests = inferDeterministicContextRequests(input.source, finalOutput.graph, input.concepts)
       .filter((fallback) => !modelRequests.some((request) => request.kind === fallback.kind));
