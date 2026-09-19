@@ -39,7 +39,7 @@ Deno.test("Direction change invalidates Position Bearing Helm Character and Navi
   assert(!plan.invalidated.includes("REQUIREMENTS"), "Direction alone should not imply Requirement recomputation");
 });
 
-Deno.test("Nutrition change invalidates Requirements and Character but not Bearing", () => {
+Deno.test("Nutrition change invalidates Requirements but not permanent Character v0.1", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "33333333-3333-4333-8333-333333333333",
@@ -50,9 +50,24 @@ Deno.test("Nutrition change invalidates Requirements and Character but not Beari
     matching_change_count: 1
   }));
   assert(plan.invalidated.includes("REQUIREMENTS"), "Nutrition should invalidate Requirement evaluation");
-  assert(plan.invalidated.includes("CHARACTER"), "Nutrition should invalidate Character projection");
+  assert(!plan.invalidated.includes("CHARACTER"), "Nutrition has no permanent Character provider in v0.1");
   assert(plan.invalidated.includes("HELM"), "Nutrition should invalidate Helm");
   assert(!plan.invalidated.includes("BEARING"), "Nutrition does not directly change current Direction evidence Bearing");
+});
+
+Deno.test("Training change invalidates both Requirements and Character", () => {
+  const plan = planRecomputation(changeRead({
+    changes: [{
+      id: "33333333-4444-4333-8333-333333333333",
+      module_id: "training",
+      change_type: "training.session_captured",
+      committed_at: "2026-09-19T22:02:30.000Z"
+    }],
+    matching_change_count: 1
+  }));
+  assert(plan.invalidated.includes("REQUIREMENTS"), "Training should invalidate weekly strength Requirement");
+  assert(plan.invalidated.includes("CHARACTER"), "Training should invalidate Might evidence projection");
+  assert(plan.recomputeNow.includes("REQUIREMENTS") && plan.recomputeNow.includes("CHARACTER"), "both projections should recompute now");
 });
 
 Deno.test("partial ModuleChange window conservatively invalidates every projection", () => {
