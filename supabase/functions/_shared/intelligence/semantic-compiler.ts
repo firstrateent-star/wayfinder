@@ -246,7 +246,7 @@ export interface CompileLifeExpressionInput {
   capacity: WayfinderCapacityRegistry;
 }
 
-const SESSION_ONLY_REALITY_MODES = new Set<RealityMode>(["QUESTION", "HYPOTHETICAL", "POSSIBLE"]);
+const SESSION_ONLY_REALITY_MODES = new Set<RealityMode>(["QUESTION", "HYPOTHETICAL", "POSSIBLE", "NEGATED", "CORRECTION"]);
 
 export function validateCandidateLifeGraph(graph: CandidateLifeGraph): string[] {
   const errors: string[] = [];
