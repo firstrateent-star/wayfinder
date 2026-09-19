@@ -295,6 +295,18 @@ Deno.test("model claim type cannot break a tie between multiple declared persist
   assert(result.routing[0].reason.startsWith("MULTIPLE_PERSIST_ROUTES:"), "ambiguity should remain explicit");
 });
 
+Deno.test("invalid semantic graph globally fails closed with zero admission proposals", async () => {
+  const inputSource = source("workout-no-claim");
+  const compilation = await compile(inputSource);
+  compilation.validationErrors.push("EDGE_TARGET_MISSING:bad-edge:missing");
+
+  const plan = planSemanticAdmission(compilation, createWayfinderAdmissionPlanningRegistryV0());
+
+  assert(plan.proposals.length === 0, "invalid graph must never emit a partial admission proposal");
+  assert(plan.items.every((item) => item.disposition === "REJECT"), "all candidates should fail closed when graph integrity is invalid");
+  assert(plan.items.every((item) => item.reason.startsWith("INVALID_SEMANTIC_GRAPH:")), "graph-integrity failure should be explicit");
+});
+
 Deno.test("planner rejects missing domain planning policy rather than routing by owner name alone", async () => {
   const compilation = await compile(source("workout-no-claim"));
   const plan = planSemanticAdmission(compilation, new AdmissionPlanningPolicyRegistry());
