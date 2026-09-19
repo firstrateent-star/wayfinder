@@ -249,6 +249,16 @@ begin
   end if;
 
   v_new_version:=gen_random_uuid();
+
+  -- Free the one-active-version slot before inserting the new head. The
+  -- supersession FK is deferred, so it may point at v_new_version until the
+  -- new row is inserted later in this same transaction.
+  if v_current is not null then
+    update wf_training.standard_versions
+       set lifecycle_status='SUPERSEDED',superseded_by_version_id=v_new_version
+     where id=v_current and standard_id=v_standard and owner_id=v_owner and lifecycle_status='ACTIVE';
+  end if;
+
   insert into wf_training.standard_versions(
     id,standard_id,owner_id,version_no,standard_key,metric,unit,rule,target,recurrence,zone_id,
     lifecycle_status,provenance_source_type,provenance_source_id,actor_owner_id
@@ -257,11 +267,6 @@ begin
     p_target_sessions,'LOCAL_WEEK',v_zone,'ACTIVE','PLAYER_STANDARD',p_provenance_source_id,v_owner
   );
 
-  if v_current is not null then
-    update wf_training.standard_versions
-       set lifecycle_status='SUPERSEDED',superseded_by_version_id=v_new_version
-     where id=v_current and standard_id=v_standard and owner_id=v_owner and lifecycle_status='ACTIVE';
-  end if;
   update wf_training.standards set current_version_id=v_new_version where id=v_standard and owner_id=v_owner;
 
   v_ref:=pg_catalog.jsonb_build_object('namespace','training','type','standard','id',v_standard,'version',v_new_version);
@@ -324,6 +329,13 @@ begin
   end if;
 
   v_new_version:=gen_random_uuid();
+
+  if v_current is not null then
+    update wf_nutrition.standard_versions
+       set lifecycle_status='SUPERSEDED',superseded_by_version_id=v_new_version
+     where id=v_current and standard_id=v_standard and owner_id=v_owner and lifecycle_status='ACTIVE';
+  end if;
+
   insert into wf_nutrition.standard_versions(
     id,standard_id,owner_id,version_no,standard_key,metric,unit,rule,target,recurrence,zone_id,
     lifecycle_status,provenance_source_type,provenance_source_id,actor_owner_id
@@ -332,11 +344,6 @@ begin
     p_target_grams,'LOCAL_DAY',v_zone,'ACTIVE','PLAYER_STANDARD',p_provenance_source_id,v_owner
   );
 
-  if v_current is not null then
-    update wf_nutrition.standard_versions
-       set lifecycle_status='SUPERSEDED',superseded_by_version_id=v_new_version
-     where id=v_current and standard_id=v_standard and owner_id=v_owner and lifecycle_status='ACTIVE';
-  end if;
   update wf_nutrition.standards set current_version_id=v_new_version where id=v_standard and owner_id=v_owner;
 
   v_ref:=pg_catalog.jsonb_build_object('namespace','nutrition','type','standard','id',v_standard,'version',v_new_version);
