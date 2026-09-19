@@ -359,10 +359,16 @@ async function runSemanticConversation(
 
 async function executeAuthorizedDecision(authHeader: string, decision: Awaited<ReturnType<typeof authorizeStagedFulfillment>>) {
   if (!decision.command) throw new Error("AUTHORIZED_ADMISSION_COMMAND_MISSING");
-  if (decision.command.module !== "training" || decision.command.commandType !== "training.capture_strength_session") {
-    throw new Error(`UNSUPPORTED_DOMAIN_COMMAND:${decision.command.module}:${decision.command.commandType}`);
-  }
-  return await rpc<unknown>(authHeader, "wf_training_capture_strength_session", decision.command.args);
+  const key = `${decision.command.module}:${decision.command.commandType}`;
+  const rpcName = key === "training:training.capture_strength_session"
+    ? "wf_training_capture_strength_session"
+    : key === "direction:direction.create_node"
+      ? "wf_direction_create_node"
+      : key === "schedule:schedule.create_allocation"
+        ? "wf_schedule_create_allocation"
+        : null;
+  if (!rpcName) throw new Error(`UNSUPPORTED_DOMAIN_COMMAND:${key}`);
+  return await rpc<unknown>(authHeader, rpcName, decision.command.args);
 }
 
 async function confirmAdmission(authHeader: string, authUserId: string, proposalId: string) {
