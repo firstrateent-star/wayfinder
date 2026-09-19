@@ -213,7 +213,14 @@ const scenarios: Scenario[] = [
       const seen = new Set(result.compilation.graph.nodes.map((item) => item.concept));
       const findings: Finding[] = [];
       for (const concept of expected) if (!seen.has(concept)) findings.push(loss(`MULTI_${concept}_MISSED`, `${concept} was missing from multi-domain meaning.`));
-      if (result.compilation.graph.edges.length < 2) findings.push(loss("RELATIONS_MISSED", "Cross-domain chronology/relations were not sufficiently represented."));
+      const work = find(result, "WORK_ACTIVITY");
+      const run = find(result, "RUNNING");
+      const explicitAfter = work && run && result.compilation.graph.edges.some((edge) =>
+        edge.fromCandidateId === run.candidateId &&
+        edge.toCandidateId === work.candidateId &&
+        edge.relation === "AFTER"
+      );
+      if (!explicitAfter) findings.push(loss("EXPLICIT_AFTER_MISSED", "The source-supported RUNNING AFTER WORK_ACTIVITY relation was not preserved."));
       return findings;
     }
   },
@@ -275,6 +282,7 @@ for (const scenario of scenarios) {
       executedContextRequests: result.executedRequests.map((request) => ({ kind: request.kind, concepts: request.concepts ?? [], purpose: request.purpose })),
       nodes: result.compilation.graph.nodes.map((node) => ({ id: node.candidateId, concept: node.concept, subject: node.subject.kind, realityMode: node.realityMode, certainty: node.certainty })),
       routing: result.compilation.routing.map((route) => ({ candidateId: route.candidateId, route: route.route, reason: route.reason })),
+      edges: result.compilation.graph.edges.map((edge) => ({ fromCandidateId: edge.fromCandidateId, relation: edge.relation, toCandidateId: edge.toCandidateId })),
       validationErrors: result.compilation.validationErrors
     });
   } catch (error) {
