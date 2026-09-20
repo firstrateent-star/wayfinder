@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.6";
+  contract: "wayfinder-state.v0.7";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -120,7 +120,7 @@ export interface WayfinderStateRead {
   };
   skills: {
     projection_type: "skills";
-    rule_version: "skills_v0.3";
+    rule_version: "skills_v0.4";
     computed_at: string;
     configured_skill_count: number;
     observed_skill_count: number;
@@ -164,7 +164,9 @@ export interface WayfinderStateRead {
       capability: {
         state: "EVIDENCED" | "INSUFFICIENT_EVIDENCE" | "UNKNOWN";
         providerId: string | null;
-        evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | null;
+        evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | "COMPLETED_PRACTICE_OUTPUT" | null;
+        capabilityModel: "LOAD_REPS_PARETO_FRONTIER" | "COMPLETED_PRACTICE_OUTPUT" | null;
+        evidenceBasis: "PLAYER_CONFIRMED_COMPLETED_OUTPUT" | null;
         demonstrationCount: number | null;
         demonstratedSessionCount: number | null;
         demonstratedExerciseCount: number | null;
@@ -212,6 +214,30 @@ export interface WayfinderStateRead {
           source: {
             namespace: "training";
             type: "exercise_set";
+            id: string;
+            version: string;
+          };
+        }>;
+        creativeOutputs: Array<{
+          outputId: string;
+          outputVersion: string;
+          outputKind: "COMPLETED_ARTIFACT";
+          title: string;
+          externalUrl: string | null;
+          occurredAt: string;
+          recordedAt: string;
+          practice: {
+            id: string;
+            name: string;
+          };
+          sourceSession: {
+            id: string;
+            capturedVersion: string;
+            currentVersion: string;
+          };
+          source: {
+            namespace: "practice";
+            type: "output";
             id: string;
             version: string;
           };
@@ -270,6 +296,7 @@ export interface WayfinderStateRead {
     skillExperienceDoesNotAssertCapability: true;
     skillCapabilityRecomputed: true;
     skillCapabilityDoesNotAssertMastery: true;
+    creativeCapabilityRequiresConfirmedOutput: true;
     sharpnessDoesNotMutateExperience: true;
     requirementDefaultsInvented: false;
   };
