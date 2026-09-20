@@ -9,8 +9,10 @@ import {
   buildSkillsProjection,
   practiceSkillProvider,
   trainingStrengthSkillProvider,
+  trainingStrengthSkillCapabilityProvider,
   type PracticeSkillInputRead,
-  type TrainingStrengthSkillInputRead
+  type TrainingStrengthSkillInputRead,
+  type TrainingStrengthSkillCapabilityInputRead
 } from "../_shared/intelligence/skill-projection.ts";
 import { createWayfinderSkillConceptRegistryV0 } from "../_shared/intelligence/skill-association.ts";
 import type { QuestionMode } from "../_shared/intelligence/contracts.ts";
@@ -109,7 +111,7 @@ Deno.serve(async (req) => {
     const skillConcepts = createWayfinderSkillConceptRegistryV0();
     const musicProductionSkill = skillConcepts.get("creative.music_production")!;
     const drawingSkill = skillConcepts.get("creative.drawing")!;
-    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead, trainingVoyageRead, trainingSkillRead, musicProductionSkillRead, drawingSkillRead] = await Promise.all([
+    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead, trainingVoyageRead, trainingSkillRead, trainingSkillCapabilityRead, musicProductionSkillRead, drawingSkillRead] = await Promise.all([
       rpc<PersonRead>(authHeader, "wf_person_current_v0"),
       rpc<BodyRead>(authHeader, "wf_body_current_v0"),
       rpc<DirectionGraphRead>(authHeader, "wf_direction_current"),
@@ -132,6 +134,10 @@ Deno.serve(async (req) => {
         p_recent_limit: 25
       }),
       rpc<TrainingStrengthSkillInputRead>(authHeader, "wf_training_strength_skill_input_v0", {
+        p_as_of: computedAt,
+        p_recent_limit: 25
+      }),
+      rpc<TrainingStrengthSkillCapabilityInputRead>(authHeader, "wf_training_strength_skill_capability_input_v0", {
         p_as_of: computedAt,
         p_recent_limit: 25
       }),
@@ -205,13 +211,16 @@ Deno.serve(async (req) => {
           read: drawingSkillRead
         })
       ],
+      capabilityProviders: [
+        trainingStrengthSkillCapabilityProvider(trainingSkillCapabilityRead)
+      ],
       computedAt
     });
     const recomputation = planRecomputation(changeRead);
     const helm = buildHelmState({ position, bearing, direction: directionRead });
 
     return json({
-      contract: "wayfinder-state.v0.5",
+      contract: "wayfinder-state.v0.6",
       computed_at: computedAt,
       change_cursor: changeRead.cursor,
       recomputation,
@@ -236,6 +245,8 @@ Deno.serve(async (req) => {
         characterGrowthAsserted: character.facets.some((facet) => facet.growth.state === "EVIDENCED"),
         voyageXpDoesNotMutateCharacter: true,
         skillExperienceDoesNotAssertCapability: true,
+        skillCapabilityRecomputed: true,
+        skillCapabilityDoesNotAssertMastery: true,
         sharpnessDoesNotMutateExperience: true,
         requirementDefaultsInvented: false
       }
