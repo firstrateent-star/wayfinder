@@ -55,9 +55,44 @@ It returns:
 - distinct demonstrated session count;
 - distinct demonstrated exercise count;
 - first/last demonstrated occurrence;
+- exercise-specific load × reps Pareto frontiers;
 - bounded recent exact set/session lineage;
 - COMPLETE result coverage over the modeled phenomenon;
 - UNKNOWN epistemic coverage over total human capability.
+
+### Performance frontier
+
+Loads are normalized with the same governed constants used by `might_growth_v0.1`:
+
+```text
+canonical load unit = KG
+LB -> KG            = 0.45359237
+comparison quantum  = 0.5 kg
+```
+
+For one stable exercise identity, point A dominates point B only when:
+
+```text
+A.load >= B.load
+AND
+A.reps >= B.reps
+AND
+at least one is strictly greater
+```
+
+The capability representation is the set of non-dominated observations.
+
+Example:
+
+```text
+Barbell Bench Press
+
+185 lb × 8   frontier
+205 lb × 5   frontier
+185 lb × 5   dominated -> excluded
+```
+
+The first two remain simultaneously because neither dominates the other. A squat observation is represented on a separate squat frontier; Wayfinder does not compare it directly with bench press.
 
 ## Why all current history
 
@@ -83,10 +118,18 @@ Requires:
 ```text
 demonstration_count > 0
 AND
-at least one valid exact recent demonstration lineage item
+performance_model = LOAD_REPS_PARETO_FRONTIER
+AND
+valid governed load normalization
+AND
+frontier_point_count > 0
+AND
+frontier exercise count agrees with the aggregate
 ```
 
-This proves only a bounded demonstrated capability.
+The TypeScript projection independently removes dominated points even if a malformed provider response contains them.
+
+This proves only bounded, exercise-specific demonstrated capability.
 
 ### INSUFFICIENT_EVIDENCE
 
@@ -153,7 +196,10 @@ A Capability provider cannot silently create a Skill identity without a configur
 The first provider explicitly does not claim:
 
 - numeric Skill Level;
+- one overall Strength Training capability score;
 - Mastery;
+- direct comparability between unlike exercises;
+- measured or estimated one-repetition maximum;
 - whole-body strength;
 - physiological adaptation;
 - growth from capability alone;
@@ -167,7 +213,11 @@ lab/skill-capability-v0.1.test.ts
 
 Pressure cases include:
 
-- valid loaded repetition -> EVIDENCED;
+- valid loaded repetition frontier -> EVIDENCED;
+- non-dominated load/reps tradeoffs both survive;
+- dominated points are removed at the projection boundary;
+- positive counts with missing/incoherent frontier -> UNKNOWN;
+- aggregate/frontier exercise-count disagreement -> UNKNOWN;
 - complete zero -> INSUFFICIENT_EVIDENCE, not zero ability;
 - unknown read -> UNKNOWN;
 - positive bounded evidence with UNKNOWN lived coverage;
@@ -177,11 +227,34 @@ Pressure cases include:
 - duplicate Capability providers fail closed;
 - orphan Capability provider fails closed.
 
+## Live-schema rollback proof
+
+Before merge, the exact migration was installed inside a production-schema transaction with synthetic canonical Training history:
+
+```text
+Bench 185 lb × 8
+Bench 205 lb × 5
+Bench 185 lb × 5
+Squat 225 lb × 5
+```
+
+The authenticated RPC returned:
+
+```text
+Bench frontier = 185×8 + 205×5
+185×5          = excluded as dominated
+Squat           = independent frontier
+```
+
+The transaction then rolled back. The test function and all synthetic rows were verified absent afterward.
+
+This also caught and fixed a PostgreSQL special-syntax issue (`pg_catalog.coalesce` -> `coalesce`) before production migration.
+
 ## Next earned frontier
 
 After production:
 
-1. decide whether Strength Training Capability needs exercise-specific subskill projections rather than one broad Skill;
+1. observe whether exercise frontiers should later surface as subskills while keeping the broad Strength Training Skill as the parent experience concept;
 2. define a first evidence-backed Capability provider for a creative Skill only when objective/authorized output evidence exists;
 3. Flower Mastery from repeated capability across time, contexts, and difficulty only after capability breadth exists;
 4. defer Skill Level until Experience + Capability + Mastery semantics have enough real data.
