@@ -178,6 +178,32 @@ const scenarios: Scenario[] = [
     if (findAll(r,"RUNNING").some(n=>n.realityMode==="OCCURRED")) f.push(fabrication("COUNTERFACTUAL_BECAME_RUN","Counterfactual run became occurred."));
     return f;
   }),
+  scenario("planned-music-production-not-occurred", "I'm going to work on music production tomorrow from 2 to 3 PM.", (r) => {
+    const f:Finding[]=[];
+    const music=findAll(r,"MUSIC_PRODUCTION");
+    if (music.some(n=>n.subject.kind==="SELF" && n.realityMode==="OCCURRED")) {
+      f.push(fabrication("PLANNED_MUSIC_BECAME_OCCURRED","Planned Music Production became an occurred Practice event."));
+    }
+    if (admissionPlan(r).proposals.some(proposal=>proposal.owner==="practice" && proposal.claimType==="PRACTICE_SESSION")) {
+      f.push(fabrication("PLANNED_MUSIC_ADMITTED_AS_PRACTICE","Future Music Production plan became canonical Practice admission."));
+    }
+    if (!music.some(n=>["PLANNED","INTENDED","EXPECTED"].includes(n.realityMode))) {
+      f.push(loss("PLANNED_MUSIC_MEANING_MISSED","Future Music Production intent was not preserved as future meaning."));
+    }
+    return f;
+  }),
+  scenario("other-person-drawing-not-self-practice", "John drew from 2 to 3 PM today.", (r) => {
+    const f:Finding[]=[];
+    const drawings=findAll(r,"DRAWING");
+    if (!drawings.length) return [loss("OTHER_DRAWING_MISSED","John's Drawing event was not represented.")];
+    if (drawings.some(n=>n.subject.kind==="SELF")) {
+      f.push(fabrication("OTHER_DRAWING_BECAME_SELF","John's Drawing became the player's Practice."));
+    }
+    if (admissionPlan(r).proposals.some(proposal=>proposal.owner==="practice" && proposal.claimType==="PRACTICE_SESSION")) {
+      f.push(fabrication("OTHER_DRAWING_ADMITTED_AS_PLAYER_PRACTICE","Another person's Drawing became player Practice admission."));
+    }
+    return f;
+  }),
   scenario("future-plan", "I'll run tomorrow morning.", (r) => {
     const f:Finding[]=[];
     const runs=findAll(r,"RUNNING");
