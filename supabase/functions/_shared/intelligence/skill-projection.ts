@@ -41,6 +41,8 @@ export interface SkillCapabilityInputRead {
   first_demonstrated_at?: string | null;
   last_demonstrated_at?: string | null;
   performance_model?: "LOAD_REPS_PARETO_FRONTIER";
+  capability_model?: "COMPLETED_PRACTICE_OUTPUT";
+  evidence_basis?: "PLAYER_CONFIRMED_COMPLETED_OUTPUT";
   load_normalization?: {
     canonical_unit?: "KG";
     quantum_kg?: number;
@@ -61,6 +63,20 @@ export interface SkillCapabilityInputRead {
       set_id?: string;
       matching_observation_count?: number;
     }>;
+  }>;
+  recent_outputs?: Array<{
+    output_id?: string;
+    output_version?: string;
+    output_kind?: string;
+    title?: string;
+    external_url?: string | null;
+    practice_id?: string;
+    practice_name?: string;
+    source_session_id?: string;
+    captured_source_session_version?: string;
+    current_source_session_version?: string;
+    occurred_at?: string;
+    recorded_at?: string;
   }>;
   recent_demonstrations?: Array<{
     session_id?: string;
@@ -88,6 +104,7 @@ export interface SkillCapabilityInputRead {
 export type TrainingStrengthSkillInputRead = SkillExperienceInputRead;
 export type PracticeSkillInputRead = SkillExperienceInputRead;
 export type TrainingStrengthSkillCapabilityInputRead = SkillCapabilityInputRead;
+export type PracticeOutputSkillCapabilityInputRead = SkillCapabilityInputRead;
 
 export type SkillSharpnessMode =
   | "UNKNOWN"
@@ -120,7 +137,7 @@ export interface SkillCapabilityProviderInput {
   skillKey: string;
   label: string;
   providerId: string;
-  evidenceClass: "LOADED_REPETITION_DEMONSTRATION";
+  evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | "COMPLETED_PRACTICE_OUTPUT";
   read: SkillCapabilityInputRead;
 }
 
@@ -161,6 +178,31 @@ export interface SkillCapabilityExerciseFrontier {
   exerciseKey: string;
   exerciseLabel: string;
   points: SkillCapabilityFrontierPoint[];
+}
+
+export interface SkillCapabilityOutput {
+  outputId: string;
+  outputVersion: string;
+  outputKind: "COMPLETED_ARTIFACT";
+  title: string;
+  externalUrl: string | null;
+  occurredAt: string;
+  recordedAt: string;
+  practice: {
+    id: string;
+    name: string;
+  };
+  sourceSession: {
+    id: string;
+    capturedVersion: string;
+    currentVersion: string;
+  };
+  source: {
+    namespace: "practice";
+    type: "output";
+    id: string;
+    version: string;
+  };
 }
 
 export interface SkillCapabilityDemonstration {
@@ -209,7 +251,9 @@ export interface SkillProjection {
   capability: {
     state: "EVIDENCED" | "INSUFFICIENT_EVIDENCE" | "UNKNOWN";
     providerId: string | null;
-    evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | null;
+    evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | "COMPLETED_PRACTICE_OUTPUT" | null;
+    capabilityModel: "LOAD_REPS_PARETO_FRONTIER" | "COMPLETED_PRACTICE_OUTPUT" | null;
+    evidenceBasis: "PLAYER_CONFIRMED_COMPLETED_OUTPUT" | null;
     demonstrationCount: number | null;
     demonstratedSessionCount: number | null;
     demonstratedExerciseCount: number | null;
@@ -224,6 +268,7 @@ export interface SkillProjection {
     firstDemonstratedAt: string | null;
     lastDemonstratedAt: string | null;
     recentDemonstrations: SkillCapabilityDemonstration[];
+    creativeOutputs: SkillCapabilityOutput[];
     resultCoverage: "COMPLETE" | "UNKNOWN";
     epistemicCoverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
     note: string;
@@ -239,7 +284,7 @@ export interface SkillProjection {
 
 export interface SkillsProjection {
   projection_type: "skills";
-  rule_version: "skills_v0.3";
+  rule_version: "skills_v0.4";
   computed_at: string;
   configured_skill_count: number;
   observed_skill_count: number;
@@ -364,6 +409,72 @@ function recentCapabilityDemonstrations(
   return result.sort((a, b) =>
     Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
     a.setId.localeCompare(b.setId)
+  );
+}
+
+function recentCreativeOutputs(
+  provider: SkillCapabilityProviderInput
+): SkillCapabilityOutput[] {
+  const seen = new Set<string>();
+  const outputs: SkillCapabilityOutput[] = [];
+
+  for (const row of provider.read.recent_outputs ?? []) {
+    const externalUrl =
+      row.external_url == null
+        ? null
+        : typeof row.external_url === "string" && /^https?:\/\/\S+$/i.test(row.external_url.trim())
+          ? row.external_url.trim()
+          : undefined;
+
+    if (
+      !row.output_id?.trim() ||
+      !row.output_version?.trim() ||
+      row.output_kind !== "COMPLETED_ARTIFACT" ||
+      !row.title?.trim() ||
+      externalUrl === undefined ||
+      !row.practice_id?.trim() ||
+      !row.practice_name?.trim() ||
+      !row.source_session_id?.trim() ||
+      !row.captured_source_session_version?.trim() ||
+      !row.current_source_session_version?.trim() ||
+      !validIso(row.occurred_at) ||
+      !validIso(row.recorded_at)
+    ) {
+      continue;
+    }
+
+    if (seen.has(row.output_id)) continue;
+    seen.add(row.output_id);
+
+    outputs.push({
+      outputId: row.output_id,
+      outputVersion: row.output_version,
+      outputKind: "COMPLETED_ARTIFACT",
+      title: row.title.trim(),
+      externalUrl,
+      occurredAt: row.occurred_at,
+      recordedAt: row.recorded_at,
+      practice: {
+        id: row.practice_id,
+        name: row.practice_name
+      },
+      sourceSession: {
+        id: row.source_session_id,
+        capturedVersion: row.captured_source_session_version,
+        currentVersion: row.current_source_session_version
+      },
+      source: {
+        namespace: "practice",
+        type: "output",
+        id: row.output_id,
+        version: row.output_version
+      }
+    });
+  }
+
+  return outputs.sort((a, b) =>
+    Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
+    a.outputId.localeCompare(b.outputId)
   );
 }
 
@@ -537,6 +648,8 @@ function unknownCapability(note: string): SkillProjection["capability"] {
     state: "UNKNOWN",
     providerId: null,
     evidenceClass: null,
+    capabilityModel: null,
+    evidenceBasis: null,
     demonstrationCount: null,
     demonstratedSessionCount: null,
     demonstratedExerciseCount: null,
@@ -547,6 +660,7 @@ function unknownCapability(note: string): SkillProjection["capability"] {
     firstDemonstratedAt: null,
     lastDemonstratedAt: null,
     recentDemonstrations: [],
+    creativeOutputs: [],
     resultCoverage: "UNKNOWN",
     epistemicCoverage: "UNKNOWN",
     note,
@@ -557,12 +671,149 @@ function unknownCapability(note: string): SkillProjection["capability"] {
   };
 }
 
+function buildCompletedOutputCapability(
+  provider: SkillCapabilityProviderInput,
+  skillLabel: string
+): SkillProjection["capability"] {
+  const resultCoverage = provider.read.result_coverage?.completeness === "COMPLETE"
+    ? "COMPLETE"
+    : "UNKNOWN";
+  const demonstrationCount = nonNegativeInteger(provider.read.demonstrated_observation_count)
+    ? provider.read.demonstrated_observation_count
+    : null;
+  const demonstratedSessionCount = nonNegativeInteger(provider.read.demonstrated_session_count)
+    ? provider.read.demonstrated_session_count
+    : null;
+  const creativeOutputs = recentCreativeOutputs(provider);
+  const capabilityModel = provider.read.capability_model === "COMPLETED_PRACTICE_OUTPUT"
+    ? "COMPLETED_PRACTICE_OUTPUT"
+    : null;
+  const evidenceBasis = provider.read.evidence_basis === "PLAYER_CONFIRMED_COMPLETED_OUTPUT"
+    ? "PLAYER_CONFIRMED_COMPLETED_OUTPUT"
+    : null;
+  const firstDemonstratedAt = validIso(provider.read.first_demonstrated_at)
+    ? provider.read.first_demonstrated_at
+    : null;
+  const lastDemonstratedAt = validIso(provider.read.last_demonstrated_at)
+    ? provider.read.last_demonstrated_at
+    : null;
+  const epistemicCoverage = provider.read.epistemic_coverage?.completeness ?? "UNKNOWN";
+
+  const evidenced =
+    demonstrationCount !== null &&
+    demonstrationCount > 0 &&
+    capabilityModel === "COMPLETED_PRACTICE_OUTPUT" &&
+    evidenceBasis === "PLAYER_CONFIRMED_COMPLETED_OUTPUT" &&
+    creativeOutputs.length > 0 &&
+    demonstrationCount >= creativeOutputs.length;
+
+  if (evidenced) {
+    return {
+      state: "EVIDENCED",
+      providerId: provider.providerId,
+      evidenceClass: provider.evidenceClass,
+      capabilityModel,
+      evidenceBasis,
+      demonstrationCount,
+      demonstratedSessionCount,
+      demonstratedExerciseCount: null,
+      performanceModel: null,
+      loadNormalization: null,
+      frontierPointCount: null,
+      exerciseFrontiers: [],
+      firstDemonstratedAt,
+      lastDemonstratedAt,
+      recentDemonstrations: [],
+      creativeOutputs,
+      resultCoverage,
+      epistemicCoverage,
+      note:
+        "Player-confirmed completed outputs provide bounded evidence that the player has completed " +
+        skillLabel +
+        " work. This demonstrates completion capability, not artistic quality or mastery.",
+      doesNotAssert: [
+        "creative quality",
+        "originality",
+        "commercial success",
+        "Mastery",
+        "a numeric Skill Level",
+        "that completed-output count ranks creative ability",
+        "complete human capability coverage"
+      ]
+    };
+  }
+
+  if (resultCoverage === "COMPLETE" && demonstrationCount === 0) {
+    return {
+      state: "INSUFFICIENT_EVIDENCE",
+      providerId: provider.providerId,
+      evidenceClass: provider.evidenceClass,
+      capabilityModel,
+      evidenceBasis,
+      demonstrationCount: 0,
+      demonstratedSessionCount: demonstratedSessionCount ?? 0,
+      demonstratedExerciseCount: null,
+      performanceModel: null,
+      loadNormalization: null,
+      frontierPointCount: null,
+      exerciseFrontiers: [],
+      firstDemonstratedAt: null,
+      lastDemonstratedAt: null,
+      recentDemonstrations: [],
+      creativeOutputs: [],
+      resultCoverage,
+      epistemicCoverage,
+      note:
+        "No current canonical completed Practice Output is recorded for this Skill. That is insufficient evidence for this capability projection, not evidence of zero ability.",
+      doesNotAssert: [
+        "zero ability",
+        "that no unrecorded creative outputs exist",
+        "creative quality",
+        "Mastery"
+      ]
+    };
+  }
+
+  return {
+    state: "UNKNOWN",
+    providerId: provider.providerId,
+    evidenceClass: provider.evidenceClass,
+    capabilityModel,
+    evidenceBasis,
+    demonstrationCount,
+    demonstratedSessionCount,
+    demonstratedExerciseCount: null,
+    performanceModel: null,
+    loadNormalization: null,
+    frontierPointCount: null,
+    exerciseFrontiers: [],
+    firstDemonstratedAt,
+    lastDemonstratedAt,
+    recentDemonstrations: [],
+    creativeOutputs,
+    resultCoverage,
+    epistemicCoverage,
+    note:
+      "Creative capability remains unknown because the governed output read cannot establish coherent completed-output evidence or complete zero.",
+    doesNotAssert: [
+      "zero ability",
+      "creative quality",
+      "Mastery",
+      "complete human capability coverage"
+    ]
+  };
+}
+
 function buildCapability(
   provider: SkillCapabilityProviderInput | undefined,
   skillLabel: string
 ): SkillProjection["capability"] {
   if (!provider) {
     return unknownCapability("No governed capability provider exists for " + skillLabel + " yet.");
+  }
+
+  if (provider.evidenceClass === "COMPLETED_PRACTICE_OUTPUT") {
+    return buildCompletedOutputCapability(provider, skillLabel);
   }
 
   const resultCoverage = provider.read.result_coverage?.completeness === "COMPLETE"
@@ -620,6 +871,8 @@ function buildCapability(
       state: "EVIDENCED",
       providerId: provider.providerId,
       evidenceClass: provider.evidenceClass,
+      capabilityModel: "LOAD_REPS_PARETO_FRONTIER",
+      evidenceBasis: null,
       demonstrationCount,
       demonstratedSessionCount,
       demonstratedExerciseCount,
@@ -630,6 +883,7 @@ function buildCapability(
       firstDemonstratedAt,
       lastDemonstratedAt,
       recentDemonstrations,
+      creativeOutputs: [],
       resultCoverage,
       epistemicCoverage,
       note:
@@ -655,6 +909,8 @@ function buildCapability(
       state: "INSUFFICIENT_EVIDENCE",
       providerId: provider.providerId,
       evidenceClass: provider.evidenceClass,
+      capabilityModel: performanceModel,
+      evidenceBasis: null,
       demonstrationCount: 0,
       demonstratedSessionCount: demonstratedSessionCount ?? 0,
       demonstratedExerciseCount: demonstratedExerciseCount ?? 0,
@@ -665,6 +921,7 @@ function buildCapability(
       firstDemonstratedAt: null,
       lastDemonstratedAt: null,
       recentDemonstrations: [],
+      creativeOutputs: [],
       resultCoverage,
       epistemicCoverage,
       note:
@@ -681,6 +938,8 @@ function buildCapability(
     state: "UNKNOWN",
     providerId: provider.providerId,
     evidenceClass: provider.evidenceClass,
+    capabilityModel: performanceModel,
+    evidenceBasis: null,
     demonstrationCount,
     demonstratedSessionCount,
     demonstratedExerciseCount,
@@ -691,6 +950,7 @@ function buildCapability(
     firstDemonstratedAt,
     lastDemonstratedAt,
     recentDemonstrations,
+    creativeOutputs: [],
     resultCoverage,
     epistemicCoverage,
     note:
@@ -816,7 +1076,7 @@ export function buildSkillsProjection(input: {
 
   return {
     projection_type: "skills",
-    rule_version: "skills_v0.3",
+    rule_version: "skills_v0.4",
     computed_at: input.computedAt,
     configured_skill_count: skills.length,
     observed_skill_count: skills.filter((skill) => skill.state === "OBSERVED").length,
@@ -873,6 +1133,21 @@ export function practiceSkillProvider(input: {
     sourceNamespace: "practice",
     sourceType: "session",
     encounterKeyPrefix: "practice:session",
+    read: input.read
+  };
+}
+
+
+export function practiceOutputSkillCapabilityProvider(input: {
+  skillKey: string;
+  label: string;
+  read: PracticeOutputSkillCapabilityInputRead;
+}): SkillCapabilityProviderInput {
+  return {
+    skillKey: input.skillKey,
+    label: input.label,
+    providerId: "practice.completed-output-skill-capability-provider.v0.1",
+    evidenceClass: "COMPLETED_PRACTICE_OUTPUT",
     read: input.read
   };
 }
