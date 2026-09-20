@@ -67,5 +67,17 @@ export function createWayfinderProjectionProviderRegistryV0() {
       projection: "SKILLS",
       dependsOnModules: ["training"],
       provides: ["physical.strength_training:EXPERIENCE", "physical.strength_training:SHARPNESS"]
+    })
+    .register({
+      id: "practice.name-skill-provider.v0.1",
+      version: "0.1",
+      projection: "SKILLS",
+      dependsOnModules: ["practice"],
+      provides: [
+        "creative.music_production:EXPERIENCE",
+        "creative.music_production:SHARPNESS",
+        "creative.drawing:EXPERIENCE",
+        "creative.drawing:SHARPNESS"
+      ]
     });
 }
