@@ -83,6 +83,26 @@ Deno.test("Training change invalidates Requirements, Character, Voyage Progressi
   );
 });
 
+
+Deno.test("Practice change invalidates Bearing, Skills, Helm, and Navigator context without mutating Character or Voyage", () => {
+  const plan = planRecomputation(changeRead({
+    changes: [{
+      id: "33333333-5555-4333-8333-333333333333",
+      module_id: "practice",
+      change_type: "practice.session.created",
+      committed_at: "2026-09-19T22:02:45.000Z"
+    }],
+    matching_change_count: 1
+  }));
+  assert(plan.invalidated.includes("BEARING"), "Practice remains evidence for Direction Bearing");
+  assert(plan.invalidated.includes("SKILLS"), "Practice should invalidate Skill Experience and Sharpness");
+  assert(plan.invalidated.includes("HELM"), "Practice should invalidate Helm composition");
+  assert(plan.invalidated.includes("NAVIGATOR_CONTEXT"), "Practice should invalidate Navigator context");
+  assert(!plan.invalidated.includes("CHARACTER"), "Practice has no permanent Character provider in this slice");
+  assert(!plan.invalidated.includes("PROGRESSION"), "generic Practice does not automatically award Voyage XP");
+  assert(!plan.invalidated.includes("REQUIREMENTS"), "generic Practice has no Requirement provider in this slice");
+});
+
 Deno.test("partial ModuleChange window conservatively invalidates every projection", () => {
   const plan = planRecomputation(changeRead({
     changes: [{

@@ -412,6 +412,30 @@ export function createNutritionStandardAdmissionPlanningPolicy(): DomainAdmissio
   };
 }
 
+export function createPracticeAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
+  return {
+    id: "practice.admission-planning.v0.1",
+    version: "0.1",
+    owner: "practice",
+    claimTypes: ["PRACTICE_SESSION"],
+    assess(node) {
+      if (node.subject.kind !== "SELF") {
+        return { disposition: "SESSION_ONLY", reason: `PRACTICE_SUBJECT_NOT_PLAYER:${node.subject.kind}` };
+      }
+      if (node.nodeType !== "EVENT") {
+        return { disposition: "SESSION_ONLY", reason: `PRACTICE_NODE_NOT_EVENT:${node.nodeType}` };
+      }
+      if (node.realityMode !== "OCCURRED") {
+        return { disposition: "SESSION_ONLY", reason: `PRACTICE_REALITY_NOT_OCCURRED:${node.realityMode}` };
+      }
+      if (!["MUSIC_PRODUCTION", "DRAWING"].includes(node.concept)) {
+        return { disposition: "SESSION_ONLY", reason: `PRACTICE_CONCEPT_NOT_GOVERNED:${node.concept}` };
+      }
+      return { disposition: "ELIGIBLE", reason: "GOVERNED_CREATIVE_PRACTICE_ELIGIBLE_FOR_DOMAIN_ADMISSION" };
+    }
+  };
+}
+
 export function createDirectionAdmissionPlanningPolicy(): DomainAdmissionPlanningPolicy {
   return {
     id: "direction.admission-planning.v0.1",
@@ -466,6 +490,7 @@ export function createWayfinderAdmissionPlanningRegistryV0() {
   return new AdmissionPlanningPolicyRegistry()
     .register(createTrainingAdmissionPlanningPolicy())
     .register(createTrainingStandardAdmissionPlanningPolicy())
+    .register(createPracticeAdmissionPlanningPolicy())
     .register(createDirectionAdmissionPlanningPolicy())
     .register(createScheduleAdmissionPlanningPolicy())
     .register(createNutritionAdmissionPlanningPolicy())

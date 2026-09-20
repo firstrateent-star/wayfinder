@@ -368,6 +368,8 @@ async function executeAuthorizedDecision(authHeader: string, decision: Awaited<R
         ? "wf_schedule_create_allocation"
         : key === "nutrition:nutrition.capture_intake"
           ? "wf_nutrition_capture_intake"
+          : key === "practice:practice.capture_session"
+            ? "wf_practice_capture_session"
           : key === "training:training.set_strength_standard"
             ? "wf_training_set_strength_standard_v0"
             : key === "nutrition:nutrition.set_protein_standard"
