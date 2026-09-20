@@ -28,14 +28,14 @@ Strength Training is the first Skill with structured performance evidence strong
      - governed LB/KG unit;
      - exact session/set lineage.
 
-3. **No numerical capability score is introduced.**
-   - v0.1 reports bounded evidence presence and breadth:
-     - demonstration count;
-     - demonstrated session count;
-     - demonstrated exercise count;
-     - first/last demonstrated occurrence;
-     - bounded recent exact demonstrations.
-   - It does not transform those observations into a Skill Level, rating, percentile, estimated strength class, or Mastery score.
+3. **Strength capability is represented as exercise-specific demonstrated performance frontiers, not one score.**
+   - Each qualifying loaded-repetition observation is normalized to the same 0.5 kg load quantum already used by `might_growth_v0.1`.
+   - For each stable `exercise_key`, v0.1 preserves the non-dominated load × reps Pareto frontier.
+   - A point dominates another only when load is at least as high and reps are at least as high, with one strictly higher.
+   - Tradeoffs such as 185 lb × 8 and 205 lb × 5 may both remain frontier points.
+   - Performances from different exercises are never placed on one shared frontier.
+   - v0.1 also reports demonstration/session/exercise counts, first/last occurrence, and bounded recent exact demonstrations.
+   - It does not transform those observations into a Skill Level, rating, percentile, estimated one-repetition maximum, overall-strength score, or Mastery score.
 
 4. **Capability uses all current canonical history, not the 90-day Character window.**
    - A demonstrated capability must not disappear merely because its evidence becomes older than a recent-analysis window.
@@ -49,12 +49,18 @@ Strength Training is the first Skill with structured performance evidence strong
    - One valid demonstration can prove that the demonstrated act occurred.
    - It cannot establish complete coverage of the person's human capability.
 
-7. **Current canonical corrections remain authoritative.**
+7. **The projection validates frontier coherence independently of the database aggregate.**
+   - A positive aggregate without a valid frontier fails closed to `UNKNOWN`.
+   - A mismatch between the reported demonstrated-exercise count and the reconstructed frontier exercise count fails closed.
+   - Dominated points are removed again at the TypeScript projection boundary.
+   - This prevents a malformed provider response from silently becoming a stronger capability claim.
+
+8. **Current canonical corrections remain authoritative.**
    - Capability remains reconstructable.
    - If underlying canonical Training evidence is corrected or retracted, the projection may change.
    - No permanent Capability award ledger is introduced.
 
-8. **Practice-derived Skills remain UNKNOWN until they earn their own provider.**
+9. **Practice-derived Skills remain UNKNOWN until they earn their own provider.**
    - Music Production Experience does not prove Music Production Capability.
    - Drawing Experience does not prove Drawing Capability.
 
@@ -66,6 +72,9 @@ current canonical Training session
  + reps > 0
  + load > 0
  + unit LB | KG
+        |
+        v
+exercise-specific load × reps frontier
         |
         v
 Strength Training Capability
@@ -98,8 +107,9 @@ without contradiction.
 v0.1 does not add:
 
 - Skill Level;
-- capability score;
+- a single capability score;
 - estimated one-repetition maximum;
+- direct comparison between unlike exercises;
 - whole-body strength score;
 - Mastery;
 - Role/Class;
