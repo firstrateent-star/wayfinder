@@ -85,7 +85,7 @@ begin
   ),
   gaps as (
     select
-      pg_catalog.extract(epoch from (occurred_from - previous_occurred_from))::numeric as gap_seconds
+      extract(epoch from (occurred_from - previous_occurred_from))::numeric as gap_seconds
     from ordered
     where previous_occurred_from is not null
       and occurred_from > previous_occurred_from
