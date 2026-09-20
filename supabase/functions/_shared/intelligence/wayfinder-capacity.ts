@@ -112,6 +112,9 @@ export function createWayfinderCapacityV0() {
         { concept: "ENERGY_STATE", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "COMMUNICATION", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "WORK_ACTIVITY", facets: ["RECOGNIZE", "REPRESENT"] },
+        { concept: "CREATIVE_PRACTICE", facets: ["RECOGNIZE", "REPRESENT"], notes: "Creative Practice may be understood without granting generic persistence." },
+        { concept: "MUSIC_PRODUCTION", facets: ["RECOGNIZE", "REPRESENT"] },
+        { concept: "DRAWING", facets: ["RECOGNIZE", "REPRESENT"] },
         { concept: "PERSON", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
         { concept: "PROJECT", facets: ["RECOGNIZE", "RESOLVE", "REPRESENT"] },
         { concept: "DIRECTION_INTENT", facets: ["RECOGNIZE", "REPRESENT"] },
@@ -142,6 +145,27 @@ export function createWayfinderCapacityV0() {
       requirementMetricsProvided: ["strength_session_count"],
       characterMappingsProvided: ["Might:EXPOSURE", "Might:CAPABILITY"],
       emittedChanges: ["training.session.recorded", "training.standard_changed"]
+    })
+    .register({
+      domainId: "practice",
+      version: "0.1",
+      concepts: [
+        {
+          concept: "MUSIC_PRODUCTION",
+          facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+          claimTypes: ["PRACTICE_SESSION"],
+          notes: "Occurred Music Production sessions may be stored in the canonical Practice module after confirmation."
+        },
+        {
+          concept: "DRAWING",
+          facets: ["RECOGNIZE", "REPRESENT", "PERSIST", "SURFACE"],
+          claimTypes: ["PRACTICE_SESSION"],
+          notes: "Occurred Drawing sessions may be stored in the canonical Practice module after confirmation."
+        }
+      ],
+      claimTypesOwned: ["PRACTICE_SESSION"],
+      contextReadsProvided: ["practice.recent", "practice.catalog"],
+      emittedChanges: ["practice.session.created", "practice.session.corrected"]
     })
     .register({
       domainId: "direction",
