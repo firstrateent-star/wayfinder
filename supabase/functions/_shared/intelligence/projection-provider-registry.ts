@@ -86,5 +86,15 @@ export function createWayfinderProjectionProviderRegistryV0() {
         "creative.drawing:EXPERIENCE",
         "creative.drawing:SHARPNESS"
       ]
+    })
+    .register({
+      id: "practice.completed-output-skill-capability-provider.v0.1",
+      version: "0.1",
+      projection: "SKILLS",
+      dependsOnModules: ["practice"],
+      provides: [
+        "creative.music_production:CAPABILITY",
+        "creative.drawing:CAPABILITY"
+      ]
     });
 }
