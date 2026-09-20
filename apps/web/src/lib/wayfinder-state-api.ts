@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.6";
+  contract: "wayfinder-state.v0.7";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -92,23 +92,25 @@ export interface WayfinderStateRead {
   };
   progression: {
     projection_type: "voyage_progression";
-    rule_version: "voyage_progression_v0.1";
+    rule_version: "voyage_progression_v0.2";
     state: "AVAILABLE" | "UNKNOWN";
     voyage_xp: number | null;
     encounter_count: number | null;
     xp_unit: "ONE_PER_UNIQUE_CANONICAL_ENCOUNTER";
     configured_providers: Array<{
-      id: "training.strength-session-encounter.v0.1";
-      domain: "training";
-      encounterKind: "TRAINING_STRENGTH_SESSION";
+      id: string;
+      domain: "training" | "practice";
+      encounterKind: "TRAINING_STRENGTH_SESSION" | "GOVERNED_PRACTICE_SESSION";
+      encounterKeyPrefix: string;
       xpPerEncounter: 1;
+      encounterCount: number | null;
       status: "AVAILABLE" | "UNKNOWN";
     }>;
     recent_encounters: Array<{
       encounterKey: string;
-      encounterKind: "TRAINING_STRENGTH_SESSION";
-      providerId: "training.strength-session-encounter.v0.1";
-      domain: "training";
+      encounterKind: "TRAINING_STRENGTH_SESSION" | "GOVERNED_PRACTICE_SESSION";
+      providerId: string;
+      domain: "training" | "practice";
       xp: 1;
       occurredAt: string;
       label: string | null;
