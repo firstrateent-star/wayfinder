@@ -69,6 +69,13 @@ export function createWayfinderProjectionProviderRegistryV0() {
       provides: ["physical.strength_training:EXPERIENCE", "physical.strength_training:SHARPNESS"]
     })
     .register({
+      id: "training.strength-skill-capability-provider.v0.1",
+      version: "0.1",
+      projection: "SKILLS",
+      dependsOnModules: ["training"],
+      provides: ["physical.strength_training:CAPABILITY"]
+    })
+    .register({
       id: "practice.name-skill-provider.v0.1",
       version: "0.1",
       projection: "SKILLS",
