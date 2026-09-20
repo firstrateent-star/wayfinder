@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Character Skills Surface v0.1  
-**Current phase:** The evidence-backed Skill model is now player-facing in merged source: Character can show Experience, Sharpness, and Capability without inventing levels; the backend is live while Vercel production web promotion remains quota-blocked  
+**Current milestone:** Practice Output + Creative Capability v0.1  
+**Current phase:** Practice now owns player-confirmed completed Outputs; Skills v0.4 projects bounded creative completion Capability for Music Production and Drawing while preserving Experience, Sharpness, Capability, Growth, and Mastery as separate claims  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -23,7 +23,8 @@
 **Practice Skill Association:** `docs/42-practice-skill-association-v0.1.md`  
 **Skill Capability:** `docs/43-skill-capability-v0.1.md`  
 **Character Skills Surface:** `docs/44-character-skills-surface-v0.1.md`  
-**Latest ADR:** `decisions/ADR-047-skill-capability-is-demonstrated-evidence.md`
+**Practice Output + Creative Capability:** `docs/45-practice-output-creative-capability-v0.1.md`  
+**Latest ADR:** `decisions/ADR-048-practice-output-is-bounded-creative-capability-evidence.md`
 
 ## Non-negotiable direction
 
@@ -51,6 +52,9 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - Skill Experience does not decay; Sharpness may change with time without mutating history;
 - Skill Experience and Sharpness do not prove Capability or Mastery;
 - Skill Capability is demonstrated ability evidence, not a score; Strength capability preserves exercise-specific load × reps frontiers;
+- Practice owns completed creative Outputs; Skills interpret them rather than owning the canonical fact;
+- a completed Practice Output may evidence bounded completion Capability but not creative quality, originality, commercial success, Mastery, or Skill Level;
+- correcting/reclassifying a source Practice session must never silently move creative Capability between Skills; explicit Output rebase is required;
 - Sharpness may decay while demonstrated Capability remains evidenced;
 - Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
@@ -670,37 +674,44 @@ No decay job writes anything. Time passing can change Sharpness while Experience
 
 ### Current Skill Capability layer
 
-The first governed Skill Capability provider is live:
+Wayfinder now has two governed Capability evidence models:
 
 ```text
-current canonical loaded-repetition Training history
- -> stable exercise identity
- -> LB/KG normalization to 0.5 kg quantum
- -> exercise-specific load × reps Pareto frontier
- -> Strength Training Capability
+Strength Training
+  current canonical loaded-repetition history
+   -> exercise-specific load × reps Pareto frontier
+   -> bounded Strength Capability
+
+Music Production / Drawing
+  player-confirmed canonical Practice Output
+   -> COMPLETED_PRACTICE_OUTPUT
+   -> bounded creative completion Capability
 ```
 
-`skills_v0.3` now keeps:
+`skills_v0.4` keeps:
 
 ```text
 Experience   governed practice history
 Sharpness    recency relative to personal cadence
-Capability   demonstrated ability evidence
+Capability   domain-specific demonstrated ability evidence
 Mastery      NOT_EVALUATED
 ```
 
-Current production has no qualifying loaded-repetition demonstrations, so Strength Training Capability is honestly `INSUFFICIENT_EVIDENCE`; Music Production and Drawing remain Capability `UNKNOWN` because no governed performance provider exists for them.
+Current production has no qualifying loaded-repetition demonstrations and no confirmed creative Outputs. Therefore Strength Training, Music Production, and Drawing each honestly resolve to Capability `INSUFFICIENT_EVIDENCE` under their respective complete modeled reads. None of those states means zero human ability.
+
+Practice Output is canonical and versioned. Skill Capability remains reconstructable. A source-session Practice reclassification invalidates the Output's Skill contribution until the player explicitly rebases/corrects the Output, preventing silent movement between creative Skill identities.
 
 ### Strongest next build
 
-The trustworthy Skill model is now surfaced on the merged Character route. The next earned frontier is **real-player validation plus the next evidence source**, not another invented RPG layer:
+The next earned frontier is **Practice Output lifecycle visibility and Journey integration**:
 
-1. promote the merged Character surface when the Vercel daily quota resets;
-2. test the page with real current states: Music Production / Drawing Experience, cadence-unestablished Sharpness, and Strength Capability `INSUFFICIENT_EVIDENCE`;
-3. refine copy/layout only from observed player friction, keeping unknown states intact;
-4. choose the first creative Capability provider only when Wayfinder has objective or explicitly authorized output evidence strong enough to support one;
-5. keep Mastery, Skill Level, Role/Class, rankings, and challenge multipliers deferred;
-6. leave new live-model semantic expansion gated until the external OpenAI API-credit gate can execute again.
+1. add an owner-scoped canonical Practice Output read independent of Skill eligibility;
+2. distinguish CURRENT, STALE_SOURCE_VERSION, PRACTICE_MISMATCH, and RETRACTED/other lifecycle states without deleting history;
+3. let the player find and repair/rebase an Output even when it temporarily contributes to no Skill;
+4. add Practice Output creation/correction to Journey so canonical creative results appear in the one-life-history timeline;
+5. keep Skill Capability derived from only currently usable Output evidence;
+6. promote the merged Character surface when Vercel quota permits and validate the real player flow;
+7. keep Mastery, Skill Level, Role/Class, rankings, and new model-dependent semantic expansion deferred.
 
 **Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
@@ -922,3 +933,38 @@ backend production    wayfinder-state ACTIVE v8
 The surface reads the existing evidence-backed Skill projection and keeps Experience, Sharpness, and Capability visually distinct. It does not introduce Skill Level, Mastery, ratings, or synthetic progress bars. Strength exercise frontiers are only shown when evidence exists; unknown and insufficient-evidence states remain explicit.
 
 The Vercel deployment is externally blocked by the free-tier daily deployment quota (`api-deployments-free-per-day`). Source/build is green; production browser promotion is pending quota availability.
+
+
+### Practice Output + Creative Capability production closure — 2026-09-19
+
+PR #21 merged at `5076ca9f19b2e9c3b888d4714695a82d17e4a25b`.
+
+```text
+Wayfinder Intelligence CI                  PASS
+Practice Output creative Capability suite  PASS
+Wayfinder Web CI                           PASS
+navigator-chat                             ACTIVE v24
+wayfinder-state                            ACTIVE v9
+state contract                             wayfinder-state.v0.7
+skills projection                          skills_v0.4
+```
+
+Production migration `add_practice_output_capability_v0` is applied as version `20260920011830`.
+
+New canonical Practice substrate:
+
+```text
+wf_practice.outputs
+wf_practice.output_versions
+wf_practice_capture_output
+wf_practice_correct_output
+wf_practice_output_skill_capability_input_v0
+```
+
+The live current-account creative reads are COMPLETE over stored qualifying Outputs and currently report zero Music Production and zero Drawing completed Outputs, with total human-capability coverage UNKNOWN. Accordingly both creative Skills now have a governed provider but begin at `INSUFFICIENT_EVIDENCE`, never zero ability.
+
+A rollback-backed production-schema proof verified command retry/idempotency, correction, stale-write rejection, source-session reclassification invalidation, explicit Output rebase, Skill movement only after explicit rebase, and full rollback cleanup.
+
+Production execute permissions are authenticated-only; anon/public are denied. The three changed `wayfinder-state` runtime files match merge `5076ca9f` byte-for-byte.
+
+The Character source contains explicit completed-Output capture and completed-output evidence rendering. Web CI is green, but Vercel browser production promotion remains externally blocked by the daily free-tier deployment quota.
