@@ -23,6 +23,7 @@ import { directionAdmissionContract, type DirectionNodeCandidatePayload, type Di
 import { scheduleAdmissionContract, type ScheduleAllocationCandidatePayload, type ScheduleAllocationKind } from "./schedule-semantic.ts";
 import { nutritionAdmissionContract, type NutritionIntakeCandidatePayload, type NutritionItemCandidate, type NutritionPrecision, type NutritionTotalsCandidate } from "./nutrition-semantic.ts";
 import { trainingStrengthStandardAdmissionContract, nutritionProteinStandardAdmissionContract, type TrainingStrengthStandardPayload, type NutritionProteinStandardPayload } from "./standard-semantic.ts";
+import { practiceAdmissionContract, type PracticeSessionCandidatePayload } from "./practice-semantic.ts";
 
 export type FulfillmentDisposition =
   | "READY_FOR_CONFIRMATION"
@@ -385,6 +386,142 @@ async function lowerTraining(input: FulfillmentAdapterInput): Promise<AdmissionF
 
 function firstText(node: CandidateLifeNode, ...names: string[]) {
   return strings(field(node, ...names)?.value)[0];
+}
+
+function practiceNameForConcept(node: CandidateLifeNode) {
+  if (node.concept === "MUSIC_PRODUCTION") return "Music Production";
+  if (node.concept === "DRAWING") return "Drawing";
+  return undefined;
+}
+
+function practiceTemporalPrecision(node: CandidateLifeNode) {
+  if (node.temporal?.precision === "EXACT") return "INSTANT" as const;
+  if (node.temporal?.precision === "APPROXIMATE") return "HOUR" as const;
+  return null;
+}
+
+async function lowerPractice(input: FulfillmentAdapterInput): Promise<AdmissionFulfillmentItem> {
+  const { proposal, node, compilation } = input;
+  const practiceName = practiceNameForConcept(node);
+  if (!practiceName) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "SESSION_ONLY",
+      reason: "PRACTICE_CONCEPT_NOT_GOVERNED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const from = node.temporal?.interval?.from;
+  const to = node.temporal?.interval?.to;
+  const precision = practiceTemporalPrecision(node);
+  if (
+    !from ||
+    !to ||
+    !precision ||
+    !Number.isFinite(Date.parse(from)) ||
+    !Number.isFinite(Date.parse(to)) ||
+    Date.parse(to) <= Date.parse(from)
+  ) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: `What time did that ${practiceName.toLowerCase()} session start and end? A rough range is enough.`,
+      reason: "PRACTICE_EXACT_OR_APPROXIMATE_INTERVAL_REQUIRED",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const durationSeconds = Math.round((Date.parse(to) - Date.parse(from)) / 1000);
+  const focus = firstText(node, "focus", "workedOn", "worked_on", "project", "details");
+  const payload: PracticeSessionCandidatePayload = {
+    practiceName,
+    occurredFrom: from,
+    occurredTo: to,
+    fromPrecision: precision,
+    toPrecision: precision,
+    zoneId: compilation.source.zoneId ?? "UTC",
+    durationSeconds,
+    ...(focus ? { focus } : {})
+  };
+
+  const candidate: SemanticCandidate<PracticeSessionCandidatePayload> = {
+    candidateId: proposal.candidateId,
+    claimType: proposal.claimType,
+    proposedOwner: proposal.owner,
+    sourceId: compilation.source.sourceId,
+    extractionConfidence: node.certainty === "HIGH" ? 0.95 : node.certainty === "MEDIUM" ? 0.75 : 0.55,
+    payload
+  };
+  const registry = new AdmissionRegistry().register(practiceAdmissionContract);
+  const admitted = await runSemanticAdmission(
+    { sourceId: compilation.source.sourceId, candidates: [candidate], relations: [] },
+    registry,
+    {
+      now: compilation.source.receivedAt,
+      source: { ...compilation.source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
+    }
+  );
+  const decision = admitted.decisions[0];
+  if (!decision) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "REJECT",
+      reason: "PRACTICE_ADMISSION_DECISION_MISSING",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: "NEEDS_CLARIFICATION",
+      question: decision.informationNeed?.questionIntent ?? "Practice needs one more detail before it can accept this.",
+      reason: decision.reason ?? "PRACTICE_NEEDS_CLARIFICATION",
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+  if (decision.disposition !== "NEEDS_AUTHORIZATION" || !decision.normalized) {
+    return {
+      proposalId: proposal.proposalId,
+      candidateId: node.candidateId,
+      owner: proposal.owner,
+      claimType: proposal.claimType,
+      disposition: decision.disposition === "SESSION_ONLY" ? "SESSION_ONLY" : "REJECT",
+      reason: decision.reason ?? `PRACTICE_UNEXPECTED_ADMISSION_DISPOSITION:${decision.disposition}`,
+      semanticContextRefs: proposal.contextRefs
+    };
+  }
+
+  const normalized = decision.normalized as PracticeSessionCandidatePayload;
+  const minutes = Math.max(1, Math.round(normalized.durationSeconds / 60));
+  return {
+    proposalId: proposal.proposalId,
+    candidateId: node.candidateId,
+    owner: proposal.owner,
+    claimType: proposal.claimType,
+    disposition: "READY_FOR_CONFIRMATION",
+    summary: `${normalized.practiceName} — ${minutes} min practice session.`,
+    reason: "PRACTICE_DOMAIN_ADMISSION_NEEDS_AUTHORIZATION",
+    normalizedPayload: normalized,
+    sourceContext: {
+      sourceId: compilation.source.sourceId,
+      receivedAt: compilation.source.receivedAt,
+      zoneId: normalized.zoneId
+    },
+    semanticContextRefs: proposal.contextRefs
+  };
 }
 
 function sourceTitle(node: CandidateLifeNode) {
@@ -1068,6 +1205,16 @@ export function createScheduleFulfillmentAdapter(): DomainFulfillmentAdapter {
   };
 }
 
+export function createPracticeFulfillmentAdapter(): DomainFulfillmentAdapter {
+  return {
+    id: "practice.admission-fulfillment.v0.1",
+    version: "0.1",
+    owner: "practice",
+    claimTypes: ["PRACTICE_SESSION"],
+    lower: lowerPractice
+  };
+}
+
 export function createTrainingFulfillmentAdapter(): DomainFulfillmentAdapter {
   return {
     id: "training.admission-fulfillment.v0.1",
@@ -1082,6 +1229,7 @@ export function createWayfinderFulfillmentRegistryV0() {
   return new AdmissionFulfillmentRegistry()
     .register(createTrainingFulfillmentAdapter())
     .register(createTrainingStandardFulfillmentAdapter())
+    .register(createPracticeFulfillmentAdapter())
     .register(createDirectionFulfillmentAdapter())
     .register(createScheduleFulfillmentAdapter())
     .register(createNutritionFulfillmentAdapter())
@@ -1180,6 +1328,7 @@ export async function authorizeStagedFulfillment(envelope: StagedAdmissionEnvelo
   const registry = new AdmissionRegistry()
     .register(trainingAdmissionContract)
     .register(trainingStrengthStandardAdmissionContract)
+    .register(practiceAdmissionContract)
     .register(directionAdmissionContract)
     .register(scheduleAdmissionContract)
     .register(nutritionAdmissionContract)
