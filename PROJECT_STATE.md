@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Skill Experience + Sharpness v0.1  
-**Current phase:** governed Training encounters now reconstruct Voyage Experience and Strength Training Skill Experience independently; Sharpness is cadence-aware and time-derived while Character capability/growth remain separate evidence claims  
+**Current milestone:** Governed Practice Skill Association v0.1  
+**Current phase:** Skills now compose provider-owned encounter streams from Training and canonical Practice; Music Production and Drawing are live Practice-derived Skill projections, and Navigator can stage confirmed Practice capture without giving the model progression authority  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -20,7 +20,8 @@
 **Might growth evidence:** `docs/39-might-growth-evidence-v0.1.md`  
 **Voyage Progression:** `docs/40-voyage-progression-v0.1.md`  
 **Skill Experience + Sharpness:** `docs/41-skill-experience-sharpness-v0.1.md`  
-**Latest ADR:** `decisions/ADR-045-skill-experience-sharpness-separate-from-capability-mastery.md`
+**Practice Skill Association:** `docs/42-practice-skill-association-v0.1.md`  
+**Latest ADR:** `decisions/ADR-046-practice-identity-separate-from-skill-association.md`
 
 ## Non-negotiable direction
 
@@ -822,3 +823,34 @@ Production migration `add_strength_skill_experience_input_v0` is applied. The au
 No Skill table, Skill Level, Skill XP point ledger, persisted Sharpness, decay job, Capability score, Mastery score, Role/Class, or AI-controlled progression was added. Sharpness is reconstructed from current time plus the median positive interval of current canonical Strength Training encounters.
 
 The backend state now exposes Skills. The player UI source contract accepts `wayfinder-state.v0.4`, but this slice does not yet add a dedicated visible Skill screen/card.
+
+
+### Governed Practice Skill Association production closure — 2026-09-19
+
+PR #17 merged at `e0865409`; migration syntax fix PR #18 merged at corrected main `c61f081c`.
+
+Production now runs:
+
+```text
+navigator-chat       ACTIVE v24
+wayfinder-state      ACTIVE v7
+state contract       wayfinder-state.v0.5
+skills projection    skills_v0.2
+Practice association practice.name-skill-provider.v0.1
+```
+
+Live governed Skills now include:
+
+```text
+physical.strength_training
+creative.music_production
+creative.drawing
+```
+
+Canonical Practice identities remain untouched. Exact normalized aliases only affect the reconstructable Skill projection. Existing production history currently supplies one Music Production encounter and one Drawing encounter, both below the cadence-establishment threshold.
+
+Navigator can recognize governed Music Production / Drawing occurrences, stage a Practice proposal, require explicit confirmation, and execute the existing `wf_practice_capture_session` command. Planned activity, other-person activity, vague timing, unregistered Practice names, and semantic Skill proposals cannot directly mint Skill Experience.
+
+Merged-main Intelligence and Web CI are green. The real-model Semantic Live Eval could not execute because the configured OpenAI API account returned HTTP 429 no-credits errors for all scenarios; do not treat that workflow as a model-quality pass.
+
+**Next earned frontier:** first governed Skill Capability projection, beginning with Strength Training because loaded-repetition capability evidence already exists.
