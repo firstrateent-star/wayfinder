@@ -4,6 +4,7 @@ import type {
   HelmRead,
   JourneyRead,
   OwnerBootstrap,
+  PracticeOutputsRead,
   PersonCurrentRead
 } from "@/lib/wayfinder-types";
 
@@ -88,7 +89,7 @@ export async function getJourney(input: {
   to: string;
   limit?: number;
 }): Promise<JourneyRead> {
-  return rpc<JourneyRead>("wf_journey_v0", {
+  return rpc<JourneyRead>("wf_journey_v1", {
     p_from: input.from,
     p_to: input.to,
     p_limit: input.limit ?? 100
@@ -253,6 +254,16 @@ export async function attachFulfillmentEvidence(input: {
   });
 }
 
+
+export async function getPracticeOutputs(input: {
+  asOf?: string;
+  limit?: number;
+} = {}): Promise<PracticeOutputsRead> {
+  return rpc<PracticeOutputsRead>("wf_practice_outputs_v0", {
+    p_as_of: input.asOf ?? new Date().toISOString(),
+    p_limit: input.limit ?? 100
+  });
+}
 
 export async function capturePracticeOutput(input: {
   sourceSessionId: string;
