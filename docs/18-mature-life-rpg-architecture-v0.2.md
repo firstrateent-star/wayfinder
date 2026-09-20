@@ -592,10 +592,27 @@ These are projections, not canonical quest truth.
 These remain derived by default.
 
 ### Skill
-Evidence-backed capability pattern across activities/results.
+A stable game/knowledge concept used to organize governed practice and evidence. A Skill is not itself a canonical Person fact.
+
+A Skill projection keeps at least four axes separate:
+
+```text
+Experience  = governed practice history
+Sharpness   = current recency/cadence projection
+Capability  = demonstrated ability
+Mastery     = depth / reliability / transferability
+```
+
+Experience and Sharpness may be reconstructable from governed encounter history. Capability and Mastery require stronger evidence and must not be inferred from encounter count alone.
+
+### Skill Experience
+Counts unique governed encounter + Skill identity contributions. Experience does not decay merely because time passes.
+
+### Sharpness
+A temporal projection of how current the Skill is relative to evidenced personal practice cadence. Sharpness may cool without erasing Experience or proving capability loss.
 
 ### Mastery
-Depth/reliability of a Skill projection.
+Depth/reliability/transferability of a Skill projection. Mastery is not equivalent to accumulated encounter count.
 
 ### Role/Class
 Higher-order cluster over demonstrated skills and repeated behavior. Not chosen during onboarding by default.
@@ -635,7 +652,9 @@ canonical evidence
 
 One lived event may contribute to both paths, but the consequences are not interchangeable. Requirement satisfaction and richer logging detail do not automatically create XP, and Voyage XP never mutates permanent Character facets.
 
-See ADR-044 and `docs/40-voyage-progression-v0.1.md`.
+A governed encounter may also contribute to a Skill Experience projection when a stable Skill association exists. Skill Experience does not prove Capability, and Sharpness describes temporal recency/cadence rather than permanent ability.
+
+See ADR-044, ADR-045, `docs/40-voyage-progression-v0.1.md`, and `docs/41-skill-experience-sharpness-v0.1.md`.
 
 ## Strength growth + nutrition interaction
 
