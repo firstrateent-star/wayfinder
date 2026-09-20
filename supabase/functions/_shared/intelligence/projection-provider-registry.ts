@@ -1,4 +1,4 @@
-export type ProviderProjection = "REQUIREMENTS" | "CHARACTER" | "PROGRESSION";
+export type ProviderProjection = "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "SKILLS";
 
 export interface ProjectionProviderDescriptor {
   id: string;
@@ -60,5 +60,12 @@ export function createWayfinderProjectionProviderRegistryV0() {
       projection: "PROGRESSION",
       dependsOnModules: ["training"],
       provides: ["TRAINING_STRENGTH_SESSION:VOYAGE_XP"]
+    })
+    .register({
+      id: "training.strength-skill-provider.v0.1",
+      version: "0.1",
+      projection: "SKILLS",
+      dependsOnModules: ["training"],
+      provides: ["physical.strength_training:EXPERIENCE", "physical.strength_training:SHARPNESS"]
     });
 }

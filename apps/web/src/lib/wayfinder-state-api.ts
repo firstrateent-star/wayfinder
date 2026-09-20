@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.3";
+  contract: "wayfinder-state.v0.4";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -118,6 +118,52 @@ export interface WayfinderStateRead {
     epistemic_coverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
     does_not_assert: string[];
   };
+  skills: {
+    projection_type: "skills";
+    rule_version: "skills_v0.1";
+    computed_at: string;
+    configured_skill_count: 1;
+    observed_skill_count: number;
+    skills: Array<{
+      skillKey: "physical.strength_training";
+      label: "Strength Training";
+      association: {
+        mode: "DETERMINISTIC";
+        providerId: "training.strength-skill-provider.v0.1";
+      };
+      state: "OBSERVED" | "UNOBSERVED" | "UNKNOWN";
+      experience: {
+        unit: "UNIQUE_GOVERNED_ENCOUNTER";
+        encounterCount: number | null;
+        firstEvidencedAt: string | null;
+        lastEvidencedAt: string | null;
+        recentEncounters: Array<{
+          encounterKey: string;
+          skillExperienceKey: string;
+          occurredAt: string;
+          source: {
+            namespace: "training";
+            type: "session";
+            id: string;
+            version: string;
+          };
+        }>;
+      };
+      sharpness: {
+        mode: "UNKNOWN" | "UNOBSERVED" | "RECENCY_ONLY" | "CADENCE_AWARE";
+        state: "UNKNOWN" | "UNOBSERVED" | "UNESTABLISHED" | "SHARP" | "WARM" | "COOL" | "DORMANT";
+        currentGapSeconds: number | null;
+        typicalIntervalSeconds: number | null;
+        cadenceSampleCount: number;
+        cadenceRatio: number | null;
+      };
+      capability: { state: "UNKNOWN"; note: string };
+      mastery: { state: "NOT_EVALUATED"; note: string };
+      epistemicCoverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
+      doesNotAssert: string[];
+    }>;
+    does_not_assert: string[];
+  };
   bearing: WayfinderBearingRead;
   guidance_candidates: Array<{
     signalId: string;
@@ -154,8 +200,12 @@ export interface WayfinderStateRead {
     characterRecomputed: true;
     progressionRecomputed: true;
     progressionPersisted: false;
+    skillsRecomputed: true;
+    skillsPersisted: false;
     characterGrowthAsserted: boolean;
     voyageXpDoesNotMutateCharacter: true;
+    skillExperienceDoesNotAssertCapability: true;
+    sharpnessDoesNotMutateExperience: true;
     requirementDefaultsInvented: false;
   };
 }

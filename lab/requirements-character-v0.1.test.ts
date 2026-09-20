@@ -43,8 +43,8 @@ Deno.test("projection providers declare actual module dependencies", () => {
   const trainingTargets = registry.affectedProjectionTargets(["training"]).sort();
   const nutritionTargets = registry.affectedProjectionTargets(["nutrition"]).sort();
   assert(
-    trainingTargets.join(",") === "CHARACTER,PROGRESSION,REQUIREMENTS",
-    "Training should independently feed Requirements, Character, and Voyage Progression"
+    trainingTargets.join(",") === "CHARACTER,PROGRESSION,REQUIREMENTS,SKILLS",
+    "Training should independently feed Requirements, Character, Voyage Progression, and Skills"
   );
   assert(nutritionTargets.join(",") === "REQUIREMENTS", "Nutrition should feed Requirements only in Character v0.1");
 });
