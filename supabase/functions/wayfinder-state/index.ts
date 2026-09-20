@@ -4,7 +4,13 @@ import { planRecomputation, type ModuleChangeRead } from "../_shared/intelligenc
 import { buildHelmState, type BearingRead, type DirectionGraphRead } from "../_shared/intelligence/wayfinder-state-service.ts";
 import { buildRequirementsProjection, type RequirementInputRead } from "../_shared/intelligence/requirement-providers.ts";
 import { buildCharacterProjection, type TrainingCharacterRead } from "../_shared/intelligence/character-projection.ts";
-import { buildVoyageProgression, type TrainingVoyageProgressionInputRead } from "../_shared/intelligence/voyage-progression.ts";
+import {
+  buildVoyageProgression,
+  practiceVoyageProvider,
+  trainingVoyageProvider,
+  type PracticeVoyageProgressionInputRead,
+  type TrainingVoyageProgressionInputRead
+} from "../_shared/intelligence/voyage-progression.ts";
 import {
   buildSkillsProjection,
   practiceSkillProvider,
@@ -111,7 +117,10 @@ Deno.serve(async (req) => {
     const skillConcepts = createWayfinderSkillConceptRegistryV0();
     const musicProductionSkill = skillConcepts.get("creative.music_production")!;
     const drawingSkill = skillConcepts.get("creative.drawing")!;
-    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead, trainingVoyageRead, trainingSkillRead, trainingSkillCapabilityRead, musicProductionSkillRead, drawingSkillRead] = await Promise.all([
+    const governedPracticeVoyageAliases = [...new Set(
+      skillConcepts.list().flatMap((skill) => skillConcepts.practiceAliasesFor(skill.skillKey))
+    )];
+    const [personRead, bodyRead, directionRead, scheduleRead, bearing, changeRead, trainingRequirement, nutritionRequirement, trainingCharacterRead, trainingVoyageRead, practiceVoyageRead, trainingSkillRead, trainingSkillCapabilityRead, musicProductionSkillRead, drawingSkillRead] = await Promise.all([
       rpc<PersonRead>(authHeader, "wf_person_current_v0"),
       rpc<BodyRead>(authHeader, "wf_body_current_v0"),
       rpc<DirectionGraphRead>(authHeader, "wf_direction_current"),
@@ -130,6 +139,11 @@ Deno.serve(async (req) => {
         p_limit: 100
       }),
       rpc<TrainingVoyageProgressionInputRead>(authHeader, "wf_training_voyage_progression_input_v0", {
+        p_as_of: computedAt,
+        p_recent_limit: 25
+      }),
+      rpc<PracticeVoyageProgressionInputRead>(authHeader, "wf_practice_skill_input_v0", {
+        p_normalized_practice_names: governedPracticeVoyageAliases,
         p_as_of: computedAt,
         p_recent_limit: 25
       }),
@@ -194,7 +208,10 @@ Deno.serve(async (req) => {
       computedAt
     });
     const progression = buildVoyageProgression({
-      training: trainingVoyageRead,
+      providers: [
+        trainingVoyageProvider(trainingVoyageRead),
+        practiceVoyageProvider(practiceVoyageRead)
+      ],
       computedAt
     });
     const skills = buildSkillsProjection({
@@ -220,7 +237,7 @@ Deno.serve(async (req) => {
     const helm = buildHelmState({ position, bearing, direction: directionRead });
 
     return json({
-      contract: "wayfinder-state.v0.6",
+      contract: "wayfinder-state.v0.7",
       computed_at: computedAt,
       change_cursor: changeRead.cursor,
       recomputation,
