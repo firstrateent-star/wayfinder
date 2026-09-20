@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { Compass } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { CharacterCreationPage } from "@/pages/CharacterCreationPage";
+import { CharacterPage } from "@/pages/CharacterPage";
 import { HelmPage } from "@/pages/HelmPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { getCurrentPerson } from "@/lib/wayfinder-rpc";
@@ -73,6 +74,7 @@ function PlayerRoutes() {
         }
       />
       <Route path="/helm" element={hasPerson ? <HelmPage /> : <Navigate to="/create-character" replace />} />
+      <Route path="/character" element={hasPerson ? <CharacterPage /> : <Navigate to="/create-character" replace />} />
       <Route path="/journey" element={<Navigate to={hasPerson ? "/helm" : "/create-character"} replace />} />
       <Route path="*" element={<Navigate to={hasPerson ? "/helm" : "/create-character"} replace />} />
     </Routes>
