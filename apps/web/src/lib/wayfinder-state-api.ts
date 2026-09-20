@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.4";
+  contract: "wayfinder-state.v0.5";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -120,16 +120,16 @@ export interface WayfinderStateRead {
   };
   skills: {
     projection_type: "skills";
-    rule_version: "skills_v0.1";
+    rule_version: "skills_v0.2";
     computed_at: string;
-    configured_skill_count: 1;
+    configured_skill_count: number;
     observed_skill_count: number;
     skills: Array<{
-      skillKey: "physical.strength_training";
-      label: "Strength Training";
+      skillKey: string;
+      label: string;
       association: {
-        mode: "DETERMINISTIC";
-        providerId: "training.strength-skill-provider.v0.1";
+        mode: "DETERMINISTIC_DOMAIN" | "GOVERNED_PRACTICE_ALIAS";
+        providerId: string;
       };
       state: "OBSERVED" | "UNOBSERVED" | "UNKNOWN";
       experience: {
@@ -142,10 +142,14 @@ export interface WayfinderStateRead {
           skillExperienceKey: string;
           occurredAt: string;
           source: {
-            namespace: "training";
+            namespace: "training" | "practice";
             type: "session";
             id: string;
             version: string;
+          };
+          practice?: {
+            id: string;
+            name: string;
           };
         }>;
       };
