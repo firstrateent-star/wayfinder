@@ -26,7 +26,11 @@ Initial rules:
 - `PRACTICE_SESSION` → `time_basis=OCCURRED`, `timeline_at=occurred_from`;
 - Direction creation/relationship → `time_basis=RECORDED`, `timeline_at=recorded_at`;
 - Evidence creation → `time_basis=RECORDED`, `timeline_at=recorded_at`;
-- PracticeSession correction → `time_basis=RECORDED`, `timeline_at=new_version.recorded_at`.
+- PracticeSession correction → `time_basis=RECORDED`, `timeline_at=new_version.recorded_at`;
+- Practice Output creation → `time_basis=RECORDED`, `timeline_at=first_output_version.recorded_at`;
+- Practice Output correction → `time_basis=RECORDED`, `timeline_at=new_output_version.recorded_at`.
+
+Practice Output v0.1 does not store an independent exact completion instant. Journey preserves the source PracticeSession occurrence in lineage rather than pretending that occurrence time is the Output's exact completion time.
 
 A shared visual timeline may sort these timestamps together for navigation, but the projection and UI must not imply that occurrence time and record time have identical semantics.
 

@@ -1,7 +1,7 @@
-# Wayfinder Journey v0.1
+# Wayfinder Journey v0.2
 
-**Status:** CANDIDATE-STABLE — DEPLOYED, BROWSER GATE PENDING  
-**Projection:** `wf_journey_v0(from,to,limit)`  
+**Status:** v0.1 DEPLOYED / v0.2 IMPLEMENTED ON BRANCH — PRODUCTION GATE PENDING  
+**Projection:** `wf_journey_v1(from,to,limit)`  
 **Route:** `/journey`
 
 ## Product question
@@ -20,7 +20,7 @@ Journey is a reconstruction over selected canonical records. It should feel huma
 
 ```text
 CANONICAL MODULES
-Direction · Practice · Evidence
+Direction · Practice · Practice Output · Evidence
           ↓
    Journey projection
           ↓
@@ -89,7 +89,7 @@ It does not mean:
 
 > Nothing happened.
 
-## Included item families v0.1
+## Included item families v0.2
 
 ### `PRACTICE_SESSION`
 
@@ -107,6 +107,35 @@ Returns:
 - duration;
 - occurrence range and timezone;
 - recorded time.
+
+### `PRACTICE_OUTPUT_RECORDED`
+
+Layer: `RESULT`  
+Time basis: `RECORDED`  
+Timeline anchor: first Practice Output version `recorded_at`
+
+Represents the recording of one canonical completed Practice Output.
+
+Journey does **not** substitute the source PracticeSession's occurrence time as an exact Output-completion timestamp. The source session's occurrence remains available inside lineage.
+
+Returns:
+
+- exact first Output ref;
+- title / optional evidence URL;
+- Practice identity at recording;
+- exact source-session ref + source occurrence context;
+- current Output state when still resolvable.
+
+### `PRACTICE_OUTPUT_CORRECTED`
+
+Layer: `CORRECTION`  
+Time basis: `RECORDED`
+
+Represents one supersession transition between exact Practice Output versions.
+
+It exposes changed fields plus before/after title, URL, Practice, and source-session version.
+
+A correction never becomes another completed-work item.
 
 ### `DIRECTION_RECORDED`
 
@@ -200,7 +229,7 @@ The first Journey screen provides:
 
 - 7 / 30 / 90 day scopes;
 - grouped calendar-day timeline;
-- Reality / Direction / Evidence / Correction visual distinctions;
+- Reality / Result / Direction / Evidence / Correction visual distinctions;
 - explicit `Occurred` vs `Recorded` labels;
 - current vs historical exact Evidence lineage;
 - correction context;
@@ -222,7 +251,7 @@ The layer counts at the top are counts of **returned Journey items**, not scores
 
 ## Stress evidence
 
-The first rollback stress pass proved:
+The original rollback stress pass proved:
 
 ```text
 corrected PracticeSession
@@ -248,3 +277,35 @@ Human browser gate remains:
 3. attach Evidence in Helm and observe it appear in Journey;
 4. correct the source PracticeSession and observe both correction + historical lineage;
 5. Flower the lived experience before adding narrative intelligence or Character dependence.
+
+
+## v0.2 Practice Output extension
+
+Journey v0.2 composes the deployed v0.1 Journey substrate with canonical Practice Output creation/correction.
+
+The production-schema rollback proof for v0.2 established:
+
+```text
+one logical completed Output
+-> one PRACTICE_OUTPUT_RECORDED item
+
+Output correction
+-> one PRACTICE_OUTPUT_CORRECTED item
+-> no duplicate completed work
+
+source-session same-Practice correction
+-> source version becomes historical
+-> Output remains usable
+
+source-session Practice reclassification
+-> Output becomes PRACTICE_MISMATCH
+-> no automatic Skill movement
+
+explicit Output rebase
+-> current alignment restored
+-> another correction record preserved
+```
+
+Output creation and correction are placed by `RECORDED` time because Practice Output v0.1 has no independent exact completion timestamp.
+
+See ADR-049 and `docs/46-practice-output-lifecycle-journey-v0.1.md`.
