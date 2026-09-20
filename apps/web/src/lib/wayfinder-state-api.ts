@@ -39,7 +39,7 @@ export interface FocusBranchNode {
 }
 
 export interface WayfinderStateRead {
-  contract: "wayfinder-state.v0.5";
+  contract: "wayfinder-state.v0.6";
   computed_at: string;
   change_cursor: WayfinderChangeCursor | null;
   recomputation: {
@@ -120,7 +120,7 @@ export interface WayfinderStateRead {
   };
   skills: {
     projection_type: "skills";
-    rule_version: "skills_v0.2";
+    rule_version: "skills_v0.3";
     computed_at: string;
     configured_skill_count: number;
     observed_skill_count: number;
@@ -161,7 +161,38 @@ export interface WayfinderStateRead {
         cadenceSampleCount: number;
         cadenceRatio: number | null;
       };
-      capability: { state: "UNKNOWN"; note: string };
+      capability: {
+        state: "EVIDENCED" | "INSUFFICIENT_EVIDENCE" | "UNKNOWN";
+        providerId: string | null;
+        evidenceClass: "LOADED_REPETITION_DEMONSTRATION" | null;
+        demonstrationCount: number | null;
+        demonstratedSessionCount: number | null;
+        demonstratedExerciseCount: number | null;
+        firstDemonstratedAt: string | null;
+        lastDemonstratedAt: string | null;
+        recentDemonstrations: Array<{
+          sessionId: string;
+          sessionVersion: string;
+          setId: string;
+          exerciseKey: string;
+          exerciseLabel: string;
+          reps: number;
+          loadValue: number;
+          loadUnit: "LB" | "KG";
+          rpe: number | null;
+          occurredAt: string;
+          source: {
+            namespace: "training";
+            type: "exercise_set";
+            id: string;
+            version: string;
+          };
+        }>;
+        resultCoverage: "COMPLETE" | "UNKNOWN";
+        epistemicCoverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
+        note: string;
+        doesNotAssert: string[];
+      };
       mastery: { state: "NOT_EVALUATED"; note: string };
       epistemicCoverage: "UNKNOWN" | "PARTIAL" | "COMPLETE";
       doesNotAssert: string[];
@@ -209,6 +240,8 @@ export interface WayfinderStateRead {
     characterGrowthAsserted: boolean;
     voyageXpDoesNotMutateCharacter: true;
     skillExperienceDoesNotAssertCapability: true;
+    skillCapabilityRecomputed: true;
+    skillCapabilityDoesNotAssertMastery: true;
     sharpnessDoesNotMutateExperience: true;
     requirementDefaultsInvented: false;
   };
