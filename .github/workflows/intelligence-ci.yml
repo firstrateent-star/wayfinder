@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "supabase/functions/_shared/intelligence/**"
+      - "supabase/migrations/**"
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
@@ -40,6 +41,7 @@ on:
   pull_request:
     paths:
       - "supabase/functions/_shared/intelligence/**"
+      - "supabase/migrations/**"
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
