@@ -40,6 +40,28 @@ export interface SkillCapabilityInputRead {
   demonstrated_exercise_count?: number;
   first_demonstrated_at?: string | null;
   last_demonstrated_at?: string | null;
+  performance_model?: "LOAD_REPS_PARETO_FRONTIER";
+  load_normalization?: {
+    canonical_unit?: "KG";
+    quantum_kg?: number;
+    kg_per_lb?: number;
+  };
+  exercise_frontiers?: Array<{
+    exercise_key?: string;
+    exercise_label?: string;
+    points?: Array<{
+      reps?: number;
+      load_value?: number;
+      load_unit?: string;
+      normalized_load_kg?: number;
+      rpe?: number | null;
+      occurred_at?: string;
+      session_id?: string;
+      session_version?: string;
+      set_id?: string;
+      matching_observation_count?: number;
+    }>;
+  }>;
   recent_demonstrations?: Array<{
     session_id?: string;
     session_version?: string;
@@ -49,6 +71,7 @@ export interface SkillCapabilityInputRead {
     reps?: number;
     load_value?: number;
     load_unit?: string;
+    normalized_load_kg?: number;
     rpe?: number | null;
     occurred_at?: string;
   }>;
@@ -117,6 +140,29 @@ export interface SkillExperienceEncounter {
   };
 }
 
+export interface SkillCapabilityFrontierPoint {
+  reps: number;
+  loadValue: number;
+  loadUnit: "LB" | "KG";
+  normalizedLoadKg: number;
+  rpe: number | null;
+  occurredAt: string;
+  matchingObservationCount: number;
+  source: {
+    namespace: "training";
+    type: "exercise_set";
+    id: string;
+    version: string;
+    sessionId: string;
+  };
+}
+
+export interface SkillCapabilityExerciseFrontier {
+  exerciseKey: string;
+  exerciseLabel: string;
+  points: SkillCapabilityFrontierPoint[];
+}
+
 export interface SkillCapabilityDemonstration {
   sessionId: string;
   sessionVersion: string;
@@ -126,6 +172,7 @@ export interface SkillCapabilityDemonstration {
   reps: number;
   loadValue: number;
   loadUnit: "LB" | "KG";
+  normalizedLoadKg: number | null;
   rpe: number | null;
   occurredAt: string;
   source: {
@@ -166,6 +213,14 @@ export interface SkillProjection {
     demonstrationCount: number | null;
     demonstratedSessionCount: number | null;
     demonstratedExerciseCount: number | null;
+    performanceModel: "LOAD_REPS_PARETO_FRONTIER" | null;
+    loadNormalization: {
+      canonicalUnit: "KG";
+      quantumKg: number;
+      kgPerLb: number;
+    } | null;
+    frontierPointCount: number | null;
+    exerciseFrontiers: SkillCapabilityExerciseFrontier[];
     firstDemonstratedAt: string | null;
     lastDemonstratedAt: string | null;
     recentDemonstrations: SkillCapabilityDemonstration[];
@@ -292,6 +347,9 @@ function recentCapabilityDemonstrations(
       reps: row.reps,
       loadValue: row.load_value,
       loadUnit: row.load_unit,
+      normalizedLoadKg: positiveFinite(row.normalized_load_kg)
+        ? row.normalized_load_kg
+        : null,
       rpe: Number.isFinite(row.rpe) ? (row.rpe as number) : null,
       occurredAt: row.occurred_at,
       source: {
@@ -307,6 +365,88 @@ function recentCapabilityDemonstrations(
     Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
     a.setId.localeCompare(b.setId)
   );
+}
+
+function strictlyDominatesCapabilityPoint(
+  a: SkillCapabilityFrontierPoint,
+  b: SkillCapabilityFrontierPoint
+) {
+  return (
+    a.normalizedLoadKg >= b.normalizedLoadKg &&
+    a.reps >= b.reps &&
+    (a.normalizedLoadKg > b.normalizedLoadKg || a.reps > b.reps)
+  );
+}
+
+function capabilityFrontiers(
+  provider: SkillCapabilityProviderInput
+): SkillCapabilityExerciseFrontier[] {
+  const frontiers: SkillCapabilityExerciseFrontier[] = [];
+
+  for (const raw of provider.read.exercise_frontiers ?? []) {
+    const exerciseKey = raw.exercise_key?.trim();
+    const exerciseLabel = raw.exercise_label?.trim();
+    if (!exerciseKey || !exerciseLabel) continue;
+
+    const points: SkillCapabilityFrontierPoint[] = [];
+    const seen = new Set<string>();
+
+    for (const row of raw.points ?? []) {
+      if (
+        !nonNegativeInteger(row.reps) ||
+        row.reps <= 0 ||
+        !positiveFinite(row.load_value) ||
+        (row.load_unit !== "LB" && row.load_unit !== "KG") ||
+        !positiveFinite(row.normalized_load_kg) ||
+        !validIso(row.occurred_at) ||
+        !row.session_id?.trim() ||
+        !row.session_version?.trim() ||
+        !row.set_id?.trim()
+      ) {
+        continue;
+      }
+
+      const matchingObservationCount = nonNegativeInteger(row.matching_observation_count) &&
+          row.matching_observation_count > 0
+        ? row.matching_observation_count
+        : 1;
+      const key = [row.normalized_load_kg, row.reps].join(":");
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      points.push({
+        reps: row.reps,
+        loadValue: row.load_value,
+        loadUnit: row.load_unit,
+        normalizedLoadKg: row.normalized_load_kg,
+        rpe: Number.isFinite(row.rpe) ? (row.rpe as number) : null,
+        occurredAt: row.occurred_at,
+        matchingObservationCount,
+        source: {
+          namespace: "training",
+          type: "exercise_set",
+          id: row.set_id,
+          version: row.session_version,
+          sessionId: row.session_id
+        }
+      });
+    }
+
+    const nondominated = points
+      .filter((point) => !points.some((other) => strictlyDominatesCapabilityPoint(other, point)))
+      .sort((a, b) =>
+        b.normalizedLoadKg - a.normalizedLoadKg ||
+        b.reps - a.reps ||
+        Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
+        a.source.id.localeCompare(b.source.id)
+      );
+
+    if (nondominated.length > 0) {
+      frontiers.push({ exerciseKey, exerciseLabel, points: nondominated });
+    }
+  }
+
+  return frontiers.sort((a, b) => a.exerciseKey.localeCompare(b.exerciseKey));
 }
 
 function buildSharpness(input: {
@@ -400,6 +540,10 @@ function unknownCapability(note: string): SkillProjection["capability"] {
     demonstrationCount: null,
     demonstratedSessionCount: null,
     demonstratedExerciseCount: null,
+    performanceModel: null,
+    loadNormalization: null,
+    frontierPointCount: null,
+    exerciseFrontiers: [],
     firstDemonstratedAt: null,
     lastDemonstratedAt: null,
     recentDemonstrations: [],
@@ -434,6 +578,24 @@ function buildCapability(
     ? provider.read.demonstrated_exercise_count
     : null;
   const recentDemonstrations = recentCapabilityDemonstrations(provider);
+  const exerciseFrontiers = capabilityFrontiers(provider);
+  const frontierPointCount = exerciseFrontiers.reduce(
+    (sum, frontier) => sum + frontier.points.length,
+    0
+  );
+  const performanceModel = provider.read.performance_model === "LOAD_REPS_PARETO_FRONTIER"
+    ? "LOAD_REPS_PARETO_FRONTIER"
+    : null;
+  const loadNormalization =
+    provider.read.load_normalization?.canonical_unit === "KG" &&
+    positiveFinite(provider.read.load_normalization.quantum_kg) &&
+    positiveFinite(provider.read.load_normalization.kg_per_lb)
+      ? {
+          canonicalUnit: "KG" as const,
+          quantumKg: provider.read.load_normalization.quantum_kg,
+          kgPerLb: provider.read.load_normalization.kg_per_lb
+        }
+      : null;
   const firstDemonstratedAt = validIso(provider.read.first_demonstrated_at)
     ? provider.read.first_demonstrated_at
     : null;
@@ -442,10 +604,16 @@ function buildCapability(
     : null;
   const epistemicCoverage = provider.read.epistemic_coverage?.completeness ?? "UNKNOWN";
 
+  const frontierExerciseCountMatches =
+    demonstratedExerciseCount === null ||
+    demonstratedExerciseCount === exerciseFrontiers.length;
   const evidenced =
     demonstrationCount !== null &&
     demonstrationCount > 0 &&
-    recentDemonstrations.length > 0;
+    performanceModel === "LOAD_REPS_PARETO_FRONTIER" &&
+    loadNormalization !== null &&
+    frontierPointCount > 0 &&
+    frontierExerciseCountMatches;
 
   if (evidenced) {
     return {
@@ -455,6 +623,10 @@ function buildCapability(
       demonstrationCount,
       demonstratedSessionCount,
       demonstratedExerciseCount,
+      performanceModel,
+      loadNormalization,
+      frontierPointCount,
+      exerciseFrontiers,
       firstDemonstratedAt,
       lastDemonstratedAt,
       recentDemonstrations,
@@ -466,8 +638,11 @@ function buildCapability(
         " capability. This is not a numeric skill level or mastery claim.",
       doesNotAssert: [
         "a numeric Skill Level",
+        "a single overall Strength Training capability score",
         "Mastery",
         "whole-body strength from one exercise",
+        "direct comparability between different exercises",
+        "a measured or estimated one-repetition maximum",
         "physiological adaptation",
         "growth from capability evidence alone",
         "complete human capability coverage"
@@ -483,6 +658,10 @@ function buildCapability(
       demonstrationCount: 0,
       demonstratedSessionCount: demonstratedSessionCount ?? 0,
       demonstratedExerciseCount: demonstratedExerciseCount ?? 0,
+      performanceModel,
+      loadNormalization,
+      frontierPointCount: 0,
+      exerciseFrontiers: [],
       firstDemonstratedAt: null,
       lastDemonstratedAt: null,
       recentDemonstrations: [],
@@ -505,12 +684,17 @@ function buildCapability(
     demonstrationCount,
     demonstratedSessionCount,
     demonstratedExerciseCount,
+    performanceModel,
+    loadNormalization,
+    frontierPointCount: frontierPointCount || null,
+    exerciseFrontiers,
     firstDemonstratedAt,
     lastDemonstratedAt,
     recentDemonstrations,
     resultCoverage,
     epistemicCoverage,
-    note: "Capability remains unknown because the governed evidence read cannot establish a positive demonstration or complete zero.",
+    note:
+      "Capability remains unknown because the governed evidence read cannot establish a coherent exercise-specific performance frontier or complete zero.",
     doesNotAssert: [
       "zero ability",
       "Mastery",
