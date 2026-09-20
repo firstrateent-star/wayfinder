@@ -82,8 +82,8 @@ function SkillCard({ skill }: { skill: SkillRead }) {
               Skill
             </div>
             <CardTitle className="mt-2 text-xl">{skill.label}</CardTitle>
-            <CardDescription className="mt-1 break-all text-[11px] text-slate-600">
-              {skill.skillKey}
+            <CardDescription className="mt-1">
+              Evidence-backed progression without a fabricated level.
             </CardDescription>
           </div>
           <span className="rounded-full border border-white/[0.07] bg-black/10 px-2.5 py-1 text-xs text-slate-500">
@@ -212,7 +212,7 @@ export function SkillsCharacterView({ state }: { state: WayfinderStateRead }) {
               <Activity className="h-3.5 w-3.5" /> Voyage
             </div>
             <p className="mt-2 text-lg font-semibold text-slate-100">
-              {voyageXp == null ? "Unknown" : plural(voyageXp, "XP")}
+              {voyageXp == null ? "Unknown" : `${voyageXp} XP`}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Participation experience, not capability.</p>
           </div>
