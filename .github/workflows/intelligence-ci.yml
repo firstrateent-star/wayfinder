@@ -32,6 +32,7 @@ on:
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
+      - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
   pull_request:
@@ -64,6 +65,7 @@ on:
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
+      - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
       - ".github/workflows/intelligence-ci.yml"
 
@@ -94,7 +96,7 @@ jobs:
       - name: Type-check Requirement + Character + Voyage + Skills projections
         run: deno check supabase/functions/_shared/intelligence/requirement-providers.ts supabase/functions/_shared/intelligence/character-projection.ts supabase/functions/_shared/intelligence/voyage-progression.ts supabase/functions/_shared/intelligence/skill-association.ts supabase/functions/_shared/intelligence/skill-projection.ts
       - name: Type-check Semantic Compiler runtime
-        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/semantic-safety-normalization.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts supabase/functions/_shared/intelligence/semantic-episode.ts supabase/functions/_shared/intelligence/admission-planner.ts supabase/functions/_shared/intelligence/admission-fulfillment.ts supabase/functions/_shared/intelligence/direction-semantic.ts supabase/functions/_shared/intelligence/schedule-semantic.ts supabase/functions/_shared/intelligence/nutrition-semantic.ts supabase/functions/_shared/intelligence/standard-semantic.ts supabase/functions/_shared/intelligence/training-exercises.ts
+        run: deno check supabase/functions/_shared/intelligence/semantic-compiler.ts supabase/functions/_shared/intelligence/concept-registry.ts supabase/functions/_shared/intelligence/concept-resolution.ts supabase/functions/_shared/intelligence/context-needs.ts supabase/functions/_shared/intelligence/entity-lifting.ts supabase/functions/_shared/intelligence/source-context-reconciliation.ts supabase/functions/_shared/intelligence/semantic-safety-normalization.ts supabase/functions/_shared/intelligence/wayfinder-capacity.ts supabase/functions/_shared/intelligence/live-semantic-reasoner.ts supabase/functions/_shared/intelligence/context-assembler.ts supabase/functions/_shared/intelligence/semantic-episode.ts supabase/functions/_shared/intelligence/admission-planner.ts supabase/functions/_shared/intelligence/admission-fulfillment.ts supabase/functions/_shared/intelligence/direction-semantic.ts supabase/functions/_shared/intelligence/schedule-semantic.ts supabase/functions/_shared/intelligence/nutrition-semantic.ts supabase/functions/_shared/intelligence/practice-semantic.ts supabase/functions/_shared/intelligence/standard-semantic.ts supabase/functions/_shared/intelligence/training-exercises.ts
       - name: Run birth context vertical slice tests
         run: deno test lab/birth-context-vertical-slice-v0.1.test.ts
       - name: Run natal geometry tests
@@ -137,6 +139,8 @@ jobs:
         run: deno test lab/skill-experience-sharpness-v0.1.test.ts
       - name: Run Practice Skill association tests
         run: deno test lab/skill-association-practice-v0.1.test.ts
+      - name: Run semantic Practice tests
+        run: deno test lab/practice-semantic-v0.1.test.ts
       - name: Run governed domain Standard tests
         run: deno test lab/domain-standards-v0.1.test.ts
       - name: Run semantic entity lifting tests
