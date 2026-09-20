@@ -1,7 +1,5 @@
-export interface TrainingStrengthSkillInputRead {
+export interface SkillExperienceInputRead {
   provider?: string;
-  skill_key?: string;
-  skill_label?: string;
   as_of?: string;
   eligible_encounter_count?: number;
   first_evidenced_at?: string | null;
@@ -15,6 +13,8 @@ export interface TrainingStrengthSkillInputRead {
     label?: string | null;
     occurred_at?: string;
     recorded_at?: string;
+    practice_id?: string;
+    practice_name?: string;
   }>;
   count_coverage?: {
     completeness?: "COMPLETE" | "UNKNOWN";
@@ -29,6 +29,9 @@ export interface TrainingStrengthSkillInputRead {
     reason?: string;
   };
 }
+
+export type TrainingStrengthSkillInputRead = SkillExperienceInputRead;
+export type PracticeSkillInputRead = SkillExperienceInputRead;
 
 export type SkillSharpnessMode =
   | "UNKNOWN"
@@ -45,24 +48,40 @@ export type SkillSharpnessState =
   | "COOL"
   | "DORMANT";
 
+export interface SkillExperienceProviderInput {
+  skillKey: string;
+  label: string;
+  providerId: string;
+  associationMode: "DETERMINISTIC_DOMAIN" | "GOVERNED_PRACTICE_ALIAS";
+  sourceNamespace: "training" | "practice";
+  sourceType: "session";
+  encounterKeyPrefix: "training:session" | "practice:session";
+  requiredKind?: string;
+  read: SkillExperienceInputRead;
+}
+
 export interface SkillExperienceEncounter {
   encounterKey: string;
   skillExperienceKey: string;
   occurredAt: string;
   source: {
-    namespace: "training";
+    namespace: "training" | "practice";
     type: "session";
     id: string;
     version: string;
   };
+  practice?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface SkillProjection {
-  skillKey: "physical.strength_training";
-  label: "Strength Training";
+  skillKey: string;
+  label: string;
   association: {
-    mode: "DETERMINISTIC";
-    providerId: "training.strength-skill-provider.v0.1";
+    mode: "DETERMINISTIC_DOMAIN" | "GOVERNED_PRACTICE_ALIAS";
+    providerId: string;
   };
   state: "OBSERVED" | "UNOBSERVED" | "UNKNOWN";
   experience: {
@@ -94,17 +113,14 @@ export interface SkillProjection {
 
 export interface SkillsProjection {
   projection_type: "skills";
-  rule_version: "skills_v0.1";
+  rule_version: "skills_v0.2";
   computed_at: string;
-  configured_skill_count: 1;
+  configured_skill_count: number;
   observed_skill_count: number;
   skills: SkillProjection[];
   does_not_assert: string[];
 }
 
-const SKILL_KEY = "physical.strength_training" as const;
-const SKILL_LABEL = "Strength Training" as const;
-const PROVIDER_ID = "training.strength-skill-provider.v0.1" as const;
 const MIN_CADENCE_ENCOUNTERS = 4;
 const MIN_CADENCE_SAMPLES = 3;
 
@@ -121,31 +137,39 @@ function validIso(value: unknown): value is string {
 }
 
 function recentExperienceEncounters(
-  read: TrainingStrengthSkillInputRead
+  provider: SkillExperienceProviderInput
 ): SkillExperienceEncounter[] {
   const byEncounter = new Map<string, { encounter: SkillExperienceEncounter; recordedAt: number }>();
 
-  for (const row of read.recent_encounters ?? []) {
+  for (const row of provider.read.recent_encounters ?? []) {
     if (!row?.id?.trim() || !row?.version?.trim()) continue;
-    if (row.kind && row.kind !== "STRENGTH") continue;
+    if (provider.requiredKind && row.kind && row.kind !== provider.requiredKind) continue;
     if (!validIso(row.occurred_at)) continue;
 
-    const encounterKey = `training:session:${row.id}`;
-    const skillExperienceKey = `${encounterKey}:skill:${SKILL_KEY}`;
+    const encounterKey = `${provider.encounterKeyPrefix}:${row.id}`;
+    const skillExperienceKey = `${encounterKey}:skill:${provider.skillKey}`;
     const recordedAt = validIso(row.recorded_at)
       ? Date.parse(row.recorded_at)
       : Number.NEGATIVE_INFINITY;
+
+    const practice =
+      provider.sourceNamespace === "practice" &&
+      row.practice_id?.trim() &&
+      row.practice_name?.trim()
+        ? { id: row.practice_id, name: row.practice_name }
+        : undefined;
 
     const encounter: SkillExperienceEncounter = {
       encounterKey,
       skillExperienceKey,
       occurredAt: row.occurred_at,
       source: {
-        namespace: "training",
-        type: "session",
+        namespace: provider.sourceNamespace,
+        type: provider.sourceType,
         id: row.id,
         version: row.version
-      }
+      },
+      ...(practice ? { practice } : {})
     };
 
     const existing = byEncounter.get(encounterKey);
@@ -245,33 +269,33 @@ function buildSharpness(input: {
   };
 }
 
-export function buildSkillsProjection(input: {
-  training: TrainingStrengthSkillInputRead;
-  computedAt: string;
-}): SkillsProjection {
-  const countCoverage = input.training.count_coverage?.completeness === "COMPLETE"
+function buildSkillProjection(
+  provider: SkillExperienceProviderInput,
+  computedAt: string
+): SkillProjection {
+  const countCoverage = provider.read.count_coverage?.completeness === "COMPLETE"
     ? "COMPLETE"
     : "UNKNOWN";
-  const cadenceCoverage = input.training.cadence_coverage?.completeness === "COMPLETE"
+  const cadenceCoverage = provider.read.cadence_coverage?.completeness === "COMPLETE"
     ? "COMPLETE"
     : "UNKNOWN";
 
   const encounterCount =
-    countCoverage === "COMPLETE" && nonNegativeInteger(input.training.eligible_encounter_count)
-      ? input.training.eligible_encounter_count
+    countCoverage === "COMPLETE" && nonNegativeInteger(provider.read.eligible_encounter_count)
+      ? provider.read.eligible_encounter_count
       : null;
 
-  const firstEvidencedAt = validIso(input.training.first_evidenced_at)
-    ? input.training.first_evidenced_at
+  const firstEvidencedAt = validIso(provider.read.first_evidenced_at)
+    ? provider.read.first_evidenced_at
     : null;
-  const lastEvidencedAt = validIso(input.training.last_evidenced_at)
-    ? input.training.last_evidenced_at
+  const lastEvidencedAt = validIso(provider.read.last_evidenced_at)
+    ? provider.read.last_evidenced_at
     : null;
-  const cadenceSampleCount = nonNegativeInteger(input.training.cadence_sample_count)
-    ? input.training.cadence_sample_count
+  const cadenceSampleCount = nonNegativeInteger(provider.read.cadence_sample_count)
+    ? provider.read.cadence_sample_count
     : 0;
-  const typicalIntervalSeconds = positiveFinite(input.training.typical_interval_seconds)
-    ? input.training.typical_interval_seconds
+  const typicalIntervalSeconds = positiveFinite(provider.read.typical_interval_seconds)
+    ? provider.read.typical_interval_seconds
     : null;
 
   const state =
@@ -279,12 +303,12 @@ export function buildSkillsProjection(input: {
     encounterCount === 0 ? "UNOBSERVED" :
     "OBSERVED";
 
-  const skill: SkillProjection = {
-    skillKey: SKILL_KEY,
-    label: SKILL_LABEL,
+  return {
+    skillKey: provider.skillKey,
+    label: provider.label,
     association: {
-      mode: "DETERMINISTIC",
-      providerId: PROVIDER_ID
+      mode: provider.associationMode,
+      providerId: provider.providerId
     },
     state,
     experience: {
@@ -292,10 +316,10 @@ export function buildSkillsProjection(input: {
       encounterCount,
       firstEvidencedAt,
       lastEvidencedAt,
-      recentEncounters: recentExperienceEncounters(input.training)
+      recentEncounters: recentExperienceEncounters(provider)
     },
     sharpness: buildSharpness({
-      computedAt: input.computedAt,
+      computedAt,
       encounterCount,
       lastEvidencedAt,
       cadenceSampleCount,
@@ -305,37 +329,85 @@ export function buildSkillsProjection(input: {
     }),
     capability: {
       state: "UNKNOWN",
-      note: "Skill Experience does not establish Strength Training capability in v0.1."
+      note: "Skill Experience does not establish " + provider.label + " capability in skills_v0.2."
     },
     mastery: {
       state: "NOT_EVALUATED",
       note: "Mastery requires a future governed depth/reliability/transferability rule."
     },
-    epistemicCoverage: input.training.epistemic_coverage?.completeness ?? "UNKNOWN",
+    epistemicCoverage: provider.read.epistemic_coverage?.completeness ?? "UNKNOWN",
     doesNotAssert: [
       "that Skill Experience proves capability",
       "that Sharpness proves capability",
       "that lower Sharpness means learned capability was lost",
       "that encounter count establishes mastery",
-      "that unrecorded Strength Training did not occur",
+      "that unrecorded practice did not occur",
       "that this skill has a numeric level",
-      "that one canonical Training session can create more than one Experience contribution to this same skill"
+      "that one canonical encounter can create more than one Experience contribution to this same skill"
     ]
   };
+}
+
+export function buildSkillsProjection(input: {
+  providers: SkillExperienceProviderInput[];
+  computedAt: string;
+}): SkillsProjection {
+  const seenSkills = new Set<string>();
+  const skills = input.providers.map((provider) => {
+    if (seenSkills.has(provider.skillKey)) {
+      throw new Error("DUPLICATE_SKILL_EXPERIENCE_PROVIDER:" + provider.skillKey);
+    }
+    seenSkills.add(provider.skillKey);
+    return buildSkillProjection(provider, input.computedAt);
+  });
 
   return {
     projection_type: "skills",
-    rule_version: "skills_v0.1",
+    rule_version: "skills_v0.2",
     computed_at: input.computedAt,
-    configured_skill_count: 1,
-    observed_skill_count: state === "OBSERVED" ? 1 : 0,
-    skills: [skill],
+    configured_skill_count: skills.length,
+    observed_skill_count: skills.filter((skill) => skill.state === "OBSERVED").length,
+    skills,
     does_not_assert: [
       "a universal fixed skill taxonomy",
       "Skill Level",
       "Skill XP points",
       "that Experience, Sharpness, Capability, and Mastery are interchangeable",
-      "that absence of recorded skill evidence means zero human ability"
+      "that absence of recorded skill evidence means zero human ability",
+      "that semantic model proposals directly contribute Skill Experience"
     ]
+  };
+}
+
+export function trainingStrengthSkillProvider(
+  read: TrainingStrengthSkillInputRead
+): SkillExperienceProviderInput {
+  return {
+    skillKey: "physical.strength_training",
+    label: "Strength Training",
+    providerId: "training.strength-skill-provider.v0.1",
+    associationMode: "DETERMINISTIC_DOMAIN",
+    sourceNamespace: "training",
+    sourceType: "session",
+    encounterKeyPrefix: "training:session",
+    requiredKind: "STRENGTH",
+    read
+  };
+}
+
+export function practiceSkillProvider(input: {
+  skillKey: string;
+  label: string;
+  read: PracticeSkillInputRead;
+}): SkillExperienceProviderInput {
+  return {
+    skillKey: input.skillKey,
+    label: input.label,
+    providerId: "practice.name-skill-provider.v0.1",
+    associationMode: "GOVERNED_PRACTICE_ALIAS",
+    sourceNamespace: "practice",
+    sourceType: "session",
+    encounterKeyPrefix: "practice:session",
+    read: input.read
   };
 }
