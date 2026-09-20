@@ -1,6 +1,6 @@
 # Wayfinder Skill Capability v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — CI / LIVE DATABASE GATES PENDING  
+**Status:** MERGED / PRODUCTION STATE DEPLOYED  
 **Skills projection:** `skills_v0.3`  
 **First Capability provider:** `training.strength-skill-capability-provider.v0.1`
 
@@ -250,9 +250,39 @@ The transaction then rolled back. The test function and all synthetic rows were 
 
 This also caught and fixed a PostgreSQL special-syntax issue (`pg_catalog.coalesce` -> `coalesce`) before production migration.
 
+## Production proof
+
+PR #19 merged at `5afdb0539d0067c6a35ab35787dbc37b5014515f`.
+
+```text
+Wayfinder Intelligence CI     PASS
+Skill Capability suite        PASS
+Wayfinder Web CI              PASS
+wayfinder-state               ACTIVE v8
+state contract                wayfinder-state.v0.6
+skills projection             skills_v0.3
+```
+
+Production migration `add_strength_skill_capability_input_v0` is applied. Authenticated callers may execute the RPC; anon/public may not.
+
+The live canonical read currently reports:
+
+```text
+demonstrated observations  0
+demonstrated sessions      0
+demonstrated exercises     0
+exercise frontiers         []
+result coverage            COMPLETE
+epistemic coverage         UNKNOWN
+```
+
+Therefore the honest initial Strength Training Capability projection is `INSUFFICIENT_EVIDENCE`, not zero ability.
+
+The deployed state entrypoint, Skill projection, and projection-provider registry match merge `5afdb053` byte-for-byte.
+
 ## Next earned frontier
 
-After production:
+With Capability live:
 
 1. observe whether exercise frontiers should later surface as subskills while keeping the broad Strength Training Skill as the parent experience concept;
 2. define a first evidence-backed Capability provider for a creative Skill only when objective/authorized output evidence exists;
