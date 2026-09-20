@@ -3,25 +3,34 @@ import { Compass, LogOut, RefreshCw, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SkillsCharacterView } from "@/features/character/SkillsCharacterView";
+import { PracticeOutputsManager } from "@/features/character/PracticeOutputsManager";
 import { nextLocalDayScope } from "@/lib/position-api";
 import { getWayfinderState, type WayfinderStateRead } from "@/lib/wayfinder-state-api";
 import { supabase } from "@/lib/supabase";
+import { getPracticeOutputs } from "@/lib/wayfinder-rpc";
+import type { PracticeOutputsRead } from "@/lib/wayfinder-types";
 
 export function CharacterPage() {
   const scope = useMemo(() => nextLocalDayScope(), []);
   const [state, setState] = useState<WayfinderStateRead | null>(null);
+  const [outputs, setOutputs] = useState<PracticeOutputsRead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
+    setLoading(true);
     setError(null);
     try {
-      const next = await getWayfinderState({
-        questionMode: "TASK_DRIVEN",
-        scheduleScope: scope,
-        changeCursor: state?.change_cursor ?? null
-      });
-      setState(next);
+      const [nextState, nextOutputs] = await Promise.all([
+        getWayfinderState({
+          questionMode: "TASK_DRIVEN",
+          scheduleScope: scope,
+          changeCursor: state?.change_cursor ?? null
+        }),
+        getPracticeOutputs({ limit: 100 })
+      ]);
+      setState(nextState);
+      setOutputs(nextOutputs);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Wayfinder could not assemble your Character.");
     } finally {
@@ -88,6 +97,7 @@ export function CharacterPage() {
         {state ? (
           <div className={loading ? "opacity-70 transition-opacity" : "transition-opacity"}>
             <SkillsCharacterView state={state} onChanged={load} />
+            {outputs ? <PracticeOutputsManager read={outputs} onChanged={load} /> : null}
           </div>
         ) : null}
       </div>
