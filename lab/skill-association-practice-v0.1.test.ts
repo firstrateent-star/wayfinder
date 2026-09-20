@@ -114,7 +114,10 @@ Deno.test("Drawing and Music Production are independent configured Skill concept
 
   assert(drawing?.skillKey === "creative.drawing", "Drawing should resolve to its own stable Skill");
   assert(music?.skillKey === "creative.music_production", "Music Production should resolve independently");
-  assert(drawing?.skillKey !== music?.skillKey, "distinct governed concepts must not collapse");
+  assert(
+    new Set([drawing?.skillKey, music?.skillKey]).size === 2,
+    "distinct governed concepts must not collapse"
+  );
 });
 
 Deno.test("unregistered Practice names remain unresolved rather than being guessed into a Skill", () => {
