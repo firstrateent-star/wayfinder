@@ -1,4 +1,4 @@
-import { Activity, Flag, GitBranch, History, Link2, type LucideIcon } from "lucide-react";
+import { Activity, ExternalLink, FileCheck2, Flag, GitBranch, History, Link2, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { JourneyItem, JourneyLayer, JourneyRead } from "@/lib/wayfinder-types";
 
@@ -45,6 +45,14 @@ function layerMeta(layer: JourneyLayer): {
       dot: "bg-emerald-300"
     };
   }
+  if (layer === "RESULT") {
+    return {
+      label: "Made",
+      icon: FileCheck2,
+      chip: "border-fuchsia-300/20 bg-fuchsia-300/[0.08] text-fuchsia-200",
+      dot: "bg-fuchsia-300"
+    };
+  }
   if (layer === "DIRECTION") {
     return {
       label: "Chose",
@@ -79,6 +87,41 @@ function JourneyItemBody({ item }: { item: JourneyItem }) {
           {duration ? <span>{duration}</span> : null}
           {item.payload.focus ? <span>{item.payload.focus}</span> : null}
         </div>
+      </>
+    );
+  }
+
+  if (item.kind === "PRACTICE_OUTPUT_RECORDED") {
+    const changed = item.payload.current_state &&
+      item.payload.current_state.version !== item.payload.primary_ref.version;
+    return (
+      <>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-fuchsia-300/55">
+              {item.payload.output.practice.name}
+            </p>
+            <p className="mt-1 font-medium text-slate-100">{item.payload.output.title}</p>
+          </div>
+          {changed ? (
+            <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.08] px-2.5 py-1 text-xs text-amber-200">
+              Record later changed
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          Recorded a completed output from a Practice session.
+        </p>
+        {item.payload.output.external_url ? (
+          <a
+            href={item.payload.output.external_url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs text-fuchsia-200/70 hover:text-fuchsia-200"
+          >
+            Evidence link <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
       </>
     );
   }
@@ -122,6 +165,26 @@ function JourneyItemBody({ item }: { item: JourneyItem }) {
           {item.payload.source.focus ? ` · ${item.payload.source.focus}` : ""} → {item.payload.target.title}
         </p>
         {item.payload.reason ? <p className="mt-2 text-sm leading-6 text-slate-500">{item.payload.reason}</p> : null}
+      </>
+    );
+  }
+
+  if (item.kind === "PRACTICE_OUTPUT_CORRECTED") {
+    const movedPractice =
+      item.payload.before.practice.id !== item.payload.after.practice.id;
+    return (
+      <>
+        <p className="font-medium text-slate-100">Updated a completed output</p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          {item.payload.before.title !== item.payload.after.title
+            ? `${item.payload.before.title} → ${item.payload.after.title}`
+            : item.payload.after.title}
+        </p>
+        {movedPractice ? (
+          <p className="mt-1 text-xs leading-5 text-amber-200/70">
+            Rebased from {item.payload.before.practice.name} to {item.payload.after.practice.name}.
+          </p>
+        ) : null}
       </>
     );
   }
