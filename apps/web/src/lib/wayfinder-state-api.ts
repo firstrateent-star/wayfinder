@@ -168,6 +168,33 @@ export interface WayfinderStateRead {
         demonstrationCount: number | null;
         demonstratedSessionCount: number | null;
         demonstratedExerciseCount: number | null;
+        performanceModel: "LOAD_REPS_PARETO_FRONTIER" | null;
+        loadNormalization: {
+          canonicalUnit: "KG";
+          quantumKg: number;
+          kgPerLb: number;
+        } | null;
+        frontierPointCount: number | null;
+        exerciseFrontiers: Array<{
+          exerciseKey: string;
+          exerciseLabel: string;
+          points: Array<{
+            reps: number;
+            loadValue: number;
+            loadUnit: "LB" | "KG";
+            normalizedLoadKg: number;
+            rpe: number | null;
+            occurredAt: string;
+            matchingObservationCount: number;
+            source: {
+              namespace: "training";
+              type: "exercise_set";
+              id: string;
+              version: string;
+              sessionId: string;
+            };
+          }>;
+        }>;
         firstDemonstratedAt: string | null;
         lastDemonstratedAt: string | null;
         recentDemonstrations: Array<{
@@ -179,6 +206,7 @@ export interface WayfinderStateRead {
           reps: number;
           loadValue: number;
           loadUnit: "LB" | "KG";
+          normalizedLoadKg: number | null;
           rpe: number | null;
           occurredAt: string;
           source: {
