@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Governed Practice Skill Association v0.1  
-**Current phase:** Skills now compose provider-owned encounter streams from Training and canonical Practice; Music Production and Drawing are live Practice-derived Skill projections, and Navigator can stage confirmed Practice capture without giving the model progression authority  
+**Current milestone:** Skill Capability v0.1  
+**Current phase:** Skills now separate Experience, Sharpness, and Capability; Strength Training Capability is reconstructed from all-current-history exercise-specific load × reps Pareto frontiers while creative Skills remain capability-unknown until they earn providers  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -21,7 +21,8 @@
 **Voyage Progression:** `docs/40-voyage-progression-v0.1.md`  
 **Skill Experience + Sharpness:** `docs/41-skill-experience-sharpness-v0.1.md`  
 **Practice Skill Association:** `docs/42-practice-skill-association-v0.1.md`  
-**Latest ADR:** `decisions/ADR-046-practice-identity-separate-from-skill-association.md`
+**Skill Capability:** `docs/43-skill-capability-v0.1.md`  
+**Latest ADR:** `decisions/ADR-047-skill-capability-is-demonstrated-evidence.md`
 
 ## Non-negotiable direction
 
@@ -48,6 +49,8 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - Skill Experience accumulates from unique governed encounter + stable Skill identity;
 - Skill Experience does not decay; Sharpness may change with time without mutating history;
 - Skill Experience and Sharpness do not prove Capability or Mastery;
+- Skill Capability is demonstrated ability evidence, not a score; Strength capability preserves exercise-specific load × reps frontiers;
+- Sharpness may decay while demonstrated Capability remains evidenced;
 - Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
 - Navigator asks questions only when missing information materially matters;
@@ -662,17 +665,39 @@ Cadence-aware Sharpness requires at least four qualifying encounters and at leas
 
 No decay job writes anything. Time passing can change Sharpness while Experience remains unchanged.
 
+### Current Skill Capability layer
+
+The first governed Skill Capability provider is live:
+
+```text
+current canonical loaded-repetition Training history
+ -> stable exercise identity
+ -> LB/KG normalization to 0.5 kg quantum
+ -> exercise-specific load × reps Pareto frontier
+ -> Strength Training Capability
+```
+
+`skills_v0.3` now keeps:
+
+```text
+Experience   governed practice history
+Sharpness    recency relative to personal cadence
+Capability   demonstrated ability evidence
+Mastery      NOT_EVALUATED
+```
+
+Current production has no qualifying loaded-repetition demonstrations, so Strength Training Capability is honestly `INSUFFICIENT_EVIDENCE`; Music Production and Drawing remain Capability `UNKNOWN` because no governed performance provider exists for them.
+
 ### Strongest next build
 
-The next honest frontier is a **governed Skill Association contract beyond Training**:
+The next earned product frontier is to **surface the trustworthy Skill model to the player without inventing levels**:
 
-1. define a stable Skill concept identity without creating a universal fixed taxonomy;
-2. let semantic discovery propose an encounter -> Skill association while governed code decides whether it contributes;
-3. prove alias reconciliation so synonymous labels cannot create duplicate Skill Experience streams;
-4. pressure-test one non-Training Practice-derived Skill end to end;
-5. preserve `encounter_key + skill_key` as the anti-double-count identity;
-6. add Skill Capability only where an owning domain can define demonstrated performance;
-7. keep Mastery, Skill Level, Role/Class, and challenge multipliers deferred until evidence breadth earns them.
+1. add a quiet Skills/Character surface that reads the existing `skills_v0.3` projection;
+2. show Experience, Sharpness, Capability state, and evidence lineage in human language;
+3. expose Strength exercise frontiers only when evidence exists;
+4. keep UNKNOWN / UNESTABLISHED states legible instead of filling them with zeros;
+5. avoid Mastery, Skill Level, Role/Class, and rankings until their evidence contracts exist;
+6. leave real-model semantic expansion blocked until the external API-credit gate can execute again.
 
 **Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
@@ -854,3 +879,27 @@ Navigator can recognize governed Music Production / Drawing occurrences, stage a
 Merged-main Intelligence and Web CI are green. The real-model Semantic Live Eval could not execute because the configured OpenAI API account returned HTTP 429 no-credits errors for all scenarios; do not treat that workflow as a model-quality pass.
 
 **Next earned frontier:** first governed Skill Capability projection, beginning with Strength Training because loaded-repetition capability evidence already exists.
+
+
+### Skill Capability production closure — 2026-09-19
+
+PR #19 merged at `5afdb0539d0067c6a35ab35787dbc37b5014515f`.
+
+```text
+Wayfinder Intelligence CI    PASS
+Skill Capability suite       PASS
+Wayfinder Web CI             PASS
+wayfinder-state              ACTIVE v8
+state contract               wayfinder-state.v0.6
+skills projection            skills_v0.3
+```
+
+Production migration `add_strength_skill_capability_input_v0` is live and owner-scoped. Authenticated execute is allowed; anon/public execute is denied.
+
+Before merge, a rollback-backed production-schema proof inserted synthetic Bench 185×8, Bench 205×5, Bench 185×5, and Squat 225×5 evidence. The capability RPC preserved 185×8 and 205×5 as nondominated bench frontier points, removed 185×5, kept squat independent, and then rolled back the function and all synthetic rows.
+
+The actual production read currently contains zero qualifying loaded-repetition demonstrations with COMPLETE modeled-result coverage and UNKNOWN total-human-capability coverage. No zero-ability claim is made.
+
+The deployed `wayfinder-state` entrypoint, Skill projection, and projection-provider registry match merge `5afdb053` byte-for-byte.
+
+No Skill Level, e1RM, overall-strength score, Mastery score, Role/Class, creative-skill capability inference, or permanent capability ledger was added.
