@@ -6,6 +6,7 @@ export type RecomputeTarget =
   | "REQUIREMENTS"
   | "CHARACTER"
   | "PROGRESSION"
+  | "SKILLS"
   | "HELM"
   | "NAVIGATOR_CONTEXT";
 
@@ -39,7 +40,7 @@ export interface RecomputePlan {
   reason: "INITIAL_LOAD" | "NO_CHANGE" | "MODULE_CHANGE" | "COALESCED_PARTIAL_CHANGE_WINDOW";
   changedModules: string[];
   invalidated: RecomputeTarget[];
-  recomputeNow: Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "HELM">;
+  recomputeNow: Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "SKILLS" | "HELM">;
   deferred: Array<{ target: never; reason: string }>;
   navigatorContextInvalidated: boolean;
   cursor: ModuleChangeCursor | null;
@@ -60,7 +61,7 @@ const impactMap: Record<string, readonly RecomputeTarget[]> = {
 
 const projectionProviders = createWayfinderProjectionProviderRegistryV0();
 
-const liveNow = new Set<RecomputeTarget>(["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM"]);
+const liveNow = new Set<RecomputeTarget>(["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM"]);
 
 function uniqueTargets(values: RecomputeTarget[]) {
   return [...new Set(values)];
@@ -68,7 +69,7 @@ function uniqueTargets(values: RecomputeTarget[]) {
 
 function impactsForModule(moduleId: string): readonly RecomputeTarget[] {
   const base = impactMap[moduleId];
-  if (!base) return ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM", "NAVIGATOR_CONTEXT"];
+  if (!base) return ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM", "NAVIGATOR_CONTEXT"];
   const providerTargets = projectionProviders.affectedProjectionTargets([moduleId]);
   return uniqueTargets([...base, ...providerTargets]);
 }
@@ -78,8 +79,8 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
     return {
       reason: "INITIAL_LOAD",
       changedModules: [],
-      invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM", "NAVIGATOR_CONTEXT"],
-      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM"],
+      invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM", "NAVIGATOR_CONTEXT"],
+      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM"],
       deferred: [],
       navigatorContextInvalidated: true,
       cursor: read.cursor,
@@ -106,8 +107,8 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
     return {
       reason: "COALESCED_PARTIAL_CHANGE_WINDOW",
       changedModules: [...new Set(read.changes.map((change) => change.module_id))],
-      invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM", "NAVIGATOR_CONTEXT"],
-      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "HELM"],
+      invalidated: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM", "NAVIGATOR_CONTEXT"],
+      recomputeNow: ["POSITION", "BEARING", "REQUIREMENTS", "CHARACTER", "PROGRESSION", "SKILLS", "HELM"],
       deferred: [],
       navigatorContextInvalidated: true,
       cursor: read.cursor,
@@ -118,7 +119,7 @@ export function planRecomputation(read: ModuleChangeRead): RecomputePlan {
 
   const changedModules = [...new Set(read.changes.map((change) => change.module_id))];
   const invalidated = uniqueTargets(changedModules.flatMap((moduleId) => [...impactsForModule(moduleId)]));
-  const recomputeNow = invalidated.filter((target): target is "POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "HELM" => liveNow.has(target)) as Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "HELM">;
+  const recomputeNow = invalidated.filter((target): target is "POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "SKILLS" | "HELM" => liveNow.has(target)) as Array<"POSITION" | "BEARING" | "REQUIREMENTS" | "CHARACTER" | "PROGRESSION" | "SKILLS" | "HELM">;
   const deferred: RecomputePlan["deferred"] = [];
 
   return {
