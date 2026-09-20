@@ -42,11 +42,13 @@ Deno.test("projection providers declare actual module dependencies", () => {
   const registry = createWayfinderProjectionProviderRegistryV0();
   const trainingTargets = registry.affectedProjectionTargets(["training"]).sort();
   const nutritionTargets = registry.affectedProjectionTargets(["nutrition"]).sort();
+  const practiceTargets = registry.affectedProjectionTargets(["practice"]).sort();
   assert(
     trainingTargets.join(",") === "CHARACTER,PROGRESSION,REQUIREMENTS,SKILLS",
     "Training should independently feed Requirements, Character, Voyage Progression, and Skills"
   );
   assert(nutritionTargets.join(",") === "REQUIREMENTS", "Nutrition should feed Requirements only in Character v0.1");
+  assert(practiceTargets.join(",") === "SKILLS", "Practice should feed Skills through governed association providers");
 });
 
 Deno.test("no domain Standard means no Requirement is invented", () => {
