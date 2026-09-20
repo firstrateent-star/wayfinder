@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Voyage Progression v0.1  
-**Current phase:** governed canonical encounters now reconstruct Voyage Experience independently from evidence-backed Character growth; Training drives Requirements, Character, and Progression through separate provider semantics  
+**Current milestone:** Skill Experience + Sharpness v0.1  
+**Current phase:** governed Training encounters now reconstruct Voyage Experience and Strength Training Skill Experience independently; Sharpness is cadence-aware and time-derived while Character capability/growth remain separate evidence claims  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -19,7 +19,8 @@
 **Requirements + Character recomputation:** `docs/38-requirements-character-recomputation-v0.1.md`  
 **Might growth evidence:** `docs/39-might-growth-evidence-v0.1.md`  
 **Voyage Progression:** `docs/40-voyage-progression-v0.1.md`  
-**Latest ADR:** `decisions/ADR-044-voyage-experience-separate-from-character-growth.md`
+**Skill Experience + Sharpness:** `docs/41-skill-experience-sharpness-v0.1.md`  
+**Latest ADR:** `decisions/ADR-045-skill-experience-sharpness-separate-from-capability-mastery.md`
 
 ## Non-negotiable direction
 
@@ -43,6 +44,9 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - RPG mechanics are projections by default;
 - Voyage Experience recognizes governed participation; Character growth recognizes demonstrated development;
 - one logical governed encounter may award Voyage XP once, independent of internal logging detail;
+- Skill Experience accumulates from unique governed encounter + stable Skill identity;
+- Skill Experience does not decay; Sharpness may change with time without mutating history;
+- Skill Experience and Sharpness do not prove Capability or Mastery;
 - Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
 - Navigator asks questions only when missing information materially matters;
@@ -613,7 +617,7 @@ No Standard means no Requirement. Missing evidence stays unknown rather than zer
 Projection invalidation remains registered by actual providers:
 
 ```text
-Training  -> Requirements + Character + Progression
+Training  -> Requirements + Character + Progression + Skills
 Nutrition -> Requirements
 ```
 
@@ -632,19 +636,44 @@ Voyage Progression is reconstructable under `voyage_progression_v0.1`. One logic
 
 Voyage XP does not mutate Might or any other Character facet. Requirement satisfaction does not earn XP. No permanent XP award ledger, Level, Rank, Pillar XP, or Attribute XP exists yet.
 
+### Current Skill Experience + Sharpness layer
+
+The first governed Skill projection is now live:
+
+```text
+current canonical Training STRENGTH session
+ -> physical.strength_training
+ -> one Skill Experience encounter
+ -> personal cadence
+ -> reconstructable Sharpness
+```
+
+`skills_v0.1` keeps four axes separate:
+
+```text
+Experience  = governed practice history
+Sharpness   = current recency relative to personal cadence
+Capability  = UNKNOWN in v0.1
+Mastery     = NOT_EVALUATED in v0.1
+```
+
+Cadence-aware Sharpness requires at least four qualifying encounters and at least three positive inter-session intervals. The median positive interval becomes the personal cadence baseline. Current gap / typical interval maps deterministically to `SHARP`, `WARM`, `COOL`, or `DORMANT`. With insufficient history, Wayfinder exposes recency but leaves cadence-aware Sharpness `UNESTABLISHED`.
+
+No decay job writes anything. Time passing can change Sharpness while Experience remains unchanged.
+
 ### Strongest next build
 
-The next honest frontier is **dynamic Skill Experience + Sharpness over governed encounters**:
+The next honest frontier is a **governed Skill Association contract beyond Training**:
 
-1. define the smallest Skill evidence identity without creating a universal fixed skill taxonomy;
-2. let semantic discovery propose skill associations while governed code owns accepted progression semantics;
-3. separate Skill Experience (practice history), Capability (demonstrated performance), Mastery (depth/reliability), and Sharpness (recency);
-4. make Sharpness decay without erasing Experience or Capability history;
-5. preserve encounter lineage so one real encounter cannot mint duplicate Skill Experience through multiple labels;
-6. pressure-test cross-domain skills before adding encounter scale/challenge multipliers;
-7. only Flower Level/Rank thresholds after Voyage XP has enough real-world provider breadth to make the curve meaningful.
+1. define a stable Skill concept identity without creating a universal fixed taxonomy;
+2. let semantic discovery propose an encounter -> Skill association while governed code decides whether it contributes;
+3. prove alias reconciliation so synonymous labels cannot create duplicate Skill Experience streams;
+4. pressure-test one non-Training Practice-derived Skill end to end;
+5. preserve `encounter_key + skill_key` as the anti-double-count identity;
+6. add Skill Capability only where an owning domain can define demonstrated performance;
+7. keep Mastery, Skill Level, Role/Class, and challenge multipliers deferred until evidence breadth earns them.
 
-**Law:** logging earns nothing; governed participation earns Experience; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
+**Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
 ## Deferred until earned
 
@@ -759,3 +788,37 @@ Production migration `add_wayfinder_voyage_progression_input_v0` is applied. The
 No permanent XP ledger, Level/Rank, Attribute XP, or new canonical life-truth store was added. Voyage XP is a reconstructable game projection over current governed canonical encounters. Character remains independently evidence-governed.
 
 The Vercel source contract is merged and Web CI is green. Production frontend promotion remains externally blocked by the free-tier daily deployment quota; this does not block the production Supabase progression backend.
+
+
+### Skill Experience + Sharpness production closure — 2026-09-19
+
+PR #16 merged to `main` at code checkpoint `5428b7ec0f2feb8a8303b398843d535b5744fc36`.
+
+Exact-head and merged-main gates are green:
+
+```text
+Wayfinder Intelligence CI            PASS
+Skill Experience + Sharpness suite   PASS
+Recomputation suite                  PASS
+Requirements + Character             PASS
+Might growth suite                   PASS
+Voyage progression suite             PASS
+Wayfinder Web CI                     PASS
+```
+
+Production Supabase now runs:
+
+```text
+navigator-chat     ACTIVE v23   (unchanged by this slice)
+wayfinder-state    ACTIVE v6
+State contract     wayfinder-state.v0.4
+Skills projection  skills_v0.1
+First Skill        physical.strength_training
+Skill provider     training.strength-skill-provider.v0.1
+```
+
+Production migration `add_strength_skill_experience_input_v0` is applied. The authenticated Skill-input RPC exists; authenticated may execute it, while anon/public may not. The deployed state composer, recomputation planner, provider registry, and Skill projection were verified byte-for-byte against merge `5428b7ec`.
+
+No Skill table, Skill Level, Skill XP point ledger, persisted Sharpness, decay job, Capability score, Mastery score, Role/Class, or AI-controlled progression was added. Sharpness is reconstructed from current time plus the median positive interval of current canonical Strength Training encounters.
+
+The backend state now exposes Skills. The player UI source contract accepts `wayfinder-state.v0.4`, but this slice does not yet add a dedicated visible Skill screen/card.
