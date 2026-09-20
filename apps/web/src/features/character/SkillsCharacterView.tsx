@@ -1,6 +1,7 @@
-import { Activity, CircleDot, Dumbbell, History, Sparkles } from "lucide-react";
+import { Activity, CircleDot, Dumbbell, ExternalLink, History, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { WayfinderStateRead } from "@/lib/wayfinder-state-api";
+import { PracticeOutputCapture } from "@/features/character/PracticeOutputCapture";
 
 type SkillRead = WayfinderStateRead["skills"]["skills"][number];
 
@@ -66,11 +67,18 @@ function capabilityClass(skill: SkillRead) {
   return "text-slate-500";
 }
 
-function SkillCard({ skill }: { skill: SkillRead }) {
+function SkillCard({
+  skill,
+  onChanged
+}: {
+  skill: SkillRead;
+  onChanged: () => Promise<void>;
+}) {
   const experienceCount = skill.experience.encounterCount;
   const lastPractice = formatMoment(skill.experience.lastEvidencedAt);
   const capability = skill.capability;
   const hasFrontiers = capability.exerciseFrontiers.length > 0;
+  const hasCreativeOutputs = capability.creativeOutputs.length > 0;
 
   return (
     <Card className={skillStateClass(skill)}>
@@ -131,6 +139,45 @@ function SkillCard({ skill }: { skill: SkillRead }) {
           </div>
         </div>
 
+        {hasCreativeOutputs ? (
+          <div className="mt-4 rounded-xl border border-emerald-300/10 bg-emerald-300/[0.025] p-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-300/60" />
+              <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-emerald-300/55">
+                Completed outputs
+              </p>
+            </div>
+            <div className="mt-3 space-y-2">
+              {capability.creativeOutputs.map((output) => (
+                <div
+                  key={output.outputId}
+                  className="flex flex-col gap-1 rounded-lg border border-white/[0.05] bg-black/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">{output.title}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      {output.practice.name} · {formatMoment(output.occurredAt)}
+                    </p>
+                  </div>
+                  {output.externalUrl ? (
+                    <a
+                      href={output.externalUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1.5 text-xs text-emerald-200/70 hover:text-emerald-200"
+                    >
+                      Evidence link <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] leading-4 text-slate-600">
+              Completion evidence can support bounded capability. It does not score creative quality, originality, mastery, or commercial success.
+            </p>
+          </div>
+        ) : null}
+
         {hasFrontiers ? (
           <div className="mt-4 rounded-xl border border-emerald-300/10 bg-emerald-300/[0.025] p-4">
             <div className="flex items-center gap-2">
@@ -189,12 +236,20 @@ function SkillCard({ skill }: { skill: SkillRead }) {
             </p>
           </div>
         </details>
+
+        <PracticeOutputCapture skill={skill} onSaved={onChanged} />
       </CardContent>
     </Card>
   );
 }
 
-export function SkillsCharacterView({ state }: { state: WayfinderStateRead }) {
+export function SkillsCharacterView({
+  state,
+  onChanged
+}: {
+  state: WayfinderStateRead;
+  onChanged: () => Promise<void>;
+}) {
   const skills = [...state.skills.skills].sort((a, b) => {
     const observedA = a.state === "OBSERVED" ? 0 : 1;
     const observedB = b.state === "OBSERVED" ? 0 : 1;
@@ -250,7 +305,9 @@ export function SkillsCharacterView({ state }: { state: WayfinderStateRead }) {
       </div>
 
       <div className="grid gap-4">
-        {skills.map((skill) => <SkillCard key={skill.skillKey} skill={skill} />)}
+        {skills.map((skill) => (
+          <SkillCard key={skill.skillKey} skill={skill} onChanged={onChanged} />
+        ))}
       </div>
 
       <p className="px-1 text-xs leading-5 text-slate-600">
