@@ -1,6 +1,6 @@
 # Wayfinder Practice Output + Creative Capability v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — MERGE / PRODUCTION GATES PENDING  
+**Status:** MERGED / BACKEND PRODUCTION DEPLOYED / WEB SOURCE GREEN / VERCEL QUOTA-BLOCKED  
 **State contract:** `wayfinder-state.v0.7`  
 **Skills projection:** `skills_v0.4`  
 **Capability provider:** `practice.completed-output-skill-capability-provider.v0.1`
@@ -276,3 +276,43 @@ After production:
 2. verify the Character language feels truthful when Capability becomes EVIDENCED;
 3. decide whether a future creative provider should add stronger evidence classes such as reviewed deliverables, publication, client acceptance, or repeatable objective constraints;
 4. keep all stronger claims layered rather than replacing the bounded completion proof.
+
+
+## Production proof
+
+PR #21 merged at `5076ca9f19b2e9c3b888d4714695a82d17e4a25b`.
+
+```text
+Wayfinder Intelligence CI                  PASS
+Practice Output creative Capability suite  PASS
+Wayfinder Web CI                           PASS
+wayfinder-state                            ACTIVE v9
+state contract                             wayfinder-state.v0.7
+skills projection                          skills_v0.4
+```
+
+Production migration `add_practice_output_capability_v0` is applied as migration version `20260920011830`.
+
+Production security:
+
+```text
+authenticated capture/correct/read   allowed
+anon capture/read                    denied
+public capture/read                  denied
+direct private Output tables         not exposed
+```
+
+The live current-account reads report:
+
+```text
+Music Production completed outputs  0
+Drawing completed outputs           0
+result coverage                      COMPLETE
+epistemic coverage                   UNKNOWN
+```
+
+Therefore both creative Skills now have a configured Capability provider and honestly resolve to `INSUFFICIENT_EVIDENCE` until a player-confirmed completed Output is recorded. This is not a zero-ability claim.
+
+The deployed `wayfinder-state` entrypoint, Skill projection, and projection-provider registry match merge `5076ca9f` byte-for-byte.
+
+The Character source includes explicit Output capture and completed-output evidence rendering. Vercel did not promote PR #21 because the project remains over the free-tier daily deployment quota (`api-deployments-free-per-day`). Backend production is live; browser production promotion is pending quota availability.
