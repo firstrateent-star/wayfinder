@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Practice Output + Creative Capability v0.1  
-**Current phase:** Practice now owns player-confirmed completed Outputs; Skills v0.4 projects bounded creative completion Capability for Music Production and Drawing while preserving Experience, Sharpness, Capability, Growth, and Mastery as separate claims  
+**Current milestone:** Practice Output Lifecycle + Journey v0.2  
+**Current phase:** Practice Outputs are now independently readable, lifecycle-aligned, repairable/rebasable, and visible in Journey v0.2 even when they temporarily stop qualifying for a Skill; the remaining gate is real player validation after Vercel browser promotion  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -24,7 +24,8 @@
 **Skill Capability:** `docs/43-skill-capability-v0.1.md`  
 **Character Skills Surface:** `docs/44-character-skills-surface-v0.1.md`  
 **Practice Output + Creative Capability:** `docs/45-practice-output-creative-capability-v0.1.md`  
-**Latest ADR:** `decisions/ADR-048-practice-output-is-bounded-creative-capability-evidence.md`
+**Practice Output Lifecycle + Journey:** `docs/46-practice-output-lifecycle-journey-v0.1.md`  
+**Latest ADR:** `decisions/ADR-049-practice-output-visibility-is-independent-of-skill-eligibility.md`
 
 ## Non-negotiable direction
 
@@ -55,6 +56,9 @@ Wayfinder is a personal Life OS expressed as a Life RPG. The RPG is a projection
 - Practice owns completed creative Outputs; Skills interpret them rather than owning the canonical fact;
 - a completed Practice Output may evidence bounded completion Capability but not creative quality, originality, commercial success, Mastery, or Skill Level;
 - correcting/reclassifying a source Practice session must never silently move creative Capability between Skills; explicit Output rebase is required;
+- canonical Practice Output visibility is independent of current Skill eligibility;
+- stale source-version lineage can remain usable when the logical session still belongs to the same Practice; Practice mismatch cannot;
+- Journey records Output creation/correction as record-time history and does not invent an exact output completion instant;
 - Sharpness may decay while demonstrated Capability remains evidenced;
 - Character is composed, not a canonical aggregate;
 - equipment modifies effective state, not permanent base mastery;
@@ -701,19 +705,77 @@ Current production has no qualifying loaded-repetition demonstrations and no con
 
 Practice Output is canonical and versioned. Skill Capability remains reconstructable. A source-session Practice reclassification invalidates the Output's Skill contribution until the player explicitly rebases/corrects the Output, preventing silent movement between creative Skill identities.
 
+### Current Practice Output lifecycle + Journey layer
+
+The canonical creative-result loop is now closed through visibility and history:
+
+```text
+PracticeSession
+ -> explicit completed Practice Output
+ -> Skill Capability eligibility
+ -> canonical Output catalog
+ -> correction/rebase when lineage changes
+ -> Journey record + correction history
+```
+
+Authenticated production reads:
+
+```text
+wf_practice_outputs_v0
+wf_journey_v1   -> journey_v0.2
+```
+
+Output alignment is explicit:
+
+```text
+CURRENT
+SOURCE_VERSION_ADVANCED
+PRACTICE_MISMATCH
+SOURCE_SESSION_UNRESOLVED
+SOURCE_SESSION_NOT_ACTIVE
+SOURCE_PRACTICE_NOT_ACTIVE
+RECORDED_PRACTICE_NOT_ACTIVE
+SOURCE_OCCURRENCE_AFTER_AS_OF
+OUTPUT_RETRACTED
+```
+
+A same-Practice source-session correction may advance exact lineage without destroying Capability eligibility. A Practice mismatch remains canonical and visible but is excluded from Skill Capability until an explicit Output correction/rebase.
+
+Journey v0.2 adds:
+
+```text
+PRACTICE_OUTPUT_RECORDED   -> RESULT / RECORDED
+PRACTICE_OUTPUT_CORRECTED  -> CORRECTION / RECORDED
+```
+
+Wayfinder does not fabricate a separate output completion timestamp.
+
+Current live account state:
+
+```text
+canonical Practice Outputs  0
+Output result coverage       COMPLETE
+lived-output coverage        UNKNOWN
+Journey matching items       10
+Journey result coverage      COMPLETE
+```
+
 ### Strongest next build
 
-The next earned frontier is **Practice Output lifecycle visibility and Journey integration**:
+The next earned frontier is **real-player validation of the creative evidence loop**, not another abstract progression layer:
 
-1. add an owner-scoped canonical Practice Output read independent of Skill eligibility;
-2. distinguish CURRENT, STALE_SOURCE_VERSION, PRACTICE_MISMATCH, and RETRACTED/other lifecycle states without deleting history;
-3. let the player find and repair/rebase an Output even when it temporarily contributes to no Skill;
-4. add Practice Output creation/correction to Journey so canonical creative results appear in the one-life-history timeline;
-5. keep Skill Capability derived from only currently usable Output evidence;
-6. promote the merged Character surface when Vercel quota permits and validate the real player flow;
-7. keep Mastery, Skill Level, Role/Class, rankings, and new model-dependent semantic expansion deferred.
+1. promote the merged Character + Journey frontend when Vercel's daily quota resets;
+2. record one real Music Production or Drawing Output through the player-facing command;
+3. verify the loop end-to-end:
+   ```text
+   Practice -> Output -> Capability -> Output catalog -> Journey
+   ```
+4. exercise one real correction/rebase and confirm history stays legible;
+5. use observed friction to refine copy/interaction before adding stronger creative evidence classes;
+6. only after real evidence warrants it, Flower whether reviewed deliverables, client acceptance, publication, or repeatable objective constraints deserve separate Capability evidence classes;
+7. keep Mastery, Skill Level, Role/Class, rankings, challenge multipliers, and model-dependent semantic Output capture deferred.
 
-**Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
+**Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; canonical evidence remains visible even when projection eligibility changes; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
 ## Deferred until earned
 
@@ -968,3 +1030,42 @@ A rollback-backed production-schema proof verified command retry/idempotency, co
 Production execute permissions are authenticated-only; anon/public are denied. The three changed `wayfinder-state` runtime files match merge `5076ca9f` byte-for-byte.
 
 The Character source contains explicit completed-Output capture and completed-output evidence rendering. Web CI is green, but Vercel browser production promotion remains externally blocked by the daily free-tier deployment quota.
+
+
+### Practice Output lifecycle + Journey production closure — 2026-09-19
+
+PR #22 merged at `8787189145b8d05ed572bd7024408417a9fdd9c0`.
+
+```text
+Wayfinder Web CI             PASS
+Wayfinder Intelligence CI    PASS
+rollback lifecycle proof     PASS
+canonical Output read        LIVE
+Journey v0.2                 LIVE
+```
+
+Production migration `add_practice_output_read_and_journey_v0_2` is applied as version `20260920013829`.
+
+The new authenticated-only reads are:
+
+```text
+wf_practice_outputs_v0
+wf_journey_v1
+```
+
+Anon/public execution is denied for both.
+
+The rollback-backed production-schema proof verified:
+
+- CURRENT Output eligibility;
+- same-Practice `SOURCE_VERSION_ADVANCED` remains eligible;
+- Practice reclassification becomes `PRACTICE_MISMATCH` and needs explicit review;
+- mismatch does not silently move Skill Capability;
+- explicit Output rebase restores CURRENT under the new Practice;
+- Journey includes one original Output record plus later Output correction history;
+- result-limit accounting remains correct;
+- all synthetic proof data rolls back.
+
+The real current account has zero canonical Practice Outputs with COMPLETE stored-result coverage and UNKNOWN lived-output coverage. Journey v0.2 currently returns 10 matching recorded timeline items with COMPLETE result coverage.
+
+The Character Output manager and Journey v0.2 UI source are merged and Web CI is green. Vercel production browser promotion remains externally blocked by the free-tier daily deployment quota.
