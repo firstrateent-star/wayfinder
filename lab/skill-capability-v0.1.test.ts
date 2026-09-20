@@ -43,6 +43,42 @@ function capabilityRead(
     demonstrated_exercise_count: 1,
     first_demonstrated_at: "2026-08-01T12:00:00.000Z",
     last_demonstrated_at: "2026-08-22T12:00:00.000Z",
+    performance_model: "LOAD_REPS_PARETO_FRONTIER",
+    load_normalization: {
+      canonical_unit: "KG",
+      quantum_kg: 0.5,
+      kg_per_lb: 0.45359237
+    },
+    exercise_frontiers: [{
+      exercise_key: "barbell_bench_press",
+      exercise_label: "Barbell Bench Press",
+      points: [
+        {
+          reps: 8,
+          load_value: 185,
+          load_unit: "LB",
+          normalized_load_kg: 84,
+          rpe: 8,
+          occurred_at: "2026-08-22T12:00:00.000Z",
+          session_id: "s4",
+          session_version: "s4-v1",
+          set_id: "set-4",
+          matching_observation_count: 1
+        },
+        {
+          reps: 5,
+          load_value: 205,
+          load_unit: "LB",
+          normalized_load_kg: 93,
+          rpe: 9,
+          occurred_at: "2026-08-15T12:00:00.000Z",
+          session_id: "s3",
+          session_version: "s3-v1",
+          set_id: "set-3",
+          matching_observation_count: 1
+        }
+      ]
+    }],
     recent_demonstrations: [{
       session_id: "s4",
       session_version: "s4-v1",
@@ -52,6 +88,7 @@ function capabilityRead(
       reps: 8,
       load_value: 185,
       load_unit: "LB",
+      normalized_load_kg: 84,
       rpe: 8,
       occurred_at: "2026-08-22T12:00:00.000Z"
     }],
@@ -90,6 +127,11 @@ Deno.test("loaded repetitions establish bounded Strength Training Skill Capabili
   assert(skill.capability.demonstrationCount === 3, "exact recorded demonstration count should survive");
   assert(skill.capability.demonstratedSessionCount === 2, "session breadth should survive");
   assert(skill.capability.demonstratedExerciseCount === 1, "exercise breadth should survive");
+  assert(skill.capability.performanceModel === "LOAD_REPS_PARETO_FRONTIER", "capability model should be explicit");
+  assert(skill.capability.frontierPointCount === 2, "both nondominated load/reps tradeoff points should survive");
+  assert(skill.capability.exerciseFrontiers[0].exerciseKey === "barbell_bench_press", "frontier must remain exercise-specific");
+  assert(skill.capability.exerciseFrontiers[0].points.some((point) => point.reps === 8 && point.normalizedLoadKg === 84), "185x8 frontier point should survive");
+  assert(skill.capability.exerciseFrontiers[0].points.some((point) => point.reps === 5 && point.normalizedLoadKg === 93), "205x5 frontier point should survive");
   assert(skill.capability.recentDemonstrations[0].source.type === "exercise_set", "exact set evidence should remain inspectable");
   assert(skill.mastery.state === "NOT_EVALUATED", "capability must not manufacture mastery");
 });
@@ -103,6 +145,7 @@ Deno.test("complete zero loaded demonstrations means insufficient evidence, not 
       demonstrated_exercise_count: 0,
       first_demonstrated_at: null,
       last_demonstrated_at: null,
+      exercise_frontiers: [],
       recent_demonstrations: []
     })
   ).skills[0];
@@ -158,6 +201,7 @@ Deno.test("Experience does not prove Capability when the Capability provider has
       demonstrated_exercise_count: 0,
       first_demonstrated_at: null,
       last_demonstrated_at: null,
+      exercise_frontiers: [],
       recent_demonstrations: []
     })
   ).skills[0];
@@ -229,4 +273,82 @@ Deno.test("orphan Capability provider fails closed", () => {
     threw = cause instanceof Error && cause.message.includes("ORPHAN_SKILL_CAPABILITY_PROVIDER");
   }
   assert(threw, "Capability cannot silently create an unconfigured Skill identity");
+});
+
+
+Deno.test("projection removes dominated points if a malformed provider includes them", () => {
+  const skill = project(
+    experienceRead(),
+    capabilityRead({
+      demonstrated_observation_count: 4,
+      exercise_frontiers: [{
+        exercise_key: "barbell_bench_press",
+        exercise_label: "Barbell Bench Press",
+        points: [
+          {
+            reps: 8,
+            load_value: 185,
+            load_unit: "LB",
+            normalized_load_kg: 84,
+            occurred_at: "2026-08-22T12:00:00.000Z",
+            session_id: "s4",
+            session_version: "s4-v1",
+            set_id: "frontier-a",
+            matching_observation_count: 1
+          },
+          {
+            reps: 5,
+            load_value: 205,
+            load_unit: "LB",
+            normalized_load_kg: 93,
+            occurred_at: "2026-08-15T12:00:00.000Z",
+            session_id: "s3",
+            session_version: "s3-v1",
+            set_id: "frontier-b",
+            matching_observation_count: 1
+          },
+          {
+            reps: 5,
+            load_value: 185,
+            load_unit: "LB",
+            normalized_load_kg: 84,
+            occurred_at: "2026-08-10T12:00:00.000Z",
+            session_id: "s2",
+            session_version: "s2-v1",
+            set_id: "dominated",
+            matching_observation_count: 1
+          }
+        ]
+      }]
+    })
+  ).skills[0];
+
+  const ids = skill.capability.exerciseFrontiers[0].points.map((point) => point.source.id);
+  assert(!ids.includes("dominated"), "dominated load/reps point must not survive the projection boundary");
+  assert(skill.capability.frontierPointCount === 2, "only non-dominated points should count as frontier capability");
+});
+
+Deno.test("positive capability count with missing frontier fails closed to UNKNOWN", () => {
+  const skill = project(
+    experienceRead(),
+    capabilityRead({
+      demonstrated_observation_count: 3,
+      demonstrated_exercise_count: 1,
+      exercise_frontiers: []
+    })
+  ).skills[0];
+
+  assert(skill.capability.state === "UNKNOWN", "positive count without a coherent frontier must fail closed");
+  assert(skill.capability.frontierPointCount === null, "invalid positive capability must not expose a fake frontier count");
+});
+
+Deno.test("frontier exercise count disagreement fails closed", () => {
+  const skill = project(
+    experienceRead(),
+    capabilityRead({
+      demonstrated_exercise_count: 2
+    })
+  ).skills[0];
+
+  assert(skill.capability.state === "UNKNOWN", "aggregate/frontier disagreement must not assert capability");
 });
