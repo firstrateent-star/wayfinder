@@ -84,7 +84,7 @@ Deno.test("Training change invalidates Requirements, Character, Voyage Progressi
 });
 
 
-Deno.test("Practice change invalidates Bearing, Skills, Helm, and Navigator context without mutating Character or Voyage", () => {
+Deno.test("Practice change invalidates Bearing, governed Voyage Progression, Skills, Helm, and Navigator context", () => {
   const plan = planRecomputation(changeRead({
     changes: [{
       id: "33333333-5555-4333-8333-333333333333",
@@ -96,10 +96,10 @@ Deno.test("Practice change invalidates Bearing, Skills, Helm, and Navigator cont
   }));
   assert(plan.invalidated.includes("BEARING"), "Practice remains evidence for Direction Bearing");
   assert(plan.invalidated.includes("SKILLS"), "Practice should invalidate Skill Experience and Sharpness");
+  assert(plan.invalidated.includes("PROGRESSION"), "governed Practice encounters may contribute Voyage XP");
   assert(plan.invalidated.includes("HELM"), "Practice should invalidate Helm composition");
   assert(plan.invalidated.includes("NAVIGATOR_CONTEXT"), "Practice should invalidate Navigator context");
   assert(!plan.invalidated.includes("CHARACTER"), "Practice has no permanent Character provider in this slice");
-  assert(!plan.invalidated.includes("PROGRESSION"), "generic Practice does not automatically award Voyage XP");
   assert(!plan.invalidated.includes("REQUIREMENTS"), "generic Practice has no Requirement provider in this slice");
 });
 
