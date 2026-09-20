@@ -199,6 +199,75 @@ export interface PracticeRead {
   };
 }
 
+export type PracticeOutputAlignmentState =
+  | "CURRENT"
+  | "SOURCE_VERSION_ADVANCED"
+  | "PRACTICE_MISMATCH"
+  | "SOURCE_SESSION_UNRESOLVED"
+  | "SOURCE_SESSION_NOT_ACTIVE"
+  | "SOURCE_PRACTICE_NOT_ACTIVE"
+  | "RECORDED_PRACTICE_NOT_ACTIVE"
+  | "SOURCE_OCCURRENCE_AFTER_AS_OF"
+  | "OUTPUT_RETRACTED";
+
+export interface PracticeOutputCatalogItem {
+  id: string;
+  version: string;
+  version_no: number;
+  output_kind: "COMPLETED_ARTIFACT";
+  title: string;
+  external_url: string | null;
+  lifecycle_status: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+  recorded_at: string;
+  recorded_practice: {
+    id: string;
+    name: string;
+    lifecycle_status: "ACTIVE" | "RETRACTED";
+  };
+  source_session: {
+    id: string;
+    captured_version: string;
+    current_version: string | null;
+    current_lifecycle_status: "ACTIVE" | "SUPERSEDED" | "RETRACTED" | null;
+    current_practice: {
+      id: string;
+      name: string;
+      lifecycle_status: "ACTIVE" | "RETRACTED";
+    } | null;
+    current_occurrence: {
+      from: string;
+      to: string | null;
+      interval_semantics: "POINT" | "[start,end)";
+    } | null;
+    current_focus: string | null;
+  };
+  alignment_state: PracticeOutputAlignmentState;
+  source_version_is_current: boolean;
+  capability_eligible: boolean;
+  needs_attention: boolean;
+  can_rebase: boolean;
+  can_correct: boolean;
+}
+
+export interface PracticeOutputsRead {
+  outputs: PracticeOutputCatalogItem[];
+  returned_count: number;
+  matching_record_count: number;
+  result_coverage: {
+    phenomenon: "current_wayfinder_practice_outputs";
+    completeness: "COMPLETE" | "PARTIAL";
+    reason: "RESULT_LIMIT" | null;
+    evaluated_at: string;
+  };
+  epistemic_coverage: {
+    phenomenon: "completed_outputs_in_lived_reality";
+    source: "wayfinder_practice_output_records";
+    completeness: "UNKNOWN";
+    reason: string;
+  };
+  does_not_assert: string[];
+}
+
 export interface HelmRead {
   projection_type: "helm";
   rule_version: string;
@@ -215,7 +284,7 @@ export interface HelmRead {
   composition_note: string;
 }
 
-export type JourneyLayer = "REALITY" | "DIRECTION" | "EVIDENCE" | "CORRECTION";
+export type JourneyLayer = "REALITY" | "RESULT" | "DIRECTION" | "EVIDENCE" | "CORRECTION";
 export type JourneyTimeBasis = "OCCURRED" | "RECORDED";
 export type JourneyVersionRef = RecordRef & { version: string };
 
@@ -296,6 +365,55 @@ export interface JourneyEvidencePayload {
   };
 }
 
+export interface JourneyPracticeOutputPayload {
+  primary_ref: JourneyVersionRef;
+  output: {
+    kind: "COMPLETED_ARTIFACT";
+    title: string;
+    external_url: string | null;
+    practice: { id: string; name: string };
+    lifecycle_status_of_recorded_version: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+    recorded_at: string;
+  };
+  source_session: {
+    ref: JourneyVersionRef;
+    occurred_from: string;
+    occurred_to: string | null;
+    focus: string | null;
+    is_exact_version_current: boolean;
+  };
+  current_state: {
+    version: string;
+    title: string;
+    external_url: string | null;
+    lifecycle_status: "ACTIVE" | "SUPERSEDED" | "RETRACTED";
+    practice: { id: string; name: string };
+    source_session_version: string;
+    source_session_current_version: string | null;
+    source_session_current_practice: { id: string; name: string } | null;
+  } | null;
+}
+
+export interface JourneyPracticeOutputCorrectionPayload {
+  primary_ref: JourneyVersionRef;
+  previous_ref: JourneyVersionRef;
+  changed_fields: string[];
+  before: {
+    title: string;
+    external_url: string | null;
+    practice: { id: string; name: string };
+    source_session: { id: string; version: string };
+    version_no: number;
+  };
+  after: {
+    title: string;
+    external_url: string | null;
+    practice: { id: string; name: string };
+    source_session: { id: string; version: string };
+    version_no: number;
+  };
+}
+
 export interface JourneyCorrectionPayload {
   primary_ref: JourneyVersionRef;
   previous_ref: JourneyVersionRef;
@@ -329,10 +447,12 @@ interface JourneyItemBase<K extends string, L extends JourneyLayer, T extends Jo
 
 export type JourneyItem =
   | JourneyItemBase<"PRACTICE_SESSION", "REALITY", "OCCURRED", JourneyPracticeSessionPayload>
+  | JourneyItemBase<"PRACTICE_OUTPUT_RECORDED", "RESULT", "RECORDED", JourneyPracticeOutputPayload>
   | JourneyItemBase<"DIRECTION_RECORDED", "DIRECTION", "RECORDED", JourneyDirectionPayload>
   | JourneyItemBase<"DIRECTION_RELATION_RECORDED", "DIRECTION", "RECORDED", JourneyDirectionRelationPayload>
   | JourneyItemBase<"EVIDENCE_RECORDED", "EVIDENCE", "RECORDED", JourneyEvidencePayload>
-  | JourneyItemBase<"PRACTICE_SESSION_CORRECTED", "CORRECTION", "RECORDED", JourneyCorrectionPayload>;
+  | JourneyItemBase<"PRACTICE_SESSION_CORRECTED", "CORRECTION", "RECORDED", JourneyCorrectionPayload>
+  | JourneyItemBase<"PRACTICE_OUTPUT_CORRECTED", "CORRECTION", "RECORDED", JourneyPracticeOutputCorrectionPayload>;
 
 export interface JourneyRead {
   projection_type: "journey";
