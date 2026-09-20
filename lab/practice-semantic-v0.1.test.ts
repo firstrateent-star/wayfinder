@@ -105,7 +105,7 @@ function compilationFor(n: CandidateLifeNode): SemanticCompilation {
   };
 }
 
-Deno.test("Practice semantic contract requires authorization before canonical write", () => {
+Deno.test("Practice semantic contract requires authorization before canonical write", async () => {
   const payload: PracticeSessionCandidatePayload = {
     practiceName: "Music Production",
     occurredFrom: "2026-09-19T18:00:00.000Z",
@@ -123,7 +123,7 @@ Deno.test("Practice semantic contract requires authorization before canonical wr
     payload
   };
 
-  const decision = practiceAdmissionContract.admit(candidate, {
+  const decision = await practiceAdmissionContract.admit(candidate, {
     now: source.receivedAt,
     source: { ...source, interactionIntent: "RECORD", authorizesCanonicalWrite: false }
   });
@@ -132,7 +132,7 @@ Deno.test("Practice semantic contract requires authorization before canonical wr
   assert(!decision.command, "no command should exist before authorization");
 });
 
-Deno.test("authorized Practice semantic contract lowers to existing idempotent Practice command", () => {
+Deno.test("authorized Practice semantic contract lowers to existing idempotent Practice command", async () => {
   const payload: PracticeSessionCandidatePayload = {
     practiceName: "Drawing",
     occurredFrom: "2026-09-19T18:00:00.000Z",
@@ -151,7 +151,7 @@ Deno.test("authorized Practice semantic contract lowers to existing idempotent P
     payload
   };
 
-  const decision = practiceAdmissionContract.admit(candidate, {
+  const decision = await practiceAdmissionContract.admit(candidate, {
     now: source.receivedAt,
     source: { ...source, interactionIntent: "RECORD", authorizesCanonicalWrite: true }
   });
