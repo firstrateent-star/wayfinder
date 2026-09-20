@@ -2,8 +2,8 @@
 
 **Repository:** `firstrateent-star/wayfinder`  
 **Supabase project:** `ngakauhlcmvwnmimtsca`  
-**Current milestone:** Skill Capability v0.1  
-**Current phase:** Skills now separate Experience, Sharpness, and Capability; Strength Training Capability is reconstructed from all-current-history exercise-specific load × reps Pareto frontiers while creative Skills remain capability-unknown until they earn providers  
+**Current milestone:** Character Skills Surface v0.1  
+**Current phase:** The evidence-backed Skill model is now player-facing in merged source: Character can show Experience, Sharpness, and Capability without inventing levels; the backend is live while Vercel production web promotion remains quota-blocked  
 **Current roadmap:** `docs/06-build-roadmap.md` v1.0  
 **Mature architecture:** `docs/18-mature-life-rpg-architecture-v0.2.md`  
 **Knowledge/Inquiry spine:** `docs/21-knowledge-inquiry-and-acquisition-spine-v0.1.md`  
@@ -22,6 +22,7 @@
 **Skill Experience + Sharpness:** `docs/41-skill-experience-sharpness-v0.1.md`  
 **Practice Skill Association:** `docs/42-practice-skill-association-v0.1.md`  
 **Skill Capability:** `docs/43-skill-capability-v0.1.md`  
+**Character Skills Surface:** `docs/44-character-skills-surface-v0.1.md`  
 **Latest ADR:** `decisions/ADR-047-skill-capability-is-demonstrated-evidence.md`
 
 ## Non-negotiable direction
@@ -544,7 +545,7 @@ natural language
  -> ModuleChange outbox
 ```
 
-Production `navigator-chat` is **v23 ACTIVE** with `verify_jwt=true`.
+Production `navigator-chat` is **v24 ACTIVE** with `verify_jwt=true`.
 
 Canonical write-capable Navigator owners:
 
@@ -553,6 +554,8 @@ STRENGTH_TRAINING   -> Training  -> TRAINING_STRENGTH_SESSION
 DIRECTION_INTENT    -> Direction -> DIRECTION_NODE
 SCHEDULE_ALLOCATION -> Schedule  -> SCHEDULE_ALLOCATION
 MEAL / FOOD_INTAKE  -> Nutrition -> NUTRITION_INTAKE
+MUSIC_PRODUCTION /
+DRAWING              -> Practice  -> PRACTICE_SESSION
 ```
 
 Important negative boundaries remain explicit:
@@ -690,14 +693,14 @@ Current production has no qualifying loaded-repetition demonstrations, so Streng
 
 ### Strongest next build
 
-The next earned product frontier is to **surface the trustworthy Skill model to the player without inventing levels**:
+The trustworthy Skill model is now surfaced on the merged Character route. The next earned frontier is **real-player validation plus the next evidence source**, not another invented RPG layer:
 
-1. add a quiet Skills/Character surface that reads the existing `skills_v0.3` projection;
-2. show Experience, Sharpness, Capability state, and evidence lineage in human language;
-3. expose Strength exercise frontiers only when evidence exists;
-4. keep UNKNOWN / UNESTABLISHED states legible instead of filling them with zeros;
-5. avoid Mastery, Skill Level, Role/Class, and rankings until their evidence contracts exist;
-6. leave real-model semantic expansion blocked until the external API-credit gate can execute again.
+1. promote the merged Character surface when the Vercel daily quota resets;
+2. test the page with real current states: Music Production / Drawing Experience, cadence-unestablished Sharpness, and Strength Capability `INSUFFICIENT_EVIDENCE`;
+3. refine copy/layout only from observed player friction, keeping unknown states intact;
+4. choose the first creative Capability provider only when Wayfinder has objective or explicitly authorized output evidence strong enough to support one;
+5. keep Mastery, Skill Level, Role/Class, rankings, and challenge multipliers deferred;
+6. leave new live-model semantic expansion gated until the external OpenAI API-credit gate can execute again.
 
 **Law:** logging earns nothing; governed participation earns Experience; Sharpness describes recency, not ability; evidence reveals Capability; longitudinal evidence establishes Growth; game progression never impersonates canonical life truth.
 
@@ -903,3 +906,19 @@ The actual production read currently contains zero qualifying loaded-repetition 
 The deployed `wayfinder-state` entrypoint, Skill projection, and projection-provider registry match merge `5afdb053` byte-for-byte.
 
 No Skill Level, e1RM, overall-strength score, Mastery score, Role/Class, creative-skill capability inference, or permanent capability ledger was added.
+
+
+### Character Skills Surface merge closure — 2026-09-19
+
+PR #20 merged at `c0cb63bfcc8e3d0dc13b92adbf9beea869d1f129`.
+
+```text
+Wayfinder Web CI      PASS
+Character route       /character
+backend contract      wayfinder-state.v0.6
+backend production    wayfinder-state ACTIVE v8
+```
+
+The surface reads the existing evidence-backed Skill projection and keeps Experience, Sharpness, and Capability visually distinct. It does not introduce Skill Level, Mastery, ratings, or synthetic progress bars. Strength exercise frontiers are only shown when evidence exists; unknown and insufficient-evidence states remain explicit.
+
+The Vercel deployment is externally blocked by the free-tier daily deployment quota (`api-deployments-free-per-day`). Source/build is green; production browser promotion is pending quota availability.
