@@ -87,7 +87,7 @@ export function CharacterPage() {
 
         {state ? (
           <div className={loading ? "opacity-70 transition-opacity" : "transition-opacity"}>
-            <SkillsCharacterView state={state} />
+            <SkillsCharacterView state={state} onChanged={load} />
           </div>
         ) : null}
       </div>
