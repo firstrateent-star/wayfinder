@@ -1,6 +1,6 @@
 # Wayfinder Governed Practice Skill Association v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — CI / LIVE GATES PENDING  
+**Status:** MERGED / PRODUCTION STATE + NAVIGATOR DEPLOYED  
 **Skills projection:** `skills_v0.2`  
 **Practice association provider:** `practice.name-skill-provider.v0.1`
 
@@ -231,9 +231,32 @@ Pressure cases include:
 - canonical write requires staged explicit confirmation;
 - authorized semantic capture reuses the existing Practice command.
 
+## Production proof
+
+PR #17 merged at `e08654098f4c99d20f1dfa0f8645eb91d579309b`; migration syntax follow-up PR #18 merged at corrected checkpoint `c61f081cc857d762d35c411ac55e663b34244cda`.
+
+```text
+Wayfinder Intelligence CI       PASS
+Practice Skill association      PASS
+Semantic Practice               PASS
+Wayfinder Web CI                PASS
+wayfinder-state                 ACTIVE v7
+navigator-chat                  ACTIVE v24
+state contract                  wayfinder-state.v0.5
+skills projection               skills_v0.2
+```
+
+Production migration `add_practice_skill_input_v0` is applied. Its RPC is executable by authenticated users and denied to anon/public.
+
+The changed deployed state and Navigator runtime files were verified byte-for-byte against corrected main `c61f081c`.
+
+Existing production reality already yields one recorded encounter for `creative.music_production` and one for `creative.drawing`. Both therefore remain recency-only / cadence-unestablished until additional temporal evidence exists.
+
+The real-model Semantic Live Eval is **not green** because the configured OpenAI API account returned HTTP 429 `no credits remaining` for every scenario before inference. This is recorded as an unexecuted external gate, not a semantic-model pass or a semantic-model failure.
+
 ## Deferred next frontier
 
-Once live:
+With the deterministic production slice live:
 
 1. run real-model semantic tests for natural Music Production / Drawing phrasing;
 2. add one governed semantic-to-Skill association proposal review path for unregistered skills;
