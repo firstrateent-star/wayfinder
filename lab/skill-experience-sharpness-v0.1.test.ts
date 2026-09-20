@@ -41,7 +41,7 @@ Deno.test("governed strength encounters produce one stable Strength Training Ski
   const result = project();
   const skill = result.skills[0];
 
-  assert(result.rule_version === "skills_v0.2", "expected generalized Skill projection rule version");
+  assert(result.rule_version === "skills_v0.3", "expected generalized Skill projection rule version");
   assert(result.configured_skill_count === 1, "single provider should configure one skill");
   assert(skill.skillKey === "physical.strength_training", "skill identity should be stable and namespaced");
   assert(skill.association.mode === "DETERMINISTIC_DOMAIN", "Training association should be deterministic");
