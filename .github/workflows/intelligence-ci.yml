@@ -31,6 +31,7 @@ on:
       - "lab/might-growth-evidence-v0.1.test.ts"
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
+      - "lab/skill-capability-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
       - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
@@ -64,6 +65,7 @@ on:
       - "lab/might-growth-evidence-v0.1.test.ts"
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
+      - "lab/skill-capability-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
       - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
@@ -137,6 +139,8 @@ jobs:
         run: deno test lab/voyage-progression-v0.1.test.ts
       - name: Run Skill Experience + Sharpness tests
         run: deno test lab/skill-experience-sharpness-v0.1.test.ts
+      - name: Run Skill Capability tests
+        run: deno test lab/skill-capability-v0.1.test.ts
       - name: Run Practice Skill association tests
         run: deno test lab/skill-association-practice-v0.1.test.ts
       - name: Run semantic Practice tests
