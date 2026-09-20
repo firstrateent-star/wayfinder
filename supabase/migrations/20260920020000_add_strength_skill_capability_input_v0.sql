@@ -60,7 +60,7 @@ begin
     where s.owner_id = v_owner
       and sv.lifecycle_status = 'ACTIVE'
       and sv.session_kind = 'STRENGTH'
-      and pg_catalog.coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
+      and coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
       and es.exercise_key is not null
       and pg_catalog.btrim(es.exercise_key) <> ''
       and es.exercise_label is not null
@@ -115,7 +115,7 @@ begin
     where s.owner_id = v_owner
       and sv.lifecycle_status = 'ACTIVE'
       and sv.session_kind = 'STRENGTH'
-      and pg_catalog.coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
+      and coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
       and es.exercise_key is not null
       and pg_catalog.btrim(es.exercise_key) <> ''
       and es.exercise_label is not null
@@ -183,7 +183,7 @@ begin
     from frontier
     group by exercise_key
   )
-  select pg_catalog.coalesce(
+  select coalesce(
     pg_catalog.jsonb_agg(
       pg_catalog.jsonb_build_object(
         'exercise_key', exercise_key,
@@ -197,7 +197,7 @@ begin
   into v_frontiers
   from grouped;
 
-  select pg_catalog.coalesce(
+  select coalesce(
     pg_catalog.jsonb_agg(x.payload order by x.occurred_from desc, x.session_id, x.set_id),
     '[]'::jsonb
   )
@@ -238,7 +238,7 @@ begin
     where s.owner_id = v_owner
       and sv.lifecycle_status = 'ACTIVE'
       and sv.session_kind = 'STRENGTH'
-      and pg_catalog.coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
+      and coalesce(sv.occurred_to, sv.occurred_from) <= p_as_of
       and es.exercise_key is not null
       and pg_catalog.btrim(es.exercise_key) <> ''
       and es.exercise_label is not null
