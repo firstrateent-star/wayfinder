@@ -1,6 +1,6 @@
 # Wayfinder Practice Output Lifecycle + Journey v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — MERGE / PRODUCTION GATES PENDING  
+**Status:** MERGED / DATABASE PRODUCTION DEPLOYED / WEB SOURCE GREEN / VERCEL QUOTA-BLOCKED  
 **Canonical read:** `wf_practice_outputs_v0`  
 **Journey read:** `wf_journey_v1`  
 **Journey rule:** `journey_v0.2`
@@ -240,3 +240,53 @@ After production, the immediate value test is to use the actual Character Output
 5. correct/rebase it and verify the historical transition remains legible.
 
 Only after that should Wayfinder decide whether stronger creative evidence classes are worth adding.
+
+
+## Production closure
+
+PR #22 merged at `8787189145b8d05ed572bd7024408417a9fdd9c0`.
+
+```text
+Wayfinder Web CI          PASS
+Wayfinder Intelligence CI PASS
+rollback lifecycle proof  PASS
+Journey rule              journey_v0.2
+```
+
+Production migration:
+
+```text
+version  20260920013829
+name     add_practice_output_read_and_journey_v0_2
+```
+
+Live permission boundary:
+
+```text
+wf_practice_outputs_v0
+  authenticated  execute
+  anon           denied
+  public         denied
+
+wf_journey_v1
+  authenticated  execute
+  anon           denied
+  public         denied
+```
+
+The real current account returns:
+
+```text
+canonical Practice Outputs  0
+Output read coverage         COMPLETE
+lived-output coverage        UNKNOWN
+
+Journey v0.2
+returned items               10
+matching items               10
+result coverage              COMPLETE
+```
+
+No synthetic records remain from the rollback proof.
+
+The merged Character/Journey web source is green. Vercel again declined production browser promotion because the free-tier daily deployment quota is still exhausted (`api-deployments-free-per-day`). This is an external hosting limit, not a code or data-layer failure.
