@@ -252,3 +252,40 @@ export async function attachFulfillmentEvidence(input: {
     p_reason: input.reason ?? null
   });
 }
+
+
+export async function capturePracticeOutput(input: {
+  sourceSessionId: string;
+  sourceSessionVersionId: string;
+  title: string;
+  outputKind?: "COMPLETED_ARTIFACT";
+  externalUrl?: string | null;
+  commandId?: string;
+}): Promise<CommandResponse> {
+  return rpc<CommandResponse>("wf_practice_capture_output", {
+    p_command_id: input.commandId ?? commandId(),
+    p_source_session_id: input.sourceSessionId,
+    p_source_session_version_id: input.sourceSessionVersionId,
+    p_title: input.title,
+    p_output_kind: input.outputKind ?? "COMPLETED_ARTIFACT",
+    p_external_url: input.externalUrl ?? null
+  });
+}
+
+export async function correctPracticeOutput(input: {
+  outputId: string;
+  expectedVersionId: string;
+  sourceSessionVersionId: string;
+  title: string;
+  externalUrl?: string | null;
+  commandId?: string;
+}): Promise<CommandResponse> {
+  return rpc<CommandResponse>("wf_practice_correct_output", {
+    p_command_id: input.commandId ?? commandId(),
+    p_output_id: input.outputId,
+    p_expected_version_id: input.expectedVersionId,
+    p_source_session_version_id: input.sourceSessionVersionId,
+    p_title: input.title,
+    p_external_url: input.externalUrl ?? null
+  });
+}

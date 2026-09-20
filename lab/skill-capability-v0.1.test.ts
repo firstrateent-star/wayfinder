@@ -120,7 +120,7 @@ Deno.test("loaded repetitions establish bounded Strength Training Skill Capabili
   const result = project();
   const skill = result.skills[0];
 
-  assert(result.rule_version === "skills_v0.3", "Capability slice should advance the Skills rule version");
+  assert(result.rule_version === "skills_v0.4", "Capability slice should advance the Skills rule version");
   assert(skill.capability.state === "EVIDENCED", "valid loaded repetition should evidence capability");
   assert(skill.capability.providerId === "training.strength-skill-capability-provider.v0.1", "capability lineage should name its own provider");
   assert(skill.capability.evidenceClass === "LOADED_REPETITION_DEMONSTRATION", "capability evidence class should be explicit");

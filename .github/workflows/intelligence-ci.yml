@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "supabase/functions/_shared/intelligence/**"
+      - "supabase/migrations/**"
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
@@ -32,6 +33,7 @@ on:
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
       - "lab/skill-capability-v0.1.test.ts"
+      - "lab/practice-output-capability-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
       - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
@@ -39,6 +41,7 @@ on:
   pull_request:
     paths:
       - "supabase/functions/_shared/intelligence/**"
+      - "supabase/migrations/**"
       - "supabase/functions/birth-context/**"
       - "supabase/functions/natal-geometry/**"
       - "supabase/functions/initial-position/**"
@@ -66,6 +69,7 @@ on:
       - "lab/voyage-progression-v0.1.test.ts"
       - "lab/skill-experience-sharpness-v0.1.test.ts"
       - "lab/skill-capability-v0.1.test.ts"
+      - "lab/practice-output-capability-v0.1.test.ts"
       - "lab/skill-association-practice-v0.1.test.ts"
       - "lab/practice-semantic-v0.1.test.ts"
       - "lab/domain-standards-v0.1.test.ts"
@@ -141,6 +145,8 @@ jobs:
         run: deno test lab/skill-experience-sharpness-v0.1.test.ts
       - name: Run Skill Capability tests
         run: deno test lab/skill-capability-v0.1.test.ts
+      - name: Run Practice Output creative Capability tests
+        run: deno test lab/practice-output-capability-v0.1.test.ts
       - name: Run Practice Skill association tests
         run: deno test lab/skill-association-practice-v0.1.test.ts
       - name: Run semantic Practice tests
