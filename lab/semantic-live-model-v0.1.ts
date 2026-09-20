@@ -176,6 +176,52 @@ const scenarios: Scenario[] = [
     }
   },
   {
+    id: "occurred-music-production-routes-practice",
+    text: "I worked on music production from 2 to 3 PM today.",
+    evaluate: (result) => {
+      const practice = find(result, "MUSIC_PRODUCTION");
+      const findings: Finding[] = [];
+      if (!practice) return [loss("MUSIC_PRODUCTION_MISSED", "Explicit Music Production practice was not represented.")];
+      if (practice.subject.kind !== "SELF") findings.push(distortion("MUSIC_PRODUCTION_SUBJECT", "Player practice must remain SELF."));
+      if (practice.realityMode !== "OCCURRED") findings.push(distortion("MUSIC_PRODUCTION_REALITY", "Completed practice must remain OCCURRED."));
+      if (!practice.temporal?.interval?.from || !practice.temporal?.interval?.to) {
+        findings.push(loss("MUSIC_PRODUCTION_INTERVAL_MISSED", "Explicit 2-to-3 PM interval was not preserved."));
+      }
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) =>
+        proposal.candidateId === practice.candidateId &&
+        proposal.owner === "practice" &&
+        proposal.claimType === "PRACTICE_SESSION"
+      )) {
+        findings.push(loss("MUSIC_PRODUCTION_NOT_ADMISSIBLE", "Occurred Music Production did not reach the Practice owner."));
+      }
+      return findings;
+    }
+  },
+  {
+    id: "occurred-drawing-routes-practice",
+    text: "I drew from 7 to 7:30 PM today.",
+    evaluate: (result) => {
+      const practice = find(result, "DRAWING");
+      const findings: Finding[] = [];
+      if (!practice) return [loss("DRAWING_MISSED", "Explicit Drawing practice was not represented.")];
+      if (practice.subject.kind !== "SELF") findings.push(distortion("DRAWING_SUBJECT", "Player Drawing practice must remain SELF."));
+      if (practice.realityMode !== "OCCURRED") findings.push(distortion("DRAWING_REALITY", "Completed Drawing practice must remain OCCURRED."));
+      if (!practice.temporal?.interval?.from || !practice.temporal?.interval?.to) {
+        findings.push(loss("DRAWING_INTERVAL_MISSED", "Explicit drawing interval was not preserved."));
+      }
+      const plan = admissionPlan(result);
+      if (!plan.proposals.some((proposal) =>
+        proposal.candidateId === practice.candidateId &&
+        proposal.owner === "practice" &&
+        proposal.claimType === "PRACTICE_SESSION"
+      )) {
+        findings.push(loss("DRAWING_NOT_ADMISSIBLE", "Occurred Drawing did not reach the Practice owner."));
+      }
+      return findings;
+    }
+  },
+  {
     id: "occurred-run",
     text: "I ran today.",
     evaluate: (result) => {
