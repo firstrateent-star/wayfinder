@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Compass, LogOut, RefreshCw, Target } from "lucide-react";
+import { CalendarDays, Compass, LogOut, RefreshCw, Target, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NavigatorChat } from "@/features/navigator/NavigatorChat";
 import { nextLocalDayScope } from "@/lib/position-api";
@@ -79,10 +80,18 @@ export function HelmPage() {
             </div>
           </div>
 
-          <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" asChild>
+              <Link to="/character">
+                <UserRound className="mr-2 h-4 w-4" />
+                Character
+              </Link>
+            </Button>
+            <Button variant="ghost" onClick={() => void supabase.auth.signOut()}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </Button>
+          </div>
         </header>
 
         <section className="mx-auto w-full max-w-3xl py-10 sm:py-14">
