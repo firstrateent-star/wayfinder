@@ -1,6 +1,6 @@
 # Wayfinder Skill Experience + Sharpness v0.1
 
-**Status:** IMPLEMENTED ON BRANCH — CI / LIVE DATABASE GATES PENDING  
+**Status:** MERGED / PRODUCTION STATE DEPLOYED  
 **Projection:** `skills_v0.1`  
 **First Skill:** `physical.strength_training`  
 **Provider:** `training.strength-skill-provider.v0.1`
@@ -271,9 +271,28 @@ Pressure cases cover:
 - incomplete cadence basis fails closed;
 - non-Strength rows cannot contribute.
 
+## Production proof
+
+PR #16 merged at `5428b7ec0f2feb8a8303b398843d535b5744fc36`.
+
+```text
+Wayfinder Intelligence CI            PASS
+Skill Experience + Sharpness suite   PASS
+Wayfinder Web CI                     PASS
+wayfinder-state                      ACTIVE v6
+state contract                       wayfinder-state.v0.4
+skills projection                    skills_v0.1
+```
+
+Production migration `add_strength_skill_experience_input_v0` is applied. The authenticated read boundary exists, authenticated may execute it, and anon/public may not.
+
+The deployed `wayfinder-state` entrypoint, recomputation planner, projection-provider registry, and `skill-projection.ts` match merge `5428b7ec` byte-for-byte.
+
+This slice exposes Skills in the backend state contract. It does not yet add a dedicated player-facing Skill card or screen.
+
 ## Deferred next petals
 
-After v0.1 survives production:
+With v0.1 live:
 
 1. add a Skill Association contract that can accept deterministic and governed semantic associations;
 2. pressure-test one non-Training skill from Practice before creating any universal taxonomy;
