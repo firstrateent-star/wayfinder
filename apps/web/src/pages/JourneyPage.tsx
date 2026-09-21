@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Compass, LogOut, RefreshCw, Route } from "lucide-react";
+import { Compass, LogOut, RefreshCw, Route, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { JourneyView } from "@/features/journey/JourneyView";
@@ -59,6 +59,11 @@ export function JourneyPage() {
             <Button variant="ghost" asChild>
               <Link to="/helm">
                 <Compass className="mr-2 h-4 w-4" /> Helm
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/character">
+                <UserRound className="mr-2 h-4 w-4" /> Character
               </Link>
             </Button>
             <Button variant="ghost" onClick={() => void load()} disabled={loading}>
